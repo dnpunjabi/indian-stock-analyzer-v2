@@ -42,9 +42,11 @@ graph TD
 | :--- | :--- | :--- | :--- | :--- |
 | **Multi-Agent Research Suite** | `yfinance` & `Screener.in` | Blends structural fundamentals, technical momentum, and intrinsic value indicators into a dynamic **AI Advisory Score (0-100)**. | Delivers a hyper-personalized investment prospectus custom-tailored to the user's active investor profile. | **Real-time on-demand** (Write-through caching updates database instantly). |
 | **Historical P/E Bands (3-5Y)** | `yfinance` 5-year monthly prices & TTM Consolidated EPS | Sorts 60 months of historical P/E multiples ($Price_t / EPS_t$) to extract the absolute Min, Max, and chronological Median. | Prevents Standalone vs. Consolidated mismatches; isolates true premium or discount relative to historical norms. | **24-hour cache lifespan** (Incremental background refreshes). |
+| **Self-Healing Valuation Engine** | `yfinance` Trailing EPS & Scraped Screener Cards | Cross-validates scraped P/E against real-time derived P/E: $\text{Price} / \text{TTM\_EPS}$. Triggers overrides on anomalies (discrepancy $> 50$ or P/E $> 300$). | Bypasses corrupted external datasets automatically (e.g. self-heals `GVT&D.NS` / GE Vernova T&D P/E from outdated `706` to true `106.4`). | **Automatic on-load** (Self-heals cached profiles during cache-misses). |
 | **AI Stock Screener** | Persistent SQLite `screener_universe` and `cached_profiles` | Filters active index constituents against **dynamic quality gates** (Debt/Equity, ROE%, promoter pledge, EPS growth). | Customizes universe scans instantly; Conservative profile tightens gates while Aggressive profile rewards high growth. | **Sub-millisecond execution** (Leverages persistent SQLite cache). |
+| **Fully Real-Time Alert Engine** | SQLite active triggers & real-time scanner | Constant silent background sweeps auditing conditions ($Price > SMA_{200}$ or $RSI_{14} \le 30$) in the background. | Emits Web Audio API synthesized double-beeps (`880Hz` -> `1200Hz`) and increments header bell badge counts in real-time. | **Continuous background loop** (Active polling every 30 seconds). |
 | **Index Explorer** | NSE India official CSV constituent listings | Direct fetch & download of official Nifty 100, Midcap 150, and Smallcap 250 baskets. | Provides complete visibility over index caching status (`WARMED 🟢` or `COLD ⚪`) with 1-click deep research. | **Manual Sync** or **On-Start Auto-Rebalance** (10-second initial boot delay). |
-| **Alerts Center** | SQLite persistent schemas | Continuous background evaluation of active conditions ($Price > SMA_{200}$ or $RSI_{14} \le 30$). | Automated risk and threshold tracking; alerts trigger success indicators and persist in the database. | **Background sweeps** via active checking loops. |
+| **Bloomberg-Style Sub-Tabs** | Dynamic client DOM controller | Groups 21 dashboard cards into 6 sub-tabs, firing window resize events on toggles to trigger synchronous Chart.js redraws. | Maximizes visual hierarchy, saving vertical scroll space; keeps charts responsive and scaled correctly to their containers. | **Instantaneous** (Client-side interactive toggles). |
 
 ---
 
@@ -65,7 +67,24 @@ Our engine resolves this by:
 1.  **Chronological EPS Mapping**: Dropping `NaN` filings and chronological sorting of valid historical EPS points.
 2.  **Bridging the Gap**: Appending `yfinance` `trailingEps` to represent the most recent rolling 12-month period.
 3.  **CAGR Discounting Fallback**: If no historical EPS is found, the engine reconstructs the previous 5 years by discounting today's trailing EPS backward using a realistic 12% annual equity growth rate ($\text{historical\_eps} = \text{trailing\_eps} \times 0.88^i$).
-4.  **Consolidated Value Lock**: The main stock P/E is overridden with the latest P/E in the consolidated history list, preventing Standalone vs. Consolidated mismatches (e.g., for stocks like JSW Energy).
+4.  **Consolidated Value Lock**: The main stock P/E is overridden with the latest P/E in the consolidated history list, preventing Standalone vs. Consolidated mismatches (e.g., for JSW Energy).
+
+### 3. Dynamic Self-Healing Valuation Engine
+To prevent external data corruption or lag (for instance, **Screener.in** listing an outdated Standalone P/E of **706** for `GVT&D.NS` / GE Vernova T&D India Ltd), the backend applies an automated self-healing validation gate:
+$$\text{Derived P/E} = \frac{\text{Current Price}}{\text{TTM Trailing EPS}}$$
+*   **Discrepancy Check**: If $|\text{Scraped P/E} - \text{yfinance Trailing P/E}| > 50$, the system automatically overrides the P/E with the verified yfinance trailing multiple.
+*   **Outlier Cap**: If $\text{Scraped P/E} > 300$ and $\text{Derived P/E} < 150$, the scraped outlier is flagged as corrupted and healed instantly to the derived P/E.
+
+### 4. Fully Real-Time Alert Engine & Audio Cues
+Alert rule auditing operates as a real-time background loop:
+*   **Silent Background Polling**: A client-side worker polls `/api/alerts/check` every 30 seconds.
+*   **Audible Alerts**: Breached thresholds trigger a synthesized dual-tone double-beep (`880Hz` for 150ms -> `1200Hz` for 150ms) using the native browser **Web Audio API** (avoiding external audio asset files and respecting the user's settings menu toggle).
+*   **Dynamic Notification Sync**: Breached alerts automatically increment the sticky header's notifications count badge, inject red-badged (`TRIGGERED`) alert summaries into the header dropdown panel, and refresh the active logs table in real-time.
+
+### 5. Bloomberg-Style Sub-Tabs & Accordion Scaling
+To maximize layout efficiency, the single-stock dashboard divides its 21 analysis cards into 6 sub-tabs:
+*   **Layout Compression**: Below the sticky header, a premium glassmorphic accordion toggle (**`⚙️ CONFIGURE PDF REPORT SECTIONS ▼`**) collapses the 11-checkbox print filter panel smoothly using CSS transitions (`max-height 0.3s ease-out`), saving vertical workspace space by default.
+*   **Chart.js Active-Scaling Hook**: Switching tabs strips `.card-hidden` from active elements and triggers a global `window.dispatchEvent(new Event('resize'))` alongside synchronous Chart.js `.resize()` and `.update()` calls. This forces all hidden price curves, Fibonacci ranges, and drawdown indicators to instantly scale and draw pixel-perfect layouts when brought into view.
 
 ---
 
