@@ -1971,9 +1971,9 @@ async function fetchAndRenderChart() {
         const isRSChecked = document.getElementById('toggle-rs')?.checked ?? false;
         let response;
         if (isRSChecked) {
-            response = await fetch(`/api/relative-strength?symbol=${ticker}&period=${period}`);
+            response = await fetch(`/api/relative-strength?symbol=${encodeURIComponent(ticker)}&period=${period}`);
         } else {
-            response = await fetch(`/api/chart?ticker=${ticker}&period=${period}&interval=${interval}`);
+            response = await fetch(`/api/chart?ticker=${encodeURIComponent(ticker)}&period=${period}&interval=${interval}`);
         }
         if (!response.ok) throw new Error("Price series could not be retrieved.");
         const chartData = await response.json();
@@ -5847,7 +5847,7 @@ async function loadDrawdownChart(ticker, period) {
     if (!container) return;
     
     try {
-        const response = await fetch(`/api/drawdown?symbol=${ticker}&period=${period}`);
+        const response = await fetch(`/api/drawdown?symbol=${encodeURIComponent(ticker)}&period=${period}`);
         if (!response.ok) throw new Error();
         const data = await response.json();
         
@@ -6243,7 +6243,7 @@ function setupReturnCalculator() {
             
             try {
                 runBtn.innerText = 'Calculating...';
-                const response = await fetch(`/api/returns?symbol=${symbol}&amount=${amountVal}&date_y=${date}&type=${selectedReturnCalcType}&sip_monthly=${sipVal}`);
+                const response = await fetch(`/api/returns?symbol=${encodeURIComponent(symbol)}&amount=${amountVal}&date_y=${date}&type=${selectedReturnCalcType}&sip_monthly=${sipVal}`);
                 if (!response.ok) throw new Error("Calculation failed");
                 const data = await response.json();
                 
