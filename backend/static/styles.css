@@ -3226,15 +3226,41 @@ input[type="range"]::-webkit-slider-thumb:hover {
 }
 
 /* Mobile Printing Viewport Overrides */
-#mobile-print-iframe {
+#mobile-print-wrapper {
+    display: none;
+}
+
+body.is-printing-mobile #mobile-print-wrapper {
+    display: block !important;
     position: fixed !important;
     left: 0 !important;
     top: 0 !important;
     width: 100vw !important;
     height: 100vh !important;
-    border: none !important;
-    z-index: 999999 !important;
+    z-index: 9999999 !important;
     background: #ffffff !important;
+    color: #111827 !important;
+    overflow-y: auto !important;
+    padding: 20px !important;
+    box-sizing: border-box !important;
 }
+
+@media print {
+    body.is-printing-mobile > *:not(#mobile-print-wrapper) {
+        display: none !important;
+    }
+    body.is-printing-mobile .app-container,
+    body.is-printing-mobile .mobile-header,
+    body.is-printing-mobile .chat-drawer-container,
+    body.is-printing-mobile #toast-container {
+        display: none !important;
+    }
+    body.is-printing-mobile #mobile-print-wrapper {
+        display: block !important;
+        background: #ffffff !important;
+        color: #111827 !important;
+    }
+}
+
 
 

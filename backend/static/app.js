@@ -4704,58 +4704,48 @@ function executeSystemPrint(printContent, customFeatures = 'width=850,height=900
         printWindow.document.write(printContent);
         printWindow.document.close();
     } else {
-        // Mobile Workflow: Fullscreen isolated iframe to prevent style bleed
+        // Mobile Workflow: Direct parent window print-swap to ensure Chrome/Brave spooler execution
         showToast("Generating mobile print report...", "success");
         
         let mobileContent = printContent;
         // Strip out autostart print scripts to prevent the parent tab from attempting window.close()
         mobileContent = mobileContent.replace(/<script>[\s\S]*?<\/script>/gi, '');
         
-        // 1. Create and style iframe overlay to guarantee absolute isolation
-        const iframe = document.createElement('iframe');
-        iframe.id = 'mobile-print-iframe';
-        iframe.style.position = 'fixed';
-        iframe.style.left = '0';
-        iframe.style.top = '0';
-        iframe.style.width = '100vw';
-        iframe.style.height = '100vh';
-        iframe.style.border = 'none';
-        iframe.style.zIndex = '999999';
-        iframe.style.background = '#ffffff';
+        // 1. Dynamic Title/Filename extraction from HTML title tag
+        const titleMatch = printContent.match(/<title>(.*?)<\/title>/i);
+        const reportTitle = titleMatch ? titleMatch[1] : "Apex_Agentic_Report";
+        const originalTitle = document.title;
+        document.title = reportTitle;
         
-        document.body.appendChild(iframe);
+        // 2. Clear any existing mobile print container
+        const oldWrapper = document.getElementById('mobile-print-wrapper');
+        if (oldWrapper) oldWrapper.remove();
         
-        // 2. Write the content to the iframe document
-        const iframeDoc = iframe.contentWindow.document || iframe.contentDocument;
-        iframeDoc.open();
-        iframeDoc.write(mobileContent);
-        iframeDoc.close();
+        // 3. Create full-screen swap overlay container
+        const wrapper = document.createElement('div');
+        wrapper.id = 'mobile-print-wrapper';
+        wrapper.innerHTML = mobileContent;
+        document.body.appendChild(wrapper);
         
-        // 3. Trigger native printing on the iframe window
+        // 4. Set printing active state triggers
+        document.body.classList.add('is-printing-mobile');
+        
+        // 5. Fire native print dialog directly on main window (universally supported)
         setTimeout(() => {
-            try {
-                iframe.contentWindow.focus();
-                iframe.contentWindow.print();
-            } catch (e) {
-                console.error("Iframe print failed, falling back to main print:", e);
-                window.print();
-            }
+            window.print();
         }, 500);
         
-        // 4. Register cleanup on print dialog close
+        // 6. Graceful cleanup and workspace restoration loops
         const cleanup = () => {
-            const el = document.getElementById('mobile-print-iframe');
+            document.body.classList.remove('is-printing-mobile');
+            document.title = originalTitle;
+            const el = document.getElementById('mobile-print-wrapper');
             if (el) el.remove();
         };
         
         window.addEventListener('afterprint', cleanup, { once: true });
-        try {
-            iframe.contentWindow.addEventListener('afterprint', cleanup, { once: true });
-        } catch (e) {
-            console.error("Error binding afterprint to iframe:", e);
-        }
         // Fail-safe cleanup backup
-        setTimeout(cleanup, 15000);
+        setTimeout(cleanup, 12000);
     }
 }
 
