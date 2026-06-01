@@ -3126,6 +3126,25 @@ input[type="range"]::-webkit-slider-thumb:hover {
 }
 
 /* ==================== LIGHT THEME ACCESSIBILITY OVERRIDES ==================== */
+[data-theme="light"] body {
+    background-color: var(--bg-main) !important;
+}
+
+[data-theme="light"] .mobile-header {
+    background-color: var(--bg-sidebar) !important;
+    border-bottom: 1px solid var(--border-glass) !important;
+}
+
+[data-theme="light"] .sidebar {
+    background-color: var(--bg-sidebar) !important;
+    border-right: 1px solid var(--border-glass) !important;
+}
+
+[data-theme="light"] .primary-card {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(243, 244, 246, 0.85)) !important;
+    border-color: rgba(0, 0, 0, 0.1) !important;
+}
+
 [data-theme="light"] .stock-meta-banner {
     background: linear-gradient(90deg, rgba(255, 255, 255, 0.95), rgba(243, 244, 246, 0.85)) !important;
     border-color: rgba(0, 0, 0, 0.1) !important;
