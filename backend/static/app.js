@@ -3192,12 +3192,6 @@ function setupChatDrawer() {
             
             const synthesisHTML = document.getElementById('synthesis-report-text')?.innerHTML || '';
 
-            const printWindow = window.open('', '_blank', 'width=850,height=900');
-            if (!printWindow) {
-                showToast("Popup blocked! Please allow popups for this site to print the prospectus.", "error");
-                return;
-            }
-
             const today = new Date().toLocaleDateString('en-IN', {
                 day: '2-digit',
                 month: 'long',
@@ -3549,8 +3543,7 @@ function setupChatDrawer() {
 </html>
             `;
 
-            printWindow.document.write(printContent);
-            printWindow.document.close();
+            executeSystemPrint(printContent);
         });
     }
 }
@@ -4700,6 +4693,54 @@ function showToast(message, type = 'info') {
             setTimeout(() => toast.remove(), 300);
         }
     }, 5000);
+}
+
+// Universal Printing Engine (Desktop & Mobile compatibility)
+function executeSystemPrint(printContent) {
+    const isMobile = window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    if (!isMobile) {
+        // Desktop Workflow: Spawn a custom pop-up window
+        const printWindow = window.open('', '_blank', 'width=850,height=900');
+        if (!printWindow) {
+            showToast("Popup blocked! Please allow popups for this site to print.", "error");
+            return;
+        }
+        printWindow.document.write(printContent);
+        printWindow.document.close();
+    } else {
+        // Mobile Workflow: Inline fullscreen print container with automated cleanup on afterprint
+        showToast("Generating mobile print prospectus...", "success");
+        
+        let mobileContent = printContent;
+        // Strip out autostart print scripts to prevent the parent tab from attempting window.close()
+        mobileContent = mobileContent.replace(/<script>[\s\S]*?<\/script>/gi, '');
+        
+        // 1. Create and populate wrapper element
+        const wrapper = document.createElement('div');
+        wrapper.id = 'mobile-print-wrapper';
+        wrapper.innerHTML = mobileContent;
+        document.body.appendChild(wrapper);
+        
+        // 2. Add print mode class to body
+        document.body.classList.add('is-printing-mobile');
+        
+        // 3. Trigger native printing on the parent window (supported on Android/iOS)
+        setTimeout(() => {
+            window.print();
+        }, 400);
+        
+        // 4. Register cleanup on print dialog close
+        const cleanup = () => {
+            document.body.classList.remove('is-printing-mobile');
+            const el = document.getElementById('mobile-print-wrapper');
+            if (el) el.remove();
+        };
+        
+        window.addEventListener('afterprint', cleanup, { once: true });
+        // Fail-safe cleanup backup
+        setTimeout(cleanup, 12000);
+    }
 }
 
 // Dark/Light Theme Handler
