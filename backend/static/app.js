@@ -4714,8 +4714,10 @@ function executeSystemPrint(printContent, customFeatures = 'width=850,height=900
         // 1. Dynamic Title/Filename extraction from HTML title tag
         const titleMatch = printContent.match(/<title>(.*?)<\/title>/i);
         const reportTitle = titleMatch ? titleMatch[1] : "Apex_Agentic_Report";
+        // Sanitize brackets and dashes to prevent Firefox/Chrome Android spooler fallback to "firefox"
+        const sanitizedTitle = reportTitle.replace(/[()\[\]\-]/g, ' ').trim().replace(/\s+/g, ' ');
         const originalTitle = document.title;
-        document.title = reportTitle;
+        document.title = sanitizedTitle;
         
         // 2. Clear any existing mobile print container
         const oldWrapper = document.getElementById('mobile-print-wrapper');
@@ -4731,21 +4733,29 @@ function executeSystemPrint(printContent, customFeatures = 'width=850,height=900
         document.body.classList.add('is-printing-mobile');
         
         // 5. Fire native print dialog directly on main window (universally supported)
+        // Set a 800ms delay to allow the mobile OS to fully synchronize the document title
         setTimeout(() => {
             window.print();
-        }, 500);
+        }, 800);
         
         // 6. Graceful cleanup and workspace restoration loops
         const cleanup = () => {
-            document.body.classList.remove('is-printing-mobile');
-            document.title = originalTitle;
-            const el = document.getElementById('mobile-print-wrapper');
-            if (el) el.remove();
+            // Check if still in printing mode before restoring
+            if (document.body.classList.contains('is-printing-mobile')) {
+                document.body.classList.remove('is-printing-mobile');
+                document.title = originalTitle;
+                const el = document.getElementById('mobile-print-wrapper');
+                if (el) el.remove();
+            }
         };
         
-        window.addEventListener('afterprint', cleanup, { once: true });
-        // Fail-safe cleanup backup
-        setTimeout(cleanup, 12000);
+        // Delay cleanup on afterprint to allow mobile print spoolers to complete capturing the page
+        window.addEventListener('afterprint', () => {
+            setTimeout(cleanup, 3000);
+        }, { once: true });
+        
+        // Fail-safe cleanup backup (increased to 25s for slow mobile printers)
+        setTimeout(cleanup, 25000);
     }
 }
 
