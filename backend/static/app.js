@@ -4783,6 +4783,7 @@ function setupThemeToggle() {
 function setupMobileMenu() {
     const toggleBtn = document.getElementById('mobile-menu-toggle');
     const sidebar = document.getElementById('sidebar');
+    const closeBtnMobile = document.getElementById('sidebar-close-btn-mobile');
     
     if (toggleBtn && sidebar) {
         toggleBtn.addEventListener('click', (e) => {
@@ -4790,8 +4791,14 @@ function setupMobileMenu() {
             sidebar.classList.toggle('open');
         });
         
+        if (closeBtnMobile) {
+            closeBtnMobile.addEventListener('click', () => {
+                sidebar.classList.remove('open');
+            });
+        }
+        
         document.addEventListener('click', (e) => {
-            if (sidebar.classList.contains('open') && !sidebar.contains(e.target) && e.target !== toggleBtn) {
+            if (sidebar.classList.contains('open') && !sidebar.contains(e.target) && e.target !== toggleBtn && e.target !== closeBtnMobile) {
                 sidebar.classList.remove('open');
             }
         });
