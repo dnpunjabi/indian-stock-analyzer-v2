@@ -2051,7 +2051,7 @@ function calculateRegressionTrendline(prices) {
 }
 
 function drawStockChartCanvas(data) {
-    const container = document.querySelector('[data-subtab="technical"] .chart-container');
+    const container = document.querySelector('#price-trend-chart-card .chart-container');
     if (!container) return;
 
     // Check if TradingView Lightweight Charts is available
@@ -2290,7 +2290,7 @@ function drawStockChartCanvas(data) {
 }
 
 function drawChartJSStockChart(data) {
-    const container = document.querySelector('[data-subtab="technical"] .chart-container');
+    const container = document.querySelector('#price-trend-chart-card .chart-container');
     if (!container) return;
 
     const restoredCanvas = getOrCreateCanvas('stock-chart', container);
@@ -5840,7 +5840,7 @@ function setupRebalanceButton() {
 /* ==================== 9-FEATURE MEGA-UPGRADE CLIENT MODULES ==================== */
 
 function drawRSChartCanvas(data) {
-    const container = document.querySelector('[data-subtab="technical"] .chart-container');
+    const container = document.querySelector('#price-trend-chart-card .chart-container');
     if (!container) return;
     if (typeof Chart === 'undefined') return;
     const restoredCanvas = getOrCreateCanvas('stock-chart', container);
