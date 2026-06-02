@@ -4841,34 +4841,73 @@ function renderVolatilitySummary(p) {
     const rsi = p.technicals.rsi;
     const macd_hist = p.technicals.macd_hist;
     const vpt = p.technicals.vpt;
+    const atr = p.technicals.atr;
     
     let condition = "Consolidative Range";
     let action = "HOLD";
     let momentumDesc = "Technical indicators are trading inside consolidative ranges. The stock remains in a standard range-bound channel.";
+    let laymanDesc = "The stock is currently moving sideways, like a car cruising in the middle lane of a highway. Buyers and sellers are in balance, and there are no immediate signs of a major upward or downward move. It is a good time to hold and observe.";
+    
+    // Compute dynamic volatility-adjusted stop-loss (2x ATR below current price)
+    const stopLossVal = atr !== null && atr !== undefined && curPrice ? (curPrice - 2 * atr) : null;
+    const stopLossText = stopLossVal > 0 ? `₹${stopLossVal.toFixed(2)}` : 'N/A';
+    
+    // Compute Bollinger Squeeze
+    const squeezePercent = bb_lower > 0 ? (((bb_upper - bb_lower) / bb_lower) * 100).toFixed(1) : 'N/A';
     
     if (macd_hist > 0 && curPrice <= bb_lower * 1.03) {
         condition = "Statistical Support Rebound";
         action = "STRONG BUY ENTRY";
         momentumDesc = `Stock is testing lower Bollinger Band support (Rs. ${bb_lower.toLocaleString('en-IN')}) while printing bullish MACD momentum crossover. Technical timing indicates an optimal low-risk accumulation window.`;
+        laymanDesc = `The stock price has dropped to its typical 'cheap floor' level, and momentum has just started turning positive again. Think of it as a bouncy ball hitting the floor and starting to rebound. This is historically a very safe, low-risk time to buy.`;
     } else if (macd_hist < 0 && curPrice >= bb_upper * 0.97) {
         condition = "Overbought Band Exhaustion";
         action = "TAKE PROFIT / REDUCE RISK";
         momentumDesc = `Price is exhausting near upper Bollinger Band resistance (Rs. ${bb_upper.toLocaleString('en-IN')}) with negative MACD divergences. RSI is at ${rsi.toFixed(1)}, warning of near-term buying depletion. Reduce long positions.`;
+        laymanDesc = `The stock has run up to its typical 'expensive ceiling' level and is running out of steam. Think of a runner gasping for breath at the top of a hill. It is highly likely the price will pull back shortly, so it is a wise time to lock in some profits or avoid buying more right now.`;
     } else if (macd_hist > 0 && vpt > 0) {
         condition = "Bullish Accumulation Continuation";
         action = "ACCUMULATE BUY";
         momentumDesc = `Bullish MACD momentum is backed by steady Volume Price Trend (VPT) expansion. Volume accumulation confirms strong institutional buying interest. Ride the upward trend.`;
+        laymanDesc = `The stock is in a healthy upward trend, and this rise is backed by heavy trading volume. Large institutional players are actively acquiring shares. Think of a train that has built up strong forward speed with a full engine. It is safe to join the ride and buy.`;
     } else if (macd_hist < 0) {
         condition = "Bearish Momentum De-leveraging";
         action = "HOLD / DEFENSIVE REBALANCING";
         momentumDesc = `MACD is printing negative histogram bars, indicating near-term momentum cooling. Price is consolidative. Watch for support stabilization before adding new capital.`;
+        laymanDesc = `The short-term momentum is currently cooling off, and the stock is taking a breather. Think of it as a car coasting after letting go of the gas pedal. The price is drifting sideways-to-down, so it is best to hold your shares defensively and wait for the price to find a solid floor before buying more.`;
     } else {
         condition = "Consolidative Squeeze";
         action = "HOLD";
-        momentumDesc = "Bollinger Bands are squeezing with neutral RSI and MACD bars. A high-volatility breakout is building up. Watch the breakout directions.";
+        momentumDesc = `Bollinger Bands are squeezing (${squeezePercent}% width) with neutral RSI and MACD bars. A high-volatility breakout is building up. Watch the breakout directions.`;
+        laymanDesc = `The stock price fluctuation has become extremely narrow, coiling up like a tightly compressed metal spring. This compression phase typically acts as a pre-breakout trigger. A sharp, high-speed price move is about to happen soon. It is best to wait and see which direction the spring pops before making big trades.`;
     }
     
-    el.innerHTML = `<strong>Indicator State:</strong> ${condition} | <strong>Recommendation:</strong> <span class="green-text">${action}</span><br><span style="color:var(--text-secondary); margin-top:4px; display:block;">${momentumDesc}</span>`;
+    // Add ATR-based Volatility Insights
+    let volInsight = "";
+    if (atr > 0 && curPrice > 0) {
+        const volatilityRatio = ((atr / curPrice) * 100).toFixed(1);
+        let volLevel = "Low";
+        if (volatilityRatio > 3.0) volLevel = "High";
+        else if (volatilityRatio > 1.5) volLevel = "Moderate";
+        
+        volInsight = `<div style="margin-top: 8px; font-size:10.5px; padding: 6px 10px; background: rgba(255,255,255,0.03); border-radius: 4px; border: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+            <span>🛡️ <strong>Volatility-Adjusted Stop Floor (2x ATR)</strong>: <strong style="color:var(--color-crimson); font-weight:700;">${stopLossText}</strong></span>
+            <span>📊 <strong>Vol Rating</strong>: <strong style="color:var(--color-primary); font-weight:700;">${volLevel} (${volatilityRatio}%)</strong></span>
+        </div>`;
+    }
+    
+    el.innerHTML = `
+        <div style="margin-bottom: 8px;">
+            <strong>Indicator State:</strong> ${condition} | <strong>Recommendation:</strong> <span class="green-text" style="font-weight:700;">${action}</span>
+        </div>
+        <div style="font-size:11px; color:var(--text-secondary); margin-bottom: 8px; line-height: 1.45;">
+            <strong>Analyst Verdict:</strong> ${momentumDesc}
+        </div>
+        <div style="font-size:11px; color:var(--text-muted); line-height: 1.45; border-left: 2.5px solid var(--color-primary); padding-left: 8px; margin-top: 6px; background: rgba(59, 130, 246, 0.03); padding-top: 5px; padding-bottom: 5px; border-radius: 0 4px 4px 0; width: 100%;">
+            💡 <strong>Layman Translation:</strong> ${laymanDesc}
+        </div>
+        ${volInsight}
+    `;
 }
 
 // 13. AI Watchlist Controller & State Handler
