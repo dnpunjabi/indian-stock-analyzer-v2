@@ -1926,18 +1926,59 @@ async function renderStrategyAuditMatrix(ticker) {
 }
 
 // 5. Dynamic Chart Fetcher (Finding 5 resolution!)
+function redrawActiveChart() {
+    if (!window.activeChartData) {
+        console.log("APEX: No cached activeChartData. Fetching fresh series...");
+        fetchAndRenderChart();
+        return;
+    }
+    const isRSChecked = document.getElementById('toggle-rs')?.checked ?? false;
+    console.log("APEX: Redrawing active chart instantly. isRSChecked:", isRSChecked);
+    if (isRSChecked) {
+        drawRSChartCanvas(window.activeChartData);
+    } else {
+        drawStockChartCanvas(window.activeChartData);
+    }
+}
+
 function setupDynamicChartControls() {
-    document.getElementById('chart-period').addEventListener('change', fetchAndRenderChart);
-    document.getElementById('chart-interval').addEventListener('change', fetchAndRenderChart);
+    console.log("APEX: Setting up dynamic chart controls event listeners...");
     
-    // Overlays change hooks
-    document.getElementById('toggle-sma50').addEventListener('change', fetchAndRenderChart);
-    document.getElementById('toggle-sma200').addEventListener('change', fetchAndRenderChart);
-    document.getElementById('toggle-bb').addEventListener('change', fetchAndRenderChart);
-    document.getElementById('toggle-rs').addEventListener('change', fetchAndRenderChart);
-    document.getElementById('toggle-trendline').addEventListener('change', fetchAndRenderChart);
-    document.getElementById('toggle-ai-lines').addEventListener('change', fetchAndRenderChart);
-    document.getElementById('chart-style').addEventListener('change', fetchAndRenderChart);
+    // Timeframe / Period / Interval / RS changes require a new network request
+    document.getElementById('chart-period').addEventListener('change', () => {
+        console.log("APEX: chart-period changed. Fetching new data...");
+        fetchAndRenderChart();
+    });
+    document.getElementById('chart-interval').addEventListener('change', () => {
+        console.log("APEX: chart-interval changed. Fetching new data...");
+        fetchAndRenderChart();
+    });
+    document.getElementById('toggle-rs').addEventListener('change', () => {
+        console.log("APEX: toggle-rs changed. Fetching new data...");
+        fetchAndRenderChart();
+    });
+    
+    // Visual overlays and style toggles can be redrawn instantly using cached data
+    const instantRedrawElements = [
+        'toggle-sma50',
+        'toggle-sma200',
+        'toggle-bb',
+        'toggle-trendline',
+        'toggle-ai-lines',
+        'chart-style'
+    ];
+    
+    instantRedrawElements.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('change', () => {
+                console.log(`APEX: Control [${id}] changed. Toggling overlay instantly...`);
+                redrawActiveChart();
+            });
+        } else {
+            console.error(`APEX: Element with ID [${id}] not found in DOM!`);
+        }
+    });
 }
 
 async function fetchAndRenderChart() {
@@ -1946,6 +1987,8 @@ async function fetchAndRenderChart() {
     const ticker = activeStockProfile.ticker;
     const period = document.getElementById('chart-period').value;
     const interval = document.getElementById('chart-interval').value;
+    
+    console.log(`APEX: fetchAndRenderChart() called for ${ticker} (${period}, ${interval})`);
     
     const canvas = document.getElementById('stock-chart');
     const container = canvas?.parentElement;
@@ -1960,6 +2003,9 @@ async function fetchAndRenderChart() {
         }
         if (!response.ok) throw new Error("Price series could not be retrieved.");
         const chartData = await response.json();
+        
+        window.activeChartData = chartData; // Cache the loaded data!
+        console.log("APEX: Successfully fetched and cached chart data.");
         
         if (isRSChecked) {
             drawRSChartCanvas(chartData);
@@ -2063,6 +2109,8 @@ function drawStockChartCanvas(data) {
     const showTrendline = document.getElementById('toggle-trendline')?.checked ?? true;
     const showAiLines = document.getElementById('toggle-ai-lines')?.checked ?? true;
     const chartStyle = document.getElementById('chart-style')?.value || 'line';
+
+    console.log(`APEX: drawStockChartCanvas called. Config: [SMA50: ${showSma50}, SMA200: ${showSma200}, BB: ${showBB}, Trendline: ${showTrendline}, AI-Lines: ${showAiLines}, Style: ${chartStyle}]`);
 
     // 2. Add Price Series
     let priceSeries;
