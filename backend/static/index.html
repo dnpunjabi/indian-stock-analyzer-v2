@@ -474,7 +474,10 @@
                         <!-- AI Corporate Profile & Business Summary Card -->
                         <div class="card col-span-4 no-print" id="business-summary-card" data-subtab="summary" style="margin-bottom: 0px;">
                             <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;" id="business-summary-toggle">
-                                <h3>AI CORPORATE PROFILE & BUSINESS SUMMARY</h3>
+                                <div>
+                                    <h3 style="margin: 0;">AI CORPORATE PROFILE & BUSINESS SUMMARY</h3>
+                                    <span style="font-size: 9.5px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-top: 2px;">Full corporate background, operating business segments, and strategic objectives</span>
+                                </div>
                                 <span id="business-summary-arrow" style="font-size: 14px; transition: transform 0.25s ease;">▼</span>
                             </div>
                             <div id="business-summary-content" style="max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out;">
@@ -544,9 +547,9 @@
                                     <strong id="cio-primary-risk-text" style="font-size: 12px; color: var(--neon-red); display:block; margin-top:3px;">N/A</strong>
                                 </div>
 
-                                <div class="cio-thesis-text" style="margin-top: 18px;">
-                                    <h4>Investment Thesis</h4>
-                                    <p id="cio-investment-thesis" style="font-size: 12px; line-height: 1.5; color: var(--text-muted); margin: 0;">...</p>
+                                <div class="cio-thesis-text" style="margin-top: 18px; padding: 12px 14px; background: rgba(59, 130, 246, 0.03); border-left: 3.5px solid var(--color-primary); border-radius: 0 6px 6px 0; border-top: 1px solid rgba(255,255,255,0.02); border-right: 1px solid rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.02); box-shadow: 0 4px 6px rgba(0,0,0,0.15); width: 100%; box-sizing: border-box;">
+                                    <h4 style="margin: 0 0 6px 0; font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">⚖️ CIO Strategic Investment Thesis</h4>
+                                    <p id="cio-investment-thesis" style="font-size: 12px; line-height: 1.55; color: var(--text-muted); margin: 0;">...</p>
                                 </div>
                             </div>
                         </div>
@@ -1219,17 +1222,25 @@
 
                         <!-- Growth Drivers & Major Risk Factors -->
                         <div class="card col-span-2" data-subtab="summary">
-                            <h3>AI STRATEGIC GROWTH CATALYSTS</h3>
-                            <ul class="catalyst-list" id="cio-growth-drivers-list">
+                            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border: none; padding: 0; width: 100%;">
+                                <h3 style="margin: 0;">AI STRATEGIC GROWTH CATALYSTS</h3>
+                                <span style="font-size: 9px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Expansion & Upside Drivers</span>
+                            </div>
+                            <p style="font-size: 11px; color: var(--text-secondary); margin-bottom: 12px;">Identifying active operational catalysts, pricing power expansions, and industry growth vectors.</p>
+                            <div id="cio-growth-drivers-list" style="margin-top: 10px;">
                                 <!-- Loaded dynamically -->
-                            </ul>
+                            </div>
                         </div>
 
-                        <div class="card col-span-2">
-                            <h3>AI INVESTOR RISK ASSESSMENT</h3>
-                            <ul class="risk-list" id="cio-risks-list">
+                        <div class="card col-span-2" data-subtab="summary">
+                            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border: none; padding: 0; width: 100%;">
+                                <h3 style="margin: 0;">AI INVESTOR RISK ASSESSMENT</h3>
+                                <span style="font-size: 9px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Downside Vulnerabilities</span>
+                            </div>
+                            <p style="font-size: 11px; color: var(--text-secondary); margin-bottom: 12px;">Auditing corporate governance structures, promoter pledge threats, and industry headwinds.</p>
+                            <div id="cio-risks-list" style="margin-top: 10px;">
                                 <!-- Loaded dynamically -->
-                            </ul>
+                            </div>
                         </div>
 
                         <!-- AI Strategical Audit & Gate Diagnostics Matrix -->
@@ -1285,8 +1296,12 @@
 
                         <!-- Governance & News Feed -->
                         <div class="card col-span-4 no-print" data-subtab="summary">
-                            <h3>CORPORATE CATALYSTS & NEWS FEED</h3>
-                            <div class="news-grid" id="news-feed-container">
+                            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border: none; padding: 0; width: 100%;">
+                                <h3 style="margin:0;">CORPORATE CATALYSTS & NEWS FEED</h3>
+                                <span style="font-size: 9px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Real-time Scrapes & Sentiment Analysis</span>
+                            </div>
+                            <p style="font-size: 11px; color: var(--text-secondary); margin-bottom: 12px;">Auditing live NSE news catalogs and corporate announcements with quantitative sentiment parsing.</p>
+                            <div class="news-grid" id="news-feed-container" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 15px;">
                                 <!-- Loaded dynamically -->
                             </div>
                         </div>

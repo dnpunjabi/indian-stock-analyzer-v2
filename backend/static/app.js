@@ -999,7 +999,32 @@ function renderStockDashboard(p) {
     // Populate Corporate Business Summary Collapsible Card
     const summaryText = document.getElementById('business-summary-text');
     if (summaryText) {
-        summaryText.innerText = p.business_summary || "No corporate business summary details returned from Yahoo Finance.";
+        const text = p.business_summary || "No corporate business summary details returned from Yahoo Finance.";
+        let laymanSummary = "";
+        
+        const textLower = text.toLowerCase();
+        if (textLower.includes("software") || textLower.includes("technology") || textLower.includes("information technology") || textLower.includes("consulting")) {
+            laymanSummary = `**In plain terms:** ${p.company_name} is like a **digital helper for large businesses**. They build software, manage computer systems, and help global companies run their systems online. Think of them as the high-tech engineers who make sure your favorite digital services stay fast, safe, and up and running around the clock.`;
+        } else if (textLower.includes("bank") || textLower.includes("financial") || textLower.includes("lending") || textLower.includes("insurance") || textLower.includes("nbfc")) {
+            laymanSummary = `**In plain terms:** ${p.company_name} acts as a **financial engine**. They take in deposits and lend money to families and businesses to buy homes, cars, or expand operations. Think of them as the vital circulatory system of the economy, pumping money to where it is needed most.`;
+        } else if (textLower.includes("power") || textLower.includes("electricity") || textLower.includes("energy") || textLower.includes("solar") || textLower.includes("wind") || textLower.includes("coal")) {
+            laymanSummary = `**In plain terms:** ${p.company_name} acts as a **power station**. They generate and distribute the electricity that lights up homes, keeps factories running, and powers cities. Think of them as the silent engine room of the country, keeping the lights on everywhere.`;
+        } else if (textLower.includes("defense") || textLower.includes("aerospace") || textLower.includes("aircraft") || textLower.includes("ship")) {
+            laymanSummary = `**In plain terms:** ${p.company_name} is a **national shield builder**. They manufacture advanced aircraft, ships, and defense equipment used by the military to secure the nation. Think of them as high-precision engineers building advanced armor and transport systems for domestic defense.`;
+        } else if (textLower.includes("infrastructure") || textLower.includes("rail") || textLower.includes("construction") || textLower.includes("engineering") || textLower.includes("port")) {
+            laymanSummary = `**In plain terms:** ${p.company_name} is a **heavy-duty builder**. They construct massive public works, railways, highways, ports, and industrial structures that shape the nation's backbone. Think of them as the structural muscle turning blueprints into massive physical realities.`;
+        } else {
+            laymanSummary = `**In plain terms:** ${p.company_name} is a **specialized provider of goods and services**. They operate in the ${p.sector || 'domestic market'} sector, serving institutional and retail customers across the country. Think of them as a primary engine driving products to commercial markets.`;
+        }
+        
+        summaryText.innerHTML = `
+            <div style="font-size:12.5px; line-height:1.6; color:var(--text-secondary); margin-bottom:12px; font-weight:400;">
+                ${text}
+            </div>
+            <div style="font-size:11px; color:var(--text-muted); line-height: 1.45; border-left: 2.5px solid var(--color-primary); padding-left: 8px; margin-top: 15px; background: rgba(59, 130, 246, 0.03); padding-top: 8px; padding-bottom: 8px; border-radius: 0 4px 4px 0; width: 100%; box-sizing: border-box;">
+                💡 <strong>Layman Business Translation:</strong> ${laymanSummary}
+            </div>
+        `;
     }
     const bsContent = document.getElementById('business-summary-content');
     const bsArrow = document.getElementById('business-summary-arrow');
@@ -1117,18 +1142,39 @@ function renderStockDashboard(p) {
             { icon: "📰", text: `<strong>Sentiment (${sScore}/5):</strong> ${p.consensus.recommendation} — ${p.news.length} Catalysts detected` }
         ];
         
-        items.forEach(item => {
+        const passStateMap = [fPass, vPass, tPass, gPass, sPass];
+        items.forEach((item, idx) => {
+            const isPassed = passStateMap[idx];
             const row = document.createElement('div');
+            row.className = 'cio-checklist-row';
             row.style.display = 'flex';
             row.style.alignItems = 'center';
-            row.style.gap = '10px';
+            row.style.gap = '12px';
             row.style.fontSize = '12px';
-            row.style.padding = '6px 10px';
-            row.style.borderRadius = '4px';
-            row.style.background = 'rgba(255,255,255,0.02)';
-            row.style.border = '1px solid var(--border-glass)';
+            row.style.padding = '8px 12px';
+            row.style.borderRadius = '6px';
             
-            row.innerHTML = `<span style="font-size:14px;">${item.icon}</span> <span style="color:var(--text-primary);">${item.text}</span>`;
+            let rowBg = 'rgba(245, 158, 11, 0.04)';
+            let rowBorder = '1px solid rgba(245, 158, 11, 0.15)';
+            let iconText = '⚠️';
+            
+            if (isPassed) {
+                rowBg = 'rgba(16, 185, 129, 0.04)';
+                rowBorder = '1px solid rgba(16, 185, 129, 0.15)';
+                iconText = '✅';
+            }
+            if (idx === 4) { // News / Sentiment row is always a custom blue/primary style
+                rowBg = 'rgba(59, 130, 246, 0.04)';
+                rowBorder = '1px solid rgba(59, 130, 246, 0.15)';
+                iconText = '📰';
+            }
+            
+            row.style.background = rowBg;
+            row.style.border = rowBorder;
+            row.style.marginBottom = '6px';
+            row.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)';
+            
+            row.innerHTML = `<span style="font-size:14px; display:inline-flex; align-items:center; justify-content:center;">${iconText}</span> <span style="color:var(--text-primary);">${item.text}</span>`;
             checklistContainer.appendChild(row);
         });
     }
@@ -1408,46 +1454,132 @@ function renderStockDashboard(p) {
     }
     
     const growthList = document.getElementById('cio-growth-drivers-list');
-    growthList.innerHTML = '';
-    p.analysis.key_growth_drivers.forEach(driver => {
-        const li = document.createElement('li');
-        li.innerText = driver;
-        growthList.appendChild(li);
-    });
+    if (growthList) {
+        growthList.innerHTML = '';
+        if (p.analysis.key_growth_drivers && p.analysis.key_growth_drivers.length > 0) {
+            p.analysis.key_growth_drivers.forEach((driver, idx) => {
+                const row = document.createElement('div');
+                row.className = 'catalyst-row';
+                row.style.display = 'flex';
+                row.style.gap = '12px';
+                row.style.alignItems = 'flex-start';
+                row.style.padding = '10px 12px';
+                row.style.background = 'rgba(16, 185, 129, 0.02)';
+                row.style.border = '1px solid var(--border-glass)';
+                row.style.borderLeft = '3.5px solid var(--neon-green)';
+                row.style.borderRadius = '6px';
+                row.style.marginBottom = '10px';
+                row.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)';
+                
+                const icons = ['🚀', '💡', '📈', '🔥'];
+                const icon = icons[idx % icons.length];
+                
+                row.innerHTML = `<span style="font-size:16px; margin-top:2px;">${icon}</span> <span style="font-size:11.5px; color:var(--text-primary); line-height:1.45;">${driver}</span>`;
+                growthList.appendChild(row);
+            });
+        } else {
+            growthList.innerHTML = '<div style="padding: 10px; font-size: 11px; color: var(--text-secondary); text-align: center;">No growth catalysts identified.</div>';
+        }
+    }
     
     const riskList = document.getElementById('cio-risks-list');
-    riskList.innerHTML = '';
-    p.analysis.major_risks.forEach(risk => {
-        const li = document.createElement('li');
-        li.innerText = risk;
-        riskList.appendChild(li);
-    });
+    if (riskList) {
+        riskList.innerHTML = '';
+        if (p.analysis.major_risks && p.analysis.major_risks.length > 0) {
+            p.analysis.major_risks.forEach((risk, idx) => {
+                const row = document.createElement('div');
+                row.className = 'risk-row';
+                row.style.display = 'flex';
+                row.style.gap = '12px';
+                row.style.alignItems = 'flex-start';
+                row.style.padding = '10px 12px';
+                row.style.background = 'rgba(239, 68, 68, 0.02)';
+                row.style.border = '1px solid var(--border-glass)';
+                row.style.borderLeft = '3.5px solid var(--neon-red)';
+                row.style.borderRadius = '6px';
+                row.style.marginBottom = '10px';
+                row.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)';
+                
+                const icons = ['🚨', '⚠️', '💸', '⚡'];
+                const icon = icons[idx % icons.length];
+                
+                row.innerHTML = `<span style="font-size:16px; margin-top:2px;">${icon}</span> <span style="font-size:11.5px; color:var(--text-primary); line-height:1.45;">${risk}</span>`;
+                riskList.appendChild(row);
+            });
+        } else {
+            riskList.innerHTML = '<div style="padding: 10px; font-size: 11px; color: var(--text-secondary); text-align: center;">No risk vectors flagged.</div>';
+        }
+    }
     
     const newsFeed = document.getElementById('news-feed-container');
-    newsFeed.innerHTML = '';
-    if (p.news && p.news.length > 0) {
-        p.news.forEach(item => {
-            const card = document.createElement('a');
-            card.className = 'news-card';
-            
-            // Safeguard to prevent opening internal dev server URLs
-            let finalLink = item.link;
-            if (!finalLink || finalLink.trim() === '#' || finalLink.trim() === '') {
-                finalLink = `https://finance.yahoo.com/quote/${p.ticker}/news`;
-            }
-            card.href = finalLink;
-            card.target = '_blank';
-            card.innerHTML = `
-                <div class="news-title">${item.title}</div>
-                <div class="news-footer">
-                    <span>${item.publisher}</span>
-                    <span>${item.date}</span>
-                </div>
-            `;
-            newsFeed.appendChild(card);
-        });
-    } else {
-        newsFeed.innerHTML = '<div class="col-span-4 center-text text-muted" style="padding:20px;">No recent financial news articles found.</div>';
+    if (newsFeed) {
+        newsFeed.innerHTML = '';
+        if (p.news && p.news.length > 0) {
+            p.news.forEach(item => {
+                const card = document.createElement('a');
+                card.className = 'news-card';
+                
+                // Safeguard to prevent opening internal dev server URLs
+                let finalLink = item.link;
+                if (!finalLink || finalLink.trim() === '#' || finalLink.trim() === '') {
+                    finalLink = `https://finance.yahoo.com/quote/${p.ticker}/news`;
+                }
+                card.href = finalLink;
+                card.target = '_blank';
+                
+                // Simple sentiment analyzer based on words
+                const tLower = item.title.toLowerCase();
+                let sentimentText = "NEUTRAL";
+                let sentimentColor = "var(--text-muted)";
+                let borderLeftColor = "rgba(255, 255, 255, 0.1)";
+                let bgTint = "rgba(255, 255, 255, 0.02)";
+                
+                const positiveWords = ["gain", "growth", "jump", "beat", "high", "surge", "rise", "record", "profit", "buy", "strong", "success", "expand", "expansion", "up", "bull", "outperform", "cagr", "dividend", "order", "win"];
+                const negativeWords = ["drop", "fall", "sink", "lower", "plunge", "miss", "loss", "decline", "warn", "debt", "down", "bear", "sell", "audit", "risk", "probe", "investigate", "alert", "pledge", "concern"];
+                
+                let isPos = positiveWords.some(w => tLower.includes(w));
+                let isNeg = negativeWords.some(w => tLower.includes(w));
+                
+                if (isPos && !isNeg) {
+                    sentimentText = "🟢 BULLISH";
+                    sentimentColor = "var(--neon-green)";
+                    borderLeftColor = "var(--neon-green)";
+                    bgTint = "rgba(0, 200, 115, 0.03)";
+                } else if (isNeg) {
+                    sentimentText = "🔴 BEARISH";
+                    sentimentColor = "var(--neon-red)";
+                    borderLeftColor = "var(--neon-red)";
+                    bgTint = "rgba(255, 75, 75, 0.03)";
+                }
+                
+                card.style.borderLeft = `3.5px solid ${borderLeftColor}`;
+                card.style.background = bgTint;
+                card.style.boxShadow = "0 4px 6px rgba(0,0,0,0.15)";
+                card.style.borderRadius = "8px";
+                card.style.padding = "15px";
+                card.style.display = "flex";
+                card.style.flexDirection = "column";
+                card.style.justifyContent = "space-between";
+                card.style.transition = "all 0.2s ease";
+                card.style.textDecoration = "none";
+                card.style.color = "inherit";
+                card.style.minHeight = "110px";
+                
+                card.innerHTML = `
+                    <div>
+                        <span style="font-size: 8px; color: ${sentimentColor}; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 6px;">${sentimentText}</span>
+                        <div class="news-title" style="font-size:12px; font-weight:600; line-height:1.4; color:var(--text-primary);">${item.title}</div>
+                    </div>
+                    <div class="news-footer" style="display:flex; justify-content:space-between; align-items:center; margin-top:12px; font-size:10px; color:var(--text-muted);">
+                        <span style="font-weight:500;">📰 ${item.publisher}</span>
+                        <span>🕒 ${item.date}</span>
+                    </div>
+                `;
+                newsFeed.appendChild(card);
+            });
+        } else {
+            newsFeed.innerHTML = '<div style="padding:20px; text-align: center; width: 100%; color: var(--text-muted);">No recent financial news articles found.</div>';
+        }
     }
     
     // Initial fetch of the default chart duration (1 year daily)
