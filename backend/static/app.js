@@ -6499,7 +6499,7 @@ function setupPortfolioDoctor() {
 
             // Gather ledger rows
             const ledgerRows = [];
-            const rows = document.querySelectorAll('#portfolio-ledger-body tr');
+            const rows = document.querySelectorAll('#portfolio-ledger-body tr:not(.targets-detail-row)');
             rows.forEach(row => {
                 const stockNameText = row.querySelector('td:nth-child(1)')?.innerText || '';
                 const parts = stockNameText.split('\n');
@@ -7036,12 +7036,75 @@ async function loadPortfolioDoctorLedger() {
         portfolioItems.forEach(item => {
             const tr = document.createElement('tr');
             tr.style.borderBottom = '1px solid var(--border-glass)';
+            
+            // Generate targets row ID
+            const safeSymbolId = item.symbol.replace(/[^a-zA-Z0-9]/g, '');
+            const detailRowId = `targets-row-${safeSymbolId}`;
+            
+            // Build potential ROI string
+            let upsideHTML = '';
+            if (item.target_12m && item.purchase_price) {
+                const pct = ((item.target_12m - item.purchase_price) / item.purchase_price) * 100;
+                const color = pct >= 0 ? 'var(--neon-green)' : 'var(--neon-red)';
+                const sign = pct >= 0 ? '+' : '';
+                upsideHTML = `<span class="upside-percentage-badge" style="font-size: 10px; color: ${color}; font-weight: 700; margin-left: 4px;">(${sign}${pct.toFixed(1)}% vs Avg Buy)</span>`;
+            }
+            
             tr.innerHTML = `
-                <td style="padding: 10px;"><strong>${item.symbol}</strong><br><span style="font-size:10px; color:var(--text-muted);">${item.name}</span></td>
+                <td style="padding: 10px;">
+                    <strong>${item.symbol}</strong><br>
+                    <span style="font-size:10px; color:var(--text-muted);">${item.name}</span><br>
+                    <a href="#" class="toggle-targets-btn" data-symbol="${item.symbol}" style="font-size: 10px; color: var(--color-primary); text-decoration: none; display: inline-flex; align-items: center; gap: 4px; margin-top: 5px; font-weight: 600;">👁️ View Targets & Research</a>
+                </td>
                 <td style="padding: 10px; color: var(--text-secondary);">${item.sector || 'Other'}</td>
                 <td style="padding: 10px;"><input type="number" class="portfolio-qty-input" data-symbol="${item.symbol}" value="${item.quantity !== undefined && item.quantity !== null ? item.quantity : 10}" style="width: 70px; padding: 4px; border-radius:4px; background:rgba(0,0,0,0.3); border:1px solid var(--border-glass); color:#fff; font-size:11px;"></td>
                 <td style="padding: 10px;"><input type="number" class="portfolio-price-input" data-symbol="${item.symbol}" value="${item.purchase_price !== undefined && item.purchase_price !== null ? item.purchase_price : 100}" style="width: 100px; padding: 4px; border-radius:4px; background:rgba(0,0,0,0.3); border:1px solid var(--border-glass); color:#fff; font-size:11px;"></td>
                 <td style="padding: 10px;"><button class="btn-secondary remove-portfolio-ledger-item-btn" data-symbol="${item.symbol}" style="font-size: 11px; padding: 4px 8px; border-color: var(--neon-red); color: var(--neon-red); background: rgba(255, 75, 75, 0.05); cursor:pointer;">Remove</button></td>
+            `;
+            
+            // Collapsible Detail Row
+            const detailTr = document.createElement('tr');
+            detailTr.id = detailRowId;
+            detailTr.style.display = 'none';
+            detailTr.style.background = 'rgba(255, 255, 255, 0.01)';
+            detailTr.style.borderBottom = '1px solid var(--border-glass)';
+            
+            const targetBuy = item.suggested_buy_price_range || 'N/A';
+            const targetSell = item.suggested_sell_price_range || 'N/A';
+            const target12MStr = item.target_12m ? safeFormatRupees(item.target_12m, 0) : 'Rs. --';
+            const stopLossStr = item.stop_loss_12m ? safeFormatRupees(item.stop_loss_12m, 0) : 'Rs. --';
+            const currentPriceStr = item.current_price ? safeFormatRupees(item.current_price, 2) : 'Rs. --';
+            
+            detailTr.innerHTML = `
+                <td colspan="5" style="padding: 12px 15px;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; background: rgba(0,0,0,0.35); padding: 12px; border-radius: 6px; border: 1px solid var(--border-glass);">
+                        <div style="padding: 6px 10px; border-left: 3px solid var(--neon-green); background: rgba(0, 200, 115, 0.03); border-radius: 4px;">
+                            <span style="font-size: 8px; color: var(--text-secondary); display:block; text-transform:uppercase; margin-bottom: 2px;">Suggested Buy Range</span>
+                            <strong style="font-size: 11px; color: var(--text-primary);">${targetBuy}</strong>
+                        </div>
+                        <div style="padding: 6px 10px; border-left: 3px solid var(--neon-red); background: rgba(255, 75, 75, 0.03); border-radius: 4px;">
+                            <span style="font-size: 8px; color: var(--text-secondary); display:block; text-transform:uppercase; margin-bottom: 2px;">Suggested Sell Range</span>
+                            <strong style="font-size: 11px; color: var(--text-primary);">${targetSell}</strong>
+                        </div>
+                        <div style="padding: 6px 10px; border-left: 3px solid var(--neon-green); background: rgba(0, 200, 115, 0.03); border-radius: 4px;">
+                            <span style="font-size: 8px; color: var(--text-secondary); display:block; text-transform:uppercase; margin-bottom: 2px;">12M Target Price</span>
+                            <strong style="font-size: 12px; color: var(--neon-green);">${target12MStr}</strong>
+                            ${upsideHTML}
+                        </div>
+                        <div style="padding: 6px 10px; border-left: 3px solid var(--neon-red); background: rgba(255, 75, 75, 0.03); border-radius: 4px;">
+                            <span style="font-size: 8px; color: var(--text-secondary); display:block; text-transform:uppercase; margin-bottom: 2px;">12M Protection Stop Loss</span>
+                            <strong style="font-size: 12px; color: var(--neon-red);">${stopLossStr}</strong>
+                        </div>
+                        <div style="display: flex; flex-direction: column; justify-content: center; gap: 4px; padding: 4px;">
+                            <div style="font-size: 10px; text-align: center; color: var(--text-secondary); margin-bottom: 2px;">
+                                Current Price: <strong style="color: var(--text-primary);">${currentPriceStr}</strong>
+                            </div>
+                            <button class="btn-primary load-research-from-portfolio-btn" data-symbol="${item.symbol}" style="font-size: 11px; padding: 6px 10px; display: flex; align-items: center; justify-content: center; gap: 4px; height: auto; cursor: pointer;">
+                                🔬 ${item.has_analysis ? 'Research Workspace' : 'Run AI Audit'}
+                            </button>
+                        </div>
+                    </div>
+                </td>
             `;
             
             const qtyInput = tr.querySelector('.portfolio-qty-input');
@@ -7050,6 +7113,20 @@ async function loadPortfolioDoctorLedger() {
             const saveHoldings = async () => {
                 const qtyVal = parseFloat(qtyInput.value) || 0.0;
                 const priceVal = parseFloat(priceInput.value) || 0.0;
+                
+                // Update dynamic ROI badge in UI in real-time!
+                const upsideBadge = detailTr.querySelector('.upside-percentage-badge');
+                if (upsideBadge) {
+                    if (item.target_12m && priceVal > 0) {
+                        const pct = ((item.target_12m - priceVal) / priceVal) * 100;
+                        const color = pct >= 0 ? 'var(--neon-green)' : 'var(--neon-red)';
+                        const sign = pct >= 0 ? '+' : '';
+                        upsideBadge.style.color = color;
+                        upsideBadge.innerText = `(${sign}${pct.toFixed(1)}% vs Avg Buy)`;
+                    } else {
+                        upsideBadge.innerText = '';
+                    }
+                }
                 
                 try {
                     await fetch(`/api/portfolio/${item.symbol}`, {
@@ -7082,7 +7159,23 @@ async function loadPortfolioDoctorLedger() {
                 }
             });
             
+            // Wire Details Toggle Event Listener
+            tr.querySelector('.toggle-targets-btn').addEventListener('click', (e) => {
+                e.preventDefault();
+                const btn = e.currentTarget;
+                const isHidden = detailTr.style.display === 'none';
+                detailTr.style.display = isHidden ? 'table-row' : 'none';
+                btn.innerHTML = isHidden ? '👁️ Hide Targets & Research' : '👁️ View Targets & Research';
+            });
+            
+            // Wire Load Research Event Listener
+            detailTr.querySelector('.load-research-from-portfolio-btn').addEventListener('click', (e) => {
+                const symbol = e.currentTarget.getAttribute('data-symbol');
+                loadStockAnalyzer(symbol);
+            });
+            
             ledgerBody.appendChild(tr);
+            ledgerBody.appendChild(detailTr);
         });
     } catch (e) {
         console.warn("Could not load portfolio ledger: ", e);

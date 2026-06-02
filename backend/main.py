@@ -1688,10 +1688,42 @@ async def get_relative_strength(symbol: str, period: str = "1y"):
 
 @app.get("/api/portfolio")
 async def get_portfolio():
+    import json
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT symbol, name, sector, quantity, purchase_price FROM portfolio_items")
-        return [dict(row) for row in cursor.fetchall()]
+        rows = [dict(row) for row in cursor.fetchall()]
+        
+        # Hydrate target ranges and current price from cached_profiles if available
+        hydrated_rows = []
+        for row in rows:
+            sym = row["symbol"]
+            cursor.execute("SELECT profile_json FROM cached_profiles WHERE symbol = ?", (sym,))
+            cache_row = cursor.fetchone()
+            
+            # Default values
+            row["has_analysis"] = False
+            row["suggested_buy_price_range"] = "N/A"
+            row["suggested_sell_price_range"] = "N/A"
+            row["target_12m"] = None
+            row["stop_loss_12m"] = None
+            row["current_price"] = None
+            
+            if cache_row:
+                try:
+                    profile = json.loads(cache_row["profile_json"])
+                    analysis = profile.get("analysis", {})
+                    row["has_analysis"] = True
+                    row["suggested_buy_price_range"] = analysis.get("suggested_buy_price_range", "N/A")
+                    row["suggested_sell_price_range"] = analysis.get("suggested_sell_price_range", "N/A")
+                    row["target_12m"] = analysis.get("target_12m")
+                    row["stop_loss_12m"] = analysis.get("stop_loss_12m")
+                    row["current_price"] = profile.get("fundamentals", {}).get("current_price")
+                except Exception as e:
+                    print(f"Error parsing cached profile for {sym}: {e}")
+            
+            hydrated_rows.append(row)
+        return hydrated_rows
 
 @app.post("/api/portfolio")
 async def add_portfolio_item(data: PortfolioItemCreate):
