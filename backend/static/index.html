@@ -23,7 +23,7 @@
     <!-- Mobile Header -->
     <header class="mobile-header no-print">
         <button id="mobile-menu-toggle" class="mobile-menu-toggle">☰</button>
-        <div class="mobile-logo">APEX AGENTIC AI</div>
+        <div class="mobile-logo" id="mobile-logo-reset" style="cursor: pointer;" title="Click to Reset Workspace">APEX AGENTIC AI</div>
         <button id="mobile-theme-toggle" class="theme-toggle-btn">🌓</button>
     </header>
 
@@ -32,7 +32,7 @@
         <aside class="sidebar no-print" id="sidebar">
             <div class="logo-area">
                 <span class="logo-icon" style="cursor: pointer;" id="logo-icon-toggle" title="Click to Toggle Sidebar">▲</span>
-                <div class="logo-text">
+                <div class="logo-text" id="logo-brand-reset" style="cursor: pointer;" title="Click to Reset Workspace">
                     <h1>APEX AGENTIC</h1>
                     <span>EQUITIES AI WORKSTATION</span>
                 </div>
@@ -104,6 +104,51 @@
                     <div class="rebalancer-stat">
                         <span class="stat-label">🔥 Cached</span>
                         <span class="stat-value"><span id="rebalance-cached-count">—</span> profiles</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PDF Export Configuration Card -->
+            <div class="pdf-config-card" id="pdf-config-sidebar-card">
+                <div class="pdf-config-header" id="print-checklist-toggle">
+                    <span class="pdf-config-title">⚙️ PDF REPORT SECTIONS</span>
+                    <span id="print-checklist-arrow">▼</span>
+                </div>
+                <div class="pdf-config-content" id="print-checklist-content">
+                    <div class="pdf-checklist-list">
+                        <label class="pdf-checklist-item">
+                            <input type="checkbox" class="print-toggle" data-target="tech-timing-card"> Technical Timing & SMAs
+                        </label>
+                        <label class="pdf-checklist-item">
+                            <input type="checkbox" class="print-toggle" data-target="tech-fib-card" checked> Technical Fibonacci Levels
+                        </label>
+                        <label class="pdf-checklist-item">
+                            <input type="checkbox" class="print-toggle" data-target="tech-volatility-card" checked> Volatility & Momentum
+                        </label>
+                        <label class="pdf-checklist-item">
+                            <input type="checkbox" class="print-toggle" data-target="drawdown-card"> Peak-to-Trough Drawdown
+                        </label>
+                        <label class="pdf-checklist-item">
+                            <input type="checkbox" class="print-toggle" data-target="sandbox-card" checked> DCF intrinsic Valuation
+                        </label>
+                        <label class="pdf-checklist-item">
+                            <input type="checkbox" class="print-toggle" data-target="historical-bands-card" checked> Historical Valuation Bands
+                        </label>
+                        <label class="pdf-checklist-item">
+                            <input type="checkbox" class="print-toggle" data-target="consensus-comparator-card" checked> Consensus Analyst Estimates
+                        </label>
+                        <label class="pdf-checklist-item">
+                            <input type="checkbox" class="print-toggle" data-target="peers-card" checked> Peer Benchmarking
+                        </label>
+                        <label class="pdf-checklist-item">
+                            <input type="checkbox" class="print-toggle" data-target="shareholding-card" checked> Shareholding & Ownership
+                        </label>
+                        <label class="pdf-checklist-item">
+                            <input type="checkbox" class="print-toggle" data-target="earnings-quality-card" checked> Earnings Quality & Solvency
+                        </label>
+                        <label class="pdf-checklist-item">
+                            <input type="checkbox" class="print-toggle" data-target="strategical-audit-card"> Multi-Agent Strategy Audit
+                        </label>
                     </div>
                 </div>
             </div>
@@ -202,84 +247,99 @@
             </header>
 
             <!-- SECTION 1: AI SCREENER (DISCOVERY) -->
-            <section class="workspace-tab" id="tab-screener" style="display: none;">
+            <section class="workspace-tab" id="tab-screener" style="display: none; font-family: 'Inter', sans-serif;">
                 <div class="section-header">
                     <h2>Quant Screener & Scanner</h2>
                     <p>Execute quantitative screening sweeps and discovery scans across liquid Indian equity segments.</p>
                 </div>
 
                 <div class="screener-controls-card">
-                    <div class="strategy-selector">
-                        <button class="strategy-btn active" data-strategy="hybrid">
-                            <span class="strat-title">Hybrid Strategy</span>
-                            <span class="strat-desc">ROE Quality + Relative Peer Value + Technical Entry Points</span>
+                    <div class="strategy-selector" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px; width: 100%;">
+                        <button class="strategy-btn active" data-strategy="hybrid" style="cursor: pointer; padding: 14px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05); background: rgba(255,255,255,0.01); display: flex; flex-direction: column; gap: 6px; text-align: left; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); outline: none;">
+                            <span class="strat-title" style="font-family: 'Outfit', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 0.02em;">Hybrid Strategy</span>
+                            <span class="strat-desc" style="font-size: 10.5px; color: var(--text-muted); line-height: 1.45;">ROE Quality + Relative Peer Value + Technical Entry Points</span>
                         </button>
-                        <button class="strategy-btn" data-strategy="bottom_up">
-                            <span class="strat-title">Bottom-Up Selection</span>
-                            <span class="strat-desc">Pure Company Fundamentals (Cash Generation, Margin of Safety, ROE)</span>
+                        <button class="strategy-btn" data-strategy="bottom_up" style="cursor: pointer; padding: 14px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05); background: rgba(255,255,255,0.01); display: flex; flex-direction: column; gap: 6px; text-align: left; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); outline: none;">
+                            <span class="strat-title" style="font-family: 'Outfit', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 0.02em;">Bottom-Up Selection</span>
+                            <span class="strat-desc" style="font-size: 10.5px; color: var(--text-muted); line-height: 1.45;">Pure Company Fundamentals (Cash Generation, Margin of Safety, ROE)</span>
                         </button>
-                        <button class="strategy-btn" data-strategy="top_down">
-                            <span class="strat-title">Top-Down Sector Allocation</span>
-                            <span class="strat-desc">Macro Sector Booms & Tailwinds (Defense, Power, Infrastructure)</span>
+                        <button class="strategy-btn" data-strategy="top_down" style="cursor: pointer; padding: 14px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05); background: rgba(255,255,255,0.01); display: flex; flex-direction: column; gap: 6px; text-align: left; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); outline: none;">
+                            <span class="strat-title" style="font-family: 'Outfit', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 0.02em;">Top-Down Sector Allocation</span>
+                            <span class="strat-desc" style="font-size: 10.5px; color: var(--text-muted); line-height: 1.45;">Macro Sector Booms & Tailwinds (Defense, Power, Infrastructure)</span>
                         </button>
                     </div>
                     
-                    <!-- Cap Universe Selector (Finding 6 resolution!) -->
-                    <div style="display: flex; align-items: center; gap: 15px; margin-top: 5px;">
-                        <label for="screener-universe-select" style="font-size:12px; color: var(--text-secondary); font-weight:600;">Screener Universe Cap:</label>
-                        <select id="screener-universe-select" style="padding: 8px 12px; border-radius: 6px; font-size:12px; background: rgba(0,0,0,0.3); color: var(--text-primary); border: 1px solid var(--border-glass); cursor: pointer; min-width: 200px;">
-                            <option value="all" selected>All Segments (Large + Mid + Small)</option>
-                            <option value="large">Large Cap Segment (Nifty 50)</option>
-                            <option value="mid">Mid Cap Segment (Nifty Midcap)</option>
-                            <option value="small">Small Cap Segment (High-Growth Smallcap)</option>
-                        </select>
+                    <!-- Cap Universe Selector & Style Overlays (Widescreen flex rows) -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; width: 100%;">
+                        <div style="display: flex; flex-direction: column; gap: 6px;">
+                            <label for="screener-universe-select" style="font-family: 'Outfit', sans-serif; font-size: 11px; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Screener Universe Cap Segment</label>
+                            <select id="screener-universe-select" style="padding: 10px 14px; border-radius: 8px; font-size: 11.5px; cursor: pointer; outline: none; transition: all 0.2s; width: 100%; box-shadow: inset 0 1px 2px rgba(0,0,0,0.25);">
+                                <option value="all" selected>All Segments (Large + Mid + Small)</option>
+                                <option value="large">Large Cap Segment (Nifty 50)</option>
+                                <option value="mid">Mid Cap Segment (Nifty Midcap)</option>
+                                <option value="small">Small Cap Segment (High-Growth Smallcap)</option>
+                            </select>
+                        </div>
+                        
+                        <div style="display: flex; flex-direction: column; gap: 6px;">
+                            <label for="screener-style-select" style="font-family: 'Outfit', sans-serif; font-size: 11px; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Investment Style Overlay</label>
+                            <select id="screener-style-select" style="padding: 10px 14px; border-radius: 8px; font-size: 11.5px; cursor: pointer; outline: none; transition: all 0.2s; width: 100%; box-shadow: inset 0 1px 2px rgba(0,0,0,0.25);">
+                                <option value="all" selected>All Styles (No Overlay)</option>
+                                <option value="value">Value Style (Undervalued Cash Flow)</option>
+                                <option value="growth">Growth Style (High Momentum Earnings)</option>
+                                <option value="contra">Contra Style (Oversold Turnaround)</option>
+                            </select>
+                        </div>
                     </div>
                     
-                    <!-- Investment Style Selector (Value, Growth, Contra) -->
-                    <div style="display: flex; align-items: center; gap: 15px; margin-top: 10px; margin-bottom: 5px;">
-                        <label for="screener-style-select" style="font-size:12px; color: var(--text-secondary); font-weight:600;">Investment Style Overlay:</label>
-                        <select id="screener-style-select" style="padding: 8px 12px; border-radius: 6px; font-size:12px; background: rgba(0,0,0,0.3); color: var(--text-primary); border: 1px solid var(--border-glass); cursor: pointer; min-width: 200px;">
-                            <option value="all" selected>All Styles (No Overlay)</option>
-                            <option value="value">Value Style (Undervalued Cash Flow)</option>
-                            <option value="growth">Growth Style (High Momentum Earnings)</option>
-                            <option value="contra">Contra Style (Oversold Turnaround)</option>
-                        </select>
-                    </div>
-                    
-                    <button class="analyze-asset-btn" id="run-screener-btn" style="min-width: 210px;">
+                    <button class="analyze-asset-btn" id="run-screener-btn" style="min-width: 230px; height: 42px; border-radius: 8px; font-weight: 700; transition: all 0.3s ease;">
                         <span class="analyze-btn-particles" id="screener-btn-particles"></span>
-                        <span class="analyze-btn-icon" id="screener-btn-icon">🔬</span>
-                        <span class="analyze-btn-label" id="screener-btn-label">Run AI Screener Scan</span>
+                        <span class="analyze-btn-icon" id="screener-btn-icon" style="font-size: 14px;">🔬</span>
+                        <span class="analyze-btn-label" id="screener-btn-label" style="font-family: 'Outfit', sans-serif; font-size: 12.5px; letter-spacing: 0.02em;">Run AI Screener Scan</span>
                         <span class="analyze-btn-shimmer"></span>
                     </button>
                 </div>
 
                 <!-- Screener Results -->
                 <div class="screener-results-container card" id="screener-results-box" style="display: none;">
-                    <div class="card-header screener-card-header" style="margin-bottom: 15px;">
-                        <h3>AI SCREENER RESULTS</h3>
-                        <div class="screener-actions-cluster">
-                            <button class="btn-primary" id="save-screener-watchlist-btn" style="font-size: 11px; padding: 6px 12px; height: auto;">⭐ Save as Watchlist</button>
-                            <button class="btn-secondary" id="copy-screener-btn" style="font-size: 11px; padding: 6px 12px; height: auto;">📋 Copy Table</button>
-                            <button class="btn-secondary" id="print-screener-btn" style="font-size: 11px; padding: 6px 12px; height: auto;">🖨️ Print Report</button>
-                            <button class="btn-secondary" id="export-screener-csv-btn" style="font-size: 11px; padding: 6px 12px; height: auto;">📥 Export CSV</button>
+                    <div class="card-header screener-card-header" style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-glass); padding-bottom: 15px;">
+                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                            <h3 style="margin: 0; font-family: 'Outfit', sans-serif; font-size: 15px; font-weight: 700; color: var(--text-primary); letter-spacing: 0.03em;">AI SCREENER RESULTS</h3>
+                            <span style="font-size: 9.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 500;">Swept Equity Universe Allocations</span>
                         </div>
-
+                        <div class="screener-actions-cluster" style="display: flex; gap: 8px; align-items: center;">
+                            <button class="btn-primary" id="save-screener-watchlist-btn" style="font-size: 11px; padding: 6px 12px; height: 32px; border-radius: 6px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">⭐ Save as Watchlist</button>
+                            <button class="btn-secondary" id="copy-screener-btn" style="font-size: 11px; padding: 6px 12px; height: 32px; border-radius: 6px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">📋 Copy Table</button>
+                            <button class="btn-secondary" id="print-screener-btn" style="font-size: 11px; padding: 6px 12px; height: 32px; border-radius: 6px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">🖨️ Print Report</button>
+                            <button class="btn-secondary" id="export-screener-csv-btn" style="font-size: 11px; padding: 6px 12px; height: 32px; border-radius: 6px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">📥 Export CSV</button>
+                        </div>
                     </div>
+
+                    <!-- Dynamic AI Screener Analyst Summary Block -->
+                    <div id="screener-summary-block" style="display: none; margin-bottom: 20px; border-left: 4px solid var(--color-primary); border-radius: 8px; padding: 18px; text-align: left; width: 100%; box-sizing: border-box;">
+                        <h4 style="font-size: 13px; color: var(--neon-green); margin-top: 0; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px dashed var(--border-glass); padding-bottom: 10px; display: flex; align-items: center; justify-content: space-between; font-family: 'Outfit', sans-serif;">
+                            <span>🔬 AI Screener Analyst Synthesis</span>
+                            <span style="font-size: 9px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Discovery Sweep Diagnostics</span>
+                        </h4>
+                        <div id="screener-summary-text" style="font-size: 12px; line-height: 1.65; font-family: 'Inter', sans-serif;">
+                            <!-- Calculated summary results & sports academy analogy loaded dynamically -->
+                        </div>
+                    </div>
+
                     <div class="table-scroll">
-                        <table class="data-table">
+                        <table class="data-table" style="width: 100%; border-collapse: collapse; text-align: left; font-family: 'Inter', sans-serif;">
                             <thead>
-                                <tr>
-                                    <th class="sortable" data-sort="rank" style="cursor: pointer; user-select: none;">Rank ↕</th>
-                                    <th class="sortable" data-sort="name" style="cursor: pointer; user-select: none;">Stock (Company) ↕</th>
-                                    <th class="sortable" data-sort="sector" style="cursor: pointer; user-select: none;">Sector ↕</th>
-                                    <th class="sortable" data-sort="cap_type" style="cursor: pointer; user-select: none;">Segment ↕</th>
-                                    <th class="sortable" data-sort="score" style="cursor: pointer; user-select: none;">AI Score ↕</th>
-                                    <th class="sortable" data-sort="fundamental" style="cursor: pointer; user-select: none;">Fundamental ↕</th>
-                                    <th class="sortable" data-sort="valuation" style="cursor: pointer; user-select: none;">Valuation ↕</th>
-                                    <th class="sortable" data-sort="momentum" style="cursor: pointer; user-select: none;">Momentum ↕</th>
-                                    <th class="sortable" data-sort="action" style="cursor: pointer; user-select: none;">Action ↕</th>
-                                    <th>Workstation</th>
+                                <tr style="border-bottom: 1px solid rgba(255,255,255,0.06);">
+                                    <th class="sortable" data-sort="rank" style="cursor: pointer; user-select: none; font-family: 'Outfit', sans-serif; font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); padding: 12px 8px; letter-spacing: 0.04em;">Rank ↕</th>
+                                    <th class="sortable" data-sort="name" style="cursor: pointer; user-select: none; font-family: 'Outfit', sans-serif; font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); padding: 12px 8px; letter-spacing: 0.04em;">Stock (Company) ↕</th>
+                                    <th class="sortable" data-sort="sector" style="cursor: pointer; user-select: none; font-family: 'Outfit', sans-serif; font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); padding: 12px 8px; letter-spacing: 0.04em;">Sector ↕</th>
+                                    <th class="sortable" data-sort="cap_type" style="cursor: pointer; user-select: none; font-family: 'Outfit', sans-serif; font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); padding: 12px 8px; letter-spacing: 0.04em;">Segment ↕</th>
+                                    <th class="sortable" data-sort="score" style="cursor: pointer; user-select: none; font-family: 'Outfit', sans-serif; font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); padding: 12px 8px; letter-spacing: 0.04em;">AI Score ↕</th>
+                                    <th class="sortable" data-sort="fundamental" style="cursor: pointer; user-select: none; font-family: 'Outfit', sans-serif; font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); padding: 12px 8px; letter-spacing: 0.04em;">Fundamental ↕</th>
+                                    <th class="sortable" data-sort="valuation" style="cursor: pointer; user-select: none; font-family: 'Outfit', sans-serif; font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); padding: 12px 8px; letter-spacing: 0.04em;">Valuation ↕</th>
+                                    <th class="sortable" data-sort="momentum" style="cursor: pointer; user-select: none; font-family: 'Outfit', sans-serif; font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); padding: 12px 8px; letter-spacing: 0.04em;">Momentum ↕</th>
+                                    <th class="sortable" data-sort="action" style="cursor: pointer; user-select: none; font-family: 'Outfit', sans-serif; font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); padding: 12px 8px; letter-spacing: 0.04em;">Action ↕</th>
+                                    <th style="font-family: 'Outfit', sans-serif; font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); padding: 12px 8px; letter-spacing: 0.04em;">Workstation</th>
                                 </tr>
                             </thead>
                             <tbody id="screener-results-body">
@@ -291,17 +351,17 @@
             </section>
 
             <!-- SECTION: INDEX UNIVERSE EXPLORER -->
-            <section class="workspace-tab" id="tab-universe" style="display: none;">
+            <section class="workspace-tab" id="tab-universe" style="display: none; font-family: 'Inter', sans-serif;">
                 <div class="section-header">
                     <h2>Index Universe Registry</h2>
                     <p>Query, filter, and monitor persistent database records of Nifty index constituents.</p>
                 </div>
 
-                <div class="card" style="margin-bottom: 20px; padding: 20px;">
-                    <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
-                        <div style="display: flex; flex-direction: column; gap: 6px;">
-                            <label for="universe-explorer-select" style="font-size:12px; color: var(--text-secondary); font-weight:600;">Select Index Segment:</label>
-                            <select id="universe-explorer-select" style="padding: 8px 12px; border-radius: 6px; font-size:12px; background: rgba(0,0,0,0.3); color: var(--text-primary); border: 1px solid var(--border-glass); cursor: pointer; min-width: 240px;">
+                <div class="screener-controls-card">
+                    <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap; width: 100%;">
+                        <div style="display: flex; flex-direction: column; gap: 6px; min-width: 240px;">
+                            <label for="universe-explorer-select" style="font-family: 'Outfit', sans-serif; font-size: 11px; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Select Index Segment</label>
+                            <select id="universe-explorer-select" style="padding: 10px 14px; border-radius: 8px; font-size: 11.5px; cursor: pointer; outline: none; transition: all 0.2s; min-width: 240px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.25);">
                                 <option value="all">All Synchronized Indexes (500 Stocks)</option>
                                 <option value="large">Nifty 100 (Large Cap)</option>
                                 <option value="mid">Nifty Midcap 150 (Mid Cap)</option>
@@ -309,33 +369,47 @@
                             </select>
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 6px; flex-grow: 1;">
-                            <label for="universe-explorer-search" style="font-size:12px; color: var(--text-secondary); font-weight:600;">Filter by Name or Symbol:</label>
-                            <input type="text" id="universe-explorer-search" placeholder="Type symbol or company name to filter list instantly..." style="padding: 8px 12px; border-radius: 6px; font-size:12px; background: rgba(0,0,0,0.3); color: var(--text-primary); border: 1px solid var(--border-glass); width: 100%;">
+                            <label for="universe-explorer-search" style="font-family: 'Outfit', sans-serif; font-size: 11px; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Filter by Name or Symbol</label>
+                            <input type="text" id="universe-explorer-search" placeholder="Type symbol or company name to filter list instantly..." style="padding: 10px 14px; border-radius: 8px; font-size: 11.5px; width: 100%; outline: none; transition: all 0.2s; box-shadow: inset 0 1px 2px rgba(0,0,0,0.25);">
                         </div>
-                        <div style="display: flex; align-items: flex-end; align-self: flex-end;">
-                            <button class="btn-primary" id="universe-explorer-refresh-btn" style="padding: 8px 16px; font-size:12px; height: 36px;">🔄 Sync List</button>
+                        <div style="display: flex; align-items: flex-end; align-self: flex-end; height: 38px;">
+                            <button class="btn-secondary" id="universe-explorer-refresh-btn" style="font-family: 'Outfit', sans-serif; font-size: 11.5px; font-weight: 600; padding: 6px 14px; border-radius: 8px; height: 38px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; transition: all 0.2s;">🔄 Sync List</button>
                         </div>
                     </div>
                 </div>
 
                 <!-- Universe constituents results -->
-                <div class="card" style="padding: 20px;">
-                    <h3 style="font-size:14px; font-weight:700; color:var(--text-primary); margin-bottom:15px; letter-spacing:0.05em; display: flex; justify-content: space-between; align-items: center;">
-                        <span>REGISTERED CONSTITUENTS</span>
-                        <span id="universe-explorer-count" style="background: var(--color-primary-light); color: var(--color-primary); font-size: 11px; padding: 3px 8px; border-radius: 20px;">0 Stocks</span>
+                <div class="screener-results-container card">
+                    <h3 style="font-size:14px; font-weight:700; color:var(--text-primary); margin-top: 0; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-glass); padding-bottom: 15px;">
+                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                            <span style="font-family: 'Outfit', sans-serif; font-size: 15px; font-weight: 700; color: var(--text-primary); letter-spacing: 0.03em;">REGISTERED CONSTITUENTS</span>
+                            <span style="font-size: 9.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 500;">Indexed Segment constituents</span>
+                        </div>
+                        <span id="universe-explorer-count" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; font-weight: 700; border: 1px solid rgba(59, 130, 246, 0.25); font-size: 11px; padding: 4px 10px; border-radius: 6px; font-family: 'Outfit', sans-serif;">0 Stocks</span>
                     </h3>
 
-                    <div style="max-height: 550px; overflow-y: auto; border: 1px solid var(--border-glass); border-radius: 8px;">
-                        <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 12px;">
+                    <!-- Dynamic AI Universe Explorer Analyst Summary Block -->
+                    <div id="universe-summary-block" style="display: none; margin-bottom: 20px; border-left: 4px solid var(--color-primary); border-radius: 8px; padding: 18px; text-align: left; width: 100%; box-sizing: border-box;">
+                        <h4 style="font-size: 13px; color: var(--neon-green); margin-top: 0; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px dashed var(--border-glass); padding-bottom: 10px; display: flex; align-items: center; justify-content: space-between; font-family: 'Outfit', sans-serif;">
+                            <span>🔬 AI Universe Explorer Analyst Synthesis</span>
+                            <span style="font-size: 9px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Constituents Caching Diagnostics</span>
+                        </h4>
+                        <div id="universe-summary-text" style="font-size: 12px; line-height: 1.65; font-family: 'Inter', sans-serif;">
+                            <!-- Calculated summary results & kitchen ingredients metaphor loaded dynamically -->
+                        </div>
+                    </div>
+
+                    <div class="universe-table-wrapper" style="max-height: 550px; overflow-y: auto;">
+                        <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 12px; font-family: 'Inter', sans-serif;">
                             <thead>
-                                <tr style="background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border-glass);">
-                                    <th style="padding: 12px 15px; color: var(--text-secondary); font-weight: 600; width: 60px;">#</th>
-                                    <th class="sortable-univ" data-sort="symbol" style="padding: 12px 15px; color: var(--text-secondary); font-weight: 600; cursor: pointer;">SYMBOL ↕</th>
-                                    <th class="sortable-univ" data-sort="company_name" style="padding: 12px 15px; color: var(--text-secondary); font-weight: 600; cursor: pointer;">COMPANY NAME ↕</th>
-                                    <th class="sortable-univ" data-sort="sector" style="padding: 12px 15px; color: var(--text-secondary); font-weight: 600; cursor: pointer;">SECTOR / INDUSTRY ↕</th>
-                                    <th class="sortable-univ" data-sort="cap_type" style="padding: 12px 15px; color: var(--text-secondary); font-weight: 600; cursor: pointer;">SEGMENT ↕</th>
-                                    <th class="sortable-univ" data-sort="is_cached" style="padding: 12px 15px; color: var(--text-secondary); font-weight: 600; text-align: center; cursor: pointer;">CACHE STATUS ↕</th>
-                                    <th style="padding: 12px 15px; color: var(--text-secondary); font-weight: 600; text-align: center;">ACTIONS</th>
+                                <tr>
+                                    <th style="padding: 12px 15px; font-family: 'Outfit', sans-serif; font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.04em; width: 60px;">#</th>
+                                    <th class="sortable-univ" data-sort="symbol" style="padding: 12px 15px; font-family: 'Outfit', sans-serif; font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.04em; cursor: pointer; user-select: none;">SYMBOL ↕</th>
+                                    <th class="sortable-univ" data-sort="company_name" style="padding: 12px 15px; font-family: 'Outfit', sans-serif; font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.04em; cursor: pointer; user-select: none;">COMPANY NAME ↕</th>
+                                    <th class="sortable-univ" data-sort="sector" style="padding: 12px 15px; font-family: 'Outfit', sans-serif; font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.04em; cursor: pointer; user-select: none;">SECTOR / INDUSTRY ↕</th>
+                                    <th class="sortable-univ" data-sort="cap_type" style="padding: 12px 15px; font-family: 'Outfit', sans-serif; font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.04em; cursor: pointer; user-select: none;">SEGMENT ↕</th>
+                                    <th class="sortable-univ" data-sort="is_cached" style="padding: 12px 15px; font-family: 'Outfit', sans-serif; font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.04em; text-align: center; cursor: pointer; user-select: none;">CACHE STATUS ↕</th>
+                                    <th style="padding: 12px 15px; font-family: 'Outfit', sans-serif; font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.04em; text-align: center; width: 340px;">ACTIONS</th>
                                 </tr>
                             </thead>
                             <tbody id="universe-explorer-body">
@@ -352,12 +426,12 @@
             <!-- SECTION 2: SINGLE STOCK WORKSPACE (ANALYZER) -->
             <section class="workspace-tab" id="tab-analyzer">
                 <!-- Header search panel -->
-                <div class="workspace-header-actions no-print" style="display: flex; gap: 15px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+                <div class="workspace-header-actions no-print">
                     <div class="search-box-container" id="analyzer-search-container">
                         <div class="analyzer-input-wrap">
                             <span class="analyzer-input-icon" id="analyzer-input-icon">🔍</span>
                             <input type="text" id="analyzer-search-input" placeholder="Search Indian stock names (e.g. Reliance, TCS, Tata Motors)..." autocomplete="off">
-                            <div id="analyzer-suggestions" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: #161616; border: 1px solid var(--border-glass); border-radius: 6px; max-height: 200px; overflow-y: auto; z-index: 100; font-size: 11px; box-shadow: 0 8px 24px rgba(0,0,0,0.6); border-color: rgba(255,255,255,0.08); margin-top: 5px;"></div>
+                            <div class="analyzer-suggestions-box" id="analyzer-suggestions"></div>
                         </div>
                         <button id="analyzer-search-btn" class="analyze-asset-btn">
                             <span class="analyze-btn-particles" id="analyze-btn-particles"></span>
@@ -367,64 +441,21 @@
                         </button>
                     </div>
                     
-                    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <div class="workspace-action-group">
                         <!-- Add to Watchlist controls -->
-                        <div id="add-to-watchlist-container" style="display: flex; align-items: center; gap: 6px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-glass); border-radius: 6px; padding: 4px 8px;">
-                            <label for="watchlist-select" style="font-size: 11px; color: var(--text-secondary); font-weight:600;">Add to Watchlist:</label>
-                            <select id="watchlist-select" style="padding: 4px 8px; border-radius: 4px; font-size:11px; background: rgba(0,0,0,0.4); color: var(--text-primary); border: 1px solid var(--border-glass); cursor: pointer; min-width: 120px;">
+                        <div id="add-to-watchlist-container">
+                            <label for="watchlist-select">Add to Watchlist:</label>
+                            <select id="watchlist-select">
                                 <option value="" disabled selected>Select Watchlist</option>
                             </select>
-                            <button id="add-to-watchlist-btn" class="btn-primary" style="font-size: 11px; padding: 4px 10px;">Add</button>
+                            <button id="add-to-watchlist-btn">Add</button>
                         </div>
                         
-                        <button class="btn-secondary" id="export-pdf-btn">Export Research PDF</button>
+                        <button class="btn-secondary" id="export-pdf-btn" disabled><span>📄</span> Export Research PDF</button>
                     </div>
                 </div>
 
-                <!-- PDF Export Section Print Filter Panel Toggle Header -->
-                <div class="no-print" id="print-checklist-toggle" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; padding: 10px 15px; margin-bottom: 8px; background: rgba(255,255,255,0.02); border-radius: 6px; border: 1px solid var(--border-glass); font-size: 11px; font-weight: 700; color: var(--text-secondary); letter-spacing: 0.05em; user-select: none;">
-                    <span style="display: flex; align-items: center; gap: 6px;">⚙️ CONFIGURE PDF REPORT SECTIONS</span>
-                    <span id="print-checklist-arrow" style="font-size: 10px; transition: transform 0.25s ease;">▼</span>
-                </div>
 
-                <!-- PDF Export Section Print Filter Panel Content -->
-                <div class="no-print" id="print-checklist-content" style="max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; margin-bottom: 20px;">
-                    <div style="display: flex; flex-wrap: wrap; gap: 12px 18px; padding: 15px; background: rgba(255,255,255,0.01); border-radius: 8px; border: 1px solid var(--border-glass);">
-                        <label style="font-size: 11px; display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--text-primary); user-select: none;">
-                            <input type="checkbox" class="print-toggle" data-target="tech-timing-card" style="cursor:pointer;"> Technical Timing & SMAs
-                        </label>
-                        <label style="font-size: 11px; display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--text-primary); user-select: none;">
-                            <input type="checkbox" class="print-toggle" data-target="tech-fib-card" checked style="cursor:pointer;"> Technical Fibonacci Levels
-                        </label>
-                        <label style="font-size: 11px; display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--text-primary); user-select: none;">
-                            <input type="checkbox" class="print-toggle" data-target="tech-volatility-card" checked style="cursor:pointer;"> Volatility & Momentum Indicators
-                        </label>
-                        <label style="font-size: 11px; display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--text-primary); user-select: none;">
-                            <input type="checkbox" class="print-toggle" data-target="drawdown-card" style="cursor:pointer;"> Peak-to-Trough Drawdown Analysis
-                        </label>
-                        <label style="font-size: 11px; display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--text-primary); user-select: none;">
-                            <input type="checkbox" class="print-toggle" data-target="sandbox-card" checked style="cursor:pointer;"> DCF Valuation & Sensitivity Matrix
-                        </label>
-                        <label style="font-size: 11px; display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--text-primary); user-select: none;">
-                            <input type="checkbox" class="print-toggle" data-target="historical-bands-card" checked style="cursor:pointer;"> Historical Valuation Bands
-                        </label>
-                        <label style="font-size: 11px; display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--text-primary); user-select: none;">
-                            <input type="checkbox" class="print-toggle" data-target="consensus-comparator-card" checked style="cursor:pointer;"> Consensus Analyst Estimates
-                        </label>
-                        <label style="font-size: 11px; display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--text-primary); user-select: none;">
-                            <input type="checkbox" class="print-toggle" data-target="peers-card" checked style="cursor:pointer;"> Peer Benchmarking Analysis
-                        </label>
-                        <label style="font-size: 11px; display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--text-primary); user-select: none;">
-                            <input type="checkbox" class="print-toggle" data-target="shareholding-card" checked style="cursor:pointer;"> Shareholding & Ownership Structure
-                        </label>
-                        <label style="font-size: 11px; display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--text-primary); user-select: none;">
-                            <input type="checkbox" class="print-toggle" data-target="earnings-quality-card" checked style="cursor:pointer;"> Earnings Quality & Solvency
-                        </label>
-                        <label style="font-size: 11px; display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--text-primary); user-select: none;">
-                            <input type="checkbox" class="print-toggle" data-target="strategical-audit-card" style="cursor:pointer;"> Multi-Agent Strategy Audit
-                        </label>
-                    </div>
-                </div>
 
                 <!-- Empty State -->
                 <div class="empty-state-card card" id="analyzer-empty-state">
@@ -1382,65 +1413,81 @@
                         </div>
                         
                         <!-- Tabs Navigation -->
-                        <div class="drawer-tabs-selector" style="display: flex; background: rgba(0,0,0,0.25); border-bottom: 1px solid var(--border-glass); padding: 2px 10px;">
-                            <button class="drawer-tab-btn active" id="tab-drawer-synthesis" style="flex: 1; padding: 10px 5px; font-size: 11px; font-family: 'Outfit', sans-serif; font-weight: 600; border: none; background: transparent; color: var(--text-secondary); cursor: pointer; transition: all 0.25s ease; border-bottom: 2px solid transparent;">📊 AI Executive Summary</button>
-                            <button class="drawer-tab-btn" id="tab-drawer-chat" style="flex: 1; padding: 10px 5px; font-size: 11px; font-family: 'Outfit', sans-serif; font-weight: 600; border: none; background: transparent; color: var(--text-secondary); cursor: pointer; transition: all 0.25s ease; border-bottom: 2px solid transparent;">💬 Dynamic Advisor Chat</button>
+                        <div class="drawer-tabs-selector">
+                            <button class="drawer-tab-btn active" id="tab-drawer-synthesis">📊 AI Executive Summary</button>
+                            <button class="drawer-tab-btn" id="tab-drawer-chat">💬 Dynamic Advisor Chat</button>
                         </div>
                         
                         <!-- Tab Content 1: Executive Synthesis -->
-                        <div class="drawer-tab-content active" id="drawer-synthesis-content" style="padding: 15px; display: flex; flex-direction: column; gap: 15px; overflow-y: auto; height: calc(100% - 100px);">
-                            <div class="synthesis-score-gauge-wrap" style="display: flex; align-items: center; justify-content: space-around; background: rgba(255,255,255,0.02); border: 1px solid var(--border-glass); border-radius: 8px; padding: 15px 10px;">
-                                <div class="synthesis-gauge-container" style="position: relative; width: 85px; height: 85px;">
-                                    <svg viewBox="0 0 36 36" class="synthesis-gauge-svg" style="width: 100%; height: 100%;">
-                                        <path class="synthesis-gauge-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" style="fill: none; stroke: rgba(255,255,255,0.05); stroke-width: 2.8;" />
-                                        <path id="synthesis-gauge-fill" class="synthesis-gauge-fill" stroke-dasharray="0, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" style="fill: none; stroke: var(--color-emerald); stroke-width: 2.8; stroke-linecap: round; transition: stroke-dasharray 0.8s ease;" />
+                        <div class="drawer-tab-content active" id="drawer-synthesis-content">
+                            <div class="synthesis-score-gauge-wrap">
+                                <div class="synthesis-gauge-container">
+                                    <svg viewBox="0 0 36 36" class="synthesis-gauge-svg">
+                                        <path class="synthesis-gauge-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                        <path id="synthesis-gauge-fill" class="synthesis-gauge-fill" stroke-dasharray="0, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
                                     </svg>
-                                    <div class="synthesis-gauge-text" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-                                        <span id="synthesis-gauge-score-num" style="font-family: 'Outfit', sans-serif; font-size: 20px; font-weight: 800; color: var(--text-primary);">--</span>
-                                        <span class="synthesis-gauge-label" style="font-size: 8px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-top: -2px;">Score</span>
+                                    <div class="synthesis-gauge-text">
+                                        <span id="synthesis-gauge-score-num">--</span>
+                                        <span class="synthesis-gauge-label">Score</span>
                                     </div>
                                 </div>
-                                <div class="synthesis-rec-badge-wrap" style="display: flex; flex-direction: column; align-items: center; gap: 5px;">
-                                    <span style="font-size: 9px; color: var(--text-secondary); text-transform: uppercase; font-weight:600; letter-spacing:0.05em;">AI Rating</span>
-                                    <span class="badge-rec" id="synthesis-badge-rec" style="font-size: 13px; padding: 6px 12px; border-radius: 4px; font-weight: 700;">HOLD 🟡</span>
+                                <div class="synthesis-rec-badge-wrap">
+                                    <span class="synthesis-badge-hdr">AI Rating</span>
+                                    <span class="badge-rec" id="synthesis-badge-rec">HOLD 🟡</span>
                                 </div>
-                                <div class="synthesis-print-wrap" style="display: flex; flex-direction: column; align-items: center; gap: 5px;">
-                                    <span style="font-size: 9px; color: var(--text-secondary); text-transform: uppercase; font-weight:600; letter-spacing:0.05em;">Prospectus</span>
-                                    <button class="btn-secondary" id="print-prospectus-btn" style="font-size: 11px; padding: 5px 10px; height: auto; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; font-weight:600;"><span style="font-size: 12px;">🖨️</span> Print</button>
-                                </div>
-                            </div>
-
-                            <div class="synthesis-micro-indicators" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
-                                <div class="synthesis-micro-item" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-glass); border-radius: 6px; padding: 8px 5px; text-align: center;">
-                                    <span style="font-size: 8px; color: var(--text-secondary); font-weight: 600; display: block; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px;">Valuation MoS</span>
-                                    <strong id="synthesis-micro-mos" style="font-size: 11px; color: var(--text-primary);">--%</strong>
-                                </div>
-                                <div class="synthesis-micro-item" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-glass); border-radius: 6px; padding: 8px 5px; text-align: center;">
-                                    <span style="font-size: 8px; color: var(--text-secondary); font-weight: 600; display: block; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px;">Solvency (Z)</span>
-                                    <strong id="synthesis-micro-altman" style="font-size: 11px; color: var(--text-primary);">--</strong>
-                                </div>
-                                <div class="synthesis-micro-item" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-glass); border-radius: 6px; padding: 8px 5px; text-align: center;">
-                                    <span style="font-size: 8px; color: var(--text-secondary); font-weight: 600; display: block; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px;">Piotroski Quality</span>
-                                    <strong id="synthesis-micro-piotroski" style="font-size: 11px; color: var(--text-primary);">--/9</strong>
+                                <div class="synthesis-print-wrap">
+                                    <span class="synthesis-print-hdr">Prospectus</span>
+                                    <button class="btn-secondary" id="print-prospectus-btn"><span>🖨️</span> Print</button>
                                 </div>
                             </div>
 
-                            <div class="synthesis-report-container" style="background: rgba(0,0,0,0.2); border: 1px solid var(--border-glass); border-radius: 8px; padding: 15px; flex-grow: 1; display: flex; flex-direction: column;">
-                                <h5 style="margin-top: 0; margin-bottom: 12px; font-family: 'Outfit', sans-serif; font-size: 11px; color: var(--text-primary); letter-spacing: 0.05em; border-bottom: 1px dashed var(--border-glass); padding-bottom: 8px;">📊 INSTITUTIONAL PROSPECTUS</h5>
-                                <div id="synthesis-report-text" class="synthesis-report-text" style="font-size: 12px; line-height: 1.6; color: var(--text-muted); overflow-y: auto; flex-grow: 1;">
-                                    Click the AI Conviction trigger next to the price banner to load the executive prospectus report compiled dynamically by Groq Llama 3 LLM synthesis.
+                            <div class="synthesis-micro-indicators">
+                                <div class="synthesis-micro-item">
+                                    <span class="synthesis-micro-lbl">Valuation MoS</span>
+                                    <strong id="synthesis-micro-mos">--%</strong>
+                                </div>
+                                <div class="synthesis-micro-item">
+                                    <span class="synthesis-micro-lbl">Solvency (Z)</span>
+                                    <strong id="synthesis-micro-altman">--</strong>
+                                </div>
+                                <div class="synthesis-micro-item">
+                                    <span class="synthesis-micro-lbl">Piotroski Quality</span>
+                                    <strong id="synthesis-micro-piotroski">--/9</strong>
+                                </div>
+                            </div>
+
+                            <div class="synthesis-report-container">
+                                <h5>📊 INSTITUTIONAL PROSPECTUS</h5>
+                                <div id="synthesis-report-text" class="synthesis-report-text">
+                                    <div class="copilot-intro-card">
+                                        <div class="copilot-card-title">
+                                            <span>✈️</span>
+                                            <strong>Autonomous Flight Guidance</strong>
+                                        </div>
+                                        <p class="copilot-card-p">
+                                            Think of your AI Advisory Co-Pilot as an autonomous flight navigation guidance system operating alongside you in the cockpit. While you serve as the commander steering investment decisions, the Co-Pilot runs simultaneous scans on high-density financial radars, calculates cross-wind valuation vectors (DCF Sensitivity matrices & Peer multiples), and alerts you to potential aerodynamic turbulence before it impacts the portfolio's flight path.
+                                        </p>
+                                    </div>
+                                    <div class="copilot-action-hint">
+                                        Click the <strong style="color: var(--color-primary-light);">AI Conviction</strong> trigger next to the price banner to load the live executive research prospectus.
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Tab Content 2: Advisor Chat -->
-                        <div class="drawer-tab-content" id="drawer-chat-content" style="display: none; height: calc(100% - 100px); flex-direction: column;">
-                            <div class="chat-drawer-messages" id="chat-messages" style="flex-grow: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 15px;">
+                        <div class="drawer-tab-content" id="drawer-chat-content">
+                            <div class="chat-drawer-messages" id="chat-messages">
                                 <div class="chat-message assistant">
-                                    Hello! I am your Apex Agentic Advisor. Ask me anything about the loaded stock, its DCF models, peer relative valuation, or technical moving average targets.
+                                    <div class="copilot-chat-intro">
+                                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-weight: 700; color: var(--text-primary); font-family: 'Outfit', sans-serif; font-size: 11px; letter-spacing: 0.03em;">
+                                            <span>👨‍✈️</span> CO-PILOT CHAT ONLINE
+                                        </div>
+                                        Hello! I am your Equities AI Co-Pilot, operating your autonomous flight guidance system. Ask me anything about the loaded stock's operational solvency, cross-wind peer multiples, intrinsic DCF parameters, or dynamic catalyst news sweeps.
+                                    </div>
                                 </div>
                             </div>
-                            <div class="chat-suggested-prompts" style="display: flex; gap: 6px; overflow-x: auto; padding: 8px 10px; background: rgba(0,0,0,0.15); border-top: 1px solid var(--border-glass); white-space: nowrap;">
+                            <div class="chat-suggested-prompts">
                                 <button class="chat-prompt-pill">🔍 WACC & DCF Sensitivity</button>
                                 <button class="chat-prompt-pill">⚖️ Peer Multiples & Premium</button>
                                 <button class="chat-prompt-pill">🛑 Solvency & Altman Z Audit</button>
@@ -1452,9 +1499,9 @@
                                 <button class="chat-prompt-pill">📈 Broker Targets & Trends</button>
                                 <button class="chat-prompt-pill">🔮 Strategic Growth Outlook</button>
                             </div>
-                            <div class="chat-drawer-input-area" style="display: flex; padding: 10px; background: rgba(0,0,0,0.3); border-top: 1px solid var(--border-glass);">
-                                <input type="text" id="chat-user-input" placeholder="Type a follow-up question..." style="flex-grow: 1; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-glass); background: rgba(0,0,0,0.4); color: var(--text-primary); font-size: 12px;">
-                                <button id="send-chat-btn" style="margin-left: 8px; padding: 8px 16px; border-radius: 6px; border: none; background: var(--color-primary); color: white; font-weight: 600; font-size: 12px; cursor: pointer;">Send</button>
+                            <div class="chat-drawer-input-area">
+                                <input type="text" id="chat-user-input" placeholder="Type a follow-up question...">
+                                <button id="send-chat-btn">Send</button>
                             </div>
                         </div>
                     </div>
@@ -1479,6 +1526,13 @@
                     <div class="compare-input-row">
                         <input type="text" id="compare-symbols-input" placeholder="e.g. RELIANCE, ONGC, NTPC" value="TCS, INFY, WIPRO">
                         <button class="btn-primary" id="run-comparison-btn">Benchmark Rivals</button>
+                    </div>
+                    <div class="compare-suggestions-dock" style="margin-top: 15px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <span style="font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Quick Benchmarks:</span>
+                        <button class="suggestion-tag-pill" data-symbols="TCS, INFY, WIPRO, TECHM">💻 IT Giants</button>
+                        <button class="suggestion-tag-pill" data-symbols="HDFC, ICICI, KOTAK, AXIS">🏦 Banking Titans</button>
+                        <button class="suggestion-tag-pill" data-symbols="RELIANCE, NTPC, ONGC, COALINDIA">⚡ Energy Leaders</button>
+                        <button class="suggestion-tag-pill" data-symbols="MARUTI, TATAMOTORS, M&M, HEROCOTO">🚗 Auto Giants</button>
                     </div>
                 </div>
 
@@ -1526,6 +1580,20 @@
                 <div class="section-header">
                     <h2>Institutional Alert Center</h2>
                     <p>Configure custom valuation and technical threshold triggers. The database backend audits conditions in real-time.</p>
+                </div>
+
+                <!-- Sonar Sentinel Callout Panel -->
+                <div class="alerts-radar-sentinel-card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+                        <h4 style="font-size: 13px; color: var(--color-primary); border-left: 3px solid var(--color-primary); padding-left: 10px; text-transform: uppercase; letter-spacing: 0.05em; margin: 0;">📡 AI Silent Sentinel Radar Sweeps</h4>
+                        <div class="sonar-pulse-widget">
+                            <span class="sonar-pulse-indicator"></span>
+                            <span>Radar Scan: Active (30s)</span>
+                        </div>
+                    </div>
+                    <p class="prescription-analogy-text" style="margin: 0; font-size: 12px; line-height: 1.6; color: var(--text-secondary); font-style: italic;">
+                        Think of configuring institutional database database alerts as deploying a military-grade early warning radar guard station around a secure perimeter. The scanner runs silent, sweeps NSE data feeds in the background, and acts as a silent sentinel. When stock valuation thresholds or RSI momentum barriers are crossed, the sonar alarms beep, immediate terminal alerts fire, and cockpit warning alarm states are triggered before structural market swings affect the portfolio's flight path.
+                    </p>
                 </div>
 
                 <div class="alerts-grid">
@@ -1576,13 +1644,13 @@
                             <table class="data-table">
                                 <thead>
                                     <tr>
-                                        <th>ID</th>
-                                        <th>Stock</th>
-                                        <th>Condition</th>
-                                        <th>Target</th>
-                                        <th>Status</th>
-                                        <th>Triggered At</th>
-                                        <th>Action</th>
+                                        <th>🆔 ID</th>
+                                        <th>📁 Stock</th>
+                                        <th>⚙️ Condition</th>
+                                        <th>🎯 Target</th>
+                                        <th>📊 Status</th>
+                                        <th>🕒 Triggered At</th>
+                                        <th>🛠️ Action</th>
                                     </tr>
                                 </thead>
                                 <tbody id="alerts-table-body">
@@ -1685,15 +1753,15 @@
                                 <table class="data-table small-table">
                                     <thead>
                                         <tr>
-                                            <th>Stock</th>
-                                            <th>Score</th>
-                                            <th>Action</th>
-                                            <th>Price</th>
-                                            <th>P/E</th>
-                                            <th>ROE%</th>
-                                            <th>Margin of Safety</th>
-                                            <th>RSI-14</th>
-                                            <th>Trend</th>
+                                            <th>📁 Stock</th>
+                                            <th>📊 Score</th>
+                                            <th>💎 Action</th>
+                                            <th>💰 Price</th>
+                                            <th>⚙️ P/E</th>
+                                            <th>📈 ROE%</th>
+                                            <th>🛡️ Margin of Safety</th>
+                                            <th>⚡ RSI-14</th>
+                                            <th>⚡ Trend</th>
                                         </tr>
                                     </thead>
                                     <tbody id="watchlist-analysis-body">
@@ -1736,13 +1804,13 @@
                         <div>
                             <h4 style="font-size: 12px; color: var(--text-primary); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0;">Acquisition Ledger</h4>
                             
-                            <!-- Add Holdings Panel -->
-                            <div class="no-print" style="display: flex; gap: 12px; align-items: center; background: rgba(0,0,0,0.25); border: 1px solid var(--border-glass); border-radius: 8px; padding: 10px 15px; margin-bottom: 15px; flex-wrap: wrap;">
+                            <!-- Add Holdings Ledger Panel -->
+                            <div class="no-print" style="display: flex; gap: 12px; align-items: center; background: rgba(30, 41, 59, 0.25); border: 1px solid var(--border-glass); border-radius: 8px; padding: 10px 15px; margin-bottom: 15px; flex-wrap: wrap;">
                                 <span style="font-size: 11px; font-weight: 700; color: var(--text-secondary); letter-spacing: 0.03em;">ADD TO LEDGER:</span>
                                 
                                 <!-- Select from watchlist -->
                                 <div style="display: flex; align-items: center; gap: 6px;">
-                                    <select id="portfolio-watchlist-stock-select" style="padding: 4px 8px; border-radius: 4px; font-size:11px; background: rgba(0,0,0,0.4); color: var(--text-primary); border: 1px solid var(--border-glass); cursor: pointer; min-width: 150px;">
+                                    <select id="portfolio-watchlist-stock-select" style="padding: 4px 8px; border-radius: 4px; font-size:11px; cursor: pointer; min-width: 150px;">
                                         <option value="" disabled selected>Choose from Watchlist</option>
                                     </select>
                                     <button id="portfolio-add-from-watchlist-btn" class="btn-primary" style="font-size: 11px; padding: 4px 10px; height: auto;">+ Add Selected</button>
@@ -1753,7 +1821,7 @@
                                 <!-- Add custom stock symbol with autocomplete suggestions list -->
                                 <div style="display: flex; align-items: center; gap: 6px; position: relative;">
                                     <input type="text" id="portfolio-custom-stock-input" placeholder="Type stock (e.g. HAL)..." style="padding: 4px 8px; font-size:11px; border-radius: 4px; background: rgba(0,0,0,0.3); color: var(--text-primary); border: 1px solid var(--border-glass); width: 150px; outline: none;" autocomplete="off">
-                                    <div id="portfolio-custom-suggestions" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: #161616; border: 1px solid var(--border-glass); border-radius: 6px; max-height: 180px; overflow-y: auto; z-index: 100; font-size: 11px; box-shadow: 0 8px 24px rgba(0,0,0,0.6); min-width: 220px; border-color: rgba(255,255,255,0.08);"></div>
+                                    <div id="portfolio-custom-suggestions" style="display: none;"></div>
                                     <button id="portfolio-add-custom-btn" class="btn-primary" style="font-size: 11px; padding: 4px 10px; height: auto;">+ Add Custom</button>
                                 </div>
                             </div>
@@ -1778,7 +1846,7 @@
                         
                         <div style="display: flex; flex-direction: column; gap: 15px;">
                             <h4 style="font-size: 12px; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.05em; margin: 0;">Portfolio Balance Sheet</h4>
-                            <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border-glass); padding: 15px; border-radius: 8px; display: flex; flex-direction: column; gap: 10px;">
+                            <div class="portfolio-balance-card">
                                 <div style="display: flex; justify-content: space-between; font-size: 12px;">
                                     <span style="color: var(--text-secondary);">Total Investment:</span>
                                     <strong id="port-total-investment">₹0.00</strong>

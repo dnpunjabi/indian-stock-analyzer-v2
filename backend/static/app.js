@@ -90,6 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupEnterpriseFooter(); // Initialize Enterprise diagnostics footer
     setupAuditSummary(); // Initialize Strategy Audit AI matrix summary
     setupWatchlistSummary(); // Initialize Watchlist AI Summary & Print Exporter
+    setupBrandReset(); // Wire click to reset workspace
 });
 
 // Collapsible Sidebar Workstation Manager
@@ -282,6 +283,74 @@ function switchTab(tabKey) {
             }
         }
     });
+}
+
+function setupBrandReset() {
+    const brand = document.getElementById('logo-brand-reset');
+    if (brand) {
+        brand.addEventListener('click', () => {
+            resetWorkspace();
+        });
+    }
+    
+    const mobileBrand = document.getElementById('mobile-logo-reset');
+    if (mobileBrand) {
+        mobileBrand.addEventListener('click', () => {
+            resetWorkspace();
+        });
+    }
+}
+
+function resetWorkspace() {
+    activeStockProfile = null;
+    chatHistory = [];
+    
+    // Close mobile menu sidebar if open
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar) {
+        sidebar.classList.remove('open');
+    }
+    
+    // Clear search inputs & suggestions box
+    const searchInput = document.getElementById('analyzer-search-input');
+    if (searchInput) searchInput.value = '';
+    
+    const suggestions = document.getElementById('analyzer-suggestions');
+    if (suggestions) {
+        suggestions.innerHTML = '';
+        suggestions.style.display = 'none';
+    }
+    
+    // Reset active stock meta text fields in the header
+    const compName = document.getElementById('meta-company-name');
+    if (compName) compName.innerText = '';
+    const ticker = document.getElementById('meta-ticker');
+    if (ticker) ticker.innerText = '';
+    const sector = document.getElementById('meta-sector');
+    if (sector) sector.innerText = '';
+    const industry = document.getElementById('meta-industry');
+    if (industry) industry.innerText = '';
+    const price = document.getElementById('meta-price');
+    if (price) price.innerText = '';
+    const change = document.getElementById('meta-change');
+    if (change) change.innerText = '';
+    
+    const conviction = document.getElementById('meta-ai-conviction-text');
+    if (conviction) conviction.innerText = 'Score: --/100';
+    
+    // Toggles dashboard visibility back to empty state
+    const dashboard = document.getElementById('analyzer-dashboard');
+    if (dashboard) dashboard.style.display = 'none';
+    
+    const emptyState = document.getElementById('analyzer-empty-state');
+    if (emptyState) emptyState.style.display = 'block';
+    
+    // Disable export PDF report button
+    const exportBtn = document.getElementById('export-pdf-btn');
+    if (exportBtn) exportBtn.setAttribute('disabled', 'true');
+    
+    // Navigate back to the Equity Research Terminal
+    switchTab('analyzer');
 }
 
 // 2. Global Loader Utilities
@@ -538,6 +607,16 @@ function renderScreenerResults(results, isSorted = false) {
     const tbody = document.getElementById('screener-results-body');
     tbody.innerHTML = '';
     
+    const formatSubscore = (score, maxVal) => {
+        if (score === undefined || score === null) return `0/${maxVal}`;
+        const scoreStr = String(score);
+        if (scoreStr.includes('/')) {
+            const parts = scoreStr.split('/');
+            return `<span style="font-size: 11px; font-weight: 600; color: var(--text-primary);">${parts[0]}</span><span style="font-size: 8.5px; color: var(--text-muted);">/${parts[1]}</span>`;
+        }
+        return `<span style="font-size: 11px; font-weight: 600; color: var(--text-primary);">${scoreStr}</span><span style="font-size: 8.5px; color: var(--text-muted);">/${maxVal}</span>`;
+    };
+    
     if (results.length === 0) {
         tbody.innerHTML = '<tr><td colspan="10" class="center-text text-muted">No matching assets found. Try adjusting selection strategy.</td></tr>';
         return;
@@ -552,6 +631,17 @@ function renderScreenerResults(results, isSorted = false) {
     
     results.forEach((item) => {
         const tr = document.createElement('tr');
+        tr.style.transition = 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)';
+        tr.style.cursor = 'default';
+        
+        tr.addEventListener('mouseenter', () => {
+            tr.style.background = 'rgba(255, 255, 255, 0.025)';
+            tr.style.transform = 'scale(1.004)';
+        });
+        tr.addEventListener('mouseleave', () => {
+            tr.style.background = 'transparent';
+            tr.style.transform = 'none';
+        });
         
         let recClass = 'rec-hold';
         if (item.action.includes("BUY")) recClass = 'rec-buy';
@@ -571,17 +661,24 @@ function renderScreenerResults(results, isSorted = false) {
             scoreBg = 'rgba(239,68,68,0.1)';
         }
         
+        // Rank visual medals
+        const rankMedal = item.rank === 1 ? '🥇' : item.rank === 2 ? '🥈' : item.rank === 3 ? '🥉' : `#${item.rank}`;
+        const rankStyle = item.rank <= 3 ? 'font-size: 13px;' : 'font-size: 11px; color: var(--text-secondary);';
+        
         tr.innerHTML = `
-            <td><strong>#${item.rank}</strong></td>
-            <td><strong>${item.name}</strong><br><span class="text-muted" style="font-size:10px;">${item.symbol}</span></td>
-            <td><span class="text-muted">${item.sector}</span></td>
-            <td><span class="text-muted" style="text-transform: uppercase; font-size: 11px; font-weight: 600;">${item.cap_type || 'N/A'}</span></td>
-            <td><span class="badge-ticker" style="background-color:${scoreBg}; color:${scoreColor}; border-color:transparent; font-weight:700;">${item.score}/100</span></td>
-            <td><span>${item.fundamental_score}</span></td>
-            <td><span>${item.valuation_score}</span></td>
-            <td><span>${item.technical_score}</span></td>
-            <td><span class="badge-rec ${recClass}" style="font-size:10px; padding: 2px 6px; font-weight:600;">${item.action}</span></td>
-            <td><button class="btn-secondary load-analyzer-btn" data-ticker="${item.symbol}" style="font-size:11px; padding:4px 10px;">Load Workspace</button></td>
+            <td><strong style="${rankStyle}">${rankMedal}</strong></td>
+            <td>
+                <strong style="color: var(--text-primary); font-family: 'Outfit', sans-serif;">${item.name}</strong><br>
+                <span class="text-muted" style="font-size:9.5px; letter-spacing:0.02em;">${item.symbol}</span>
+            </td>
+            <td><span class="text-muted" style="font-size: 11px;">${item.sector}</span></td>
+            <td><span class="text-muted" style="text-transform: uppercase; font-size: 10.5px; font-weight: 700; letter-spacing:0.02em;">${item.cap_type || 'N/A'}</span></td>
+            <td><span class="badge-ticker" style="background-color:${scoreBg}; color:${scoreColor}; border: 1px solid ${scoreColor}30; font-family: 'Outfit', sans-serif; font-weight:800; font-size: 11px; padding: 3px 8px; border-radius: 6px;">${item.score}/100</span></td>
+            <td>${formatSubscore(item.fundamental_score, 30)}</td>
+            <td>${formatSubscore(item.valuation_score, 25)}</td>
+            <td>${formatSubscore(item.technical_score, 25)}</td>
+            <td><span class="badge-rec ${recClass}" style="font-size: 9.5px; padding: 3px 8px; font-weight: 700; border-radius: 5px; letter-spacing:0.04em;">${item.action}</span></td>
+            <td><button class="btn-secondary load-analyzer-btn" data-ticker="${item.symbol}" style="font-size: 10.5px; padding: 5px 12px; font-family: 'Outfit', sans-serif; font-weight: 600; border-radius: 6px; cursor: pointer; transition: all 0.2s;">Load Workspace</button></td>
         `;
         
         tbody.appendChild(tr);
@@ -593,6 +690,76 @@ function renderScreenerResults(results, isSorted = false) {
             loadStockAnalyzer(ticker);
         });
     });
+    
+    // Dynamic AI Screener Analyst Summary Block Generator
+    const summaryBox = document.getElementById('screener-summary-block');
+    const summaryText = document.getElementById('screener-summary-text');
+    
+    if (summaryBox && summaryText) {
+        const totalCount = results.length;
+        const avgScore = results.reduce((acc, r) => acc + r.score, 0) / totalCount;
+        const buyCount = results.filter(r => r.action.includes("BUY")).length;
+        const avoidCount = results.filter(r => r.action.includes("AVOID") || r.action.includes("SELL")).length;
+        
+        const topPick = results[0];
+        
+        let accentColor = '#EF4444';
+        let cohortTitle = '⚠️ CLEARANCE MARKET BARGAIN (Distressed Cohort)';
+        let cohortMetaphor = `Think of this cohort as a clearance market bargain bin. The vast majority of assets are struggling against severe macroeconomic headwinds, high promoter pledging, or technical momentum friction. You must proceed with extreme caution, as many carry high-risk deal-breakers.`;
+        
+        if (avgScore >= 65) {
+            accentColor = '#10B981';
+            cohortTitle = '🏆 HIGH-PERFORMANCE SPORTS ACADEMY (Prime Cohort)';
+            cohortMetaphor = `Think of this screened cohort as a world-class sports academy. The vast majority of candidates here are physically elite, highly disciplined, and operate at peak efficiency. This represents a prime asset list with outstanding structural tailwinds where capital deployment has a high probability of capturing alpha.`;
+        } else if (avgScore >= 45) {
+            accentColor = '#F59E0B';
+            cohortTitle = '🎓 SELECTIVE UNIVERSITY CLASS (Balanced Cohort)';
+            cohortMetaphor = `Think of this cohort as a selective university classroom. Most candidates are reliable, above-average performers, but they are not uniform. You need to grade them carefully using individual quality gates to separate the honors graduates from the crowd before allocating capital.`;
+        }
+        
+        summaryBox.style.borderLeft = `4px solid ${accentColor}`;
+        
+        let html = '';
+        
+        html += '<div style="display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 18px; align-items: start;">';
+        
+        // Left Column: Metaphor
+        html += '  <div>';
+        html += `    <div style="font-size: 11px; font-weight: 700; color: ${accentColor}; margin-bottom: 5px; letter-spacing: 0.04em;">${cohortTitle}</div>`;
+        html += `    <p style="font-size: 11px; color: var(--text-muted); line-height: 1.6; margin: 0; font-family: 'Inter', sans-serif;">${cohortMetaphor}</p>`;
+        html += '  </div>';
+        
+        // Right Column: Metrics Grid
+        html += '  <div style="display: grid; grid-template-columns: 1fr; gap: 8px;">';
+        
+        html += '    <div style="display: flex; gap: 8px;">';
+        html += '      <div style="flex: 1; background: rgba(0,0,0,0.15); border: 1px solid rgba(255,255,255,0.03); padding: 8px 10px; border-radius: 6px; display: flex; flex-direction: column; justify-content: center;">';
+        html += '        <span style="font-size: 8.5px; color: var(--text-secondary); text-transform: uppercase; font-weight: 600;">Cohort Avg Score</span>';
+        html += `        <strong style="font-size: 13.5px; color: ${accentColor}; margin-top: 1px; font-family: 'Outfit', sans-serif;">${avgScore.toFixed(1)}/100</strong>`;
+        html += '      </div>';
+        html += '      <div style="flex: 1; background: rgba(0,0,0,0.15); border: 1px solid rgba(255,255,255,0.03); padding: 8px 10px; border-radius: 6px; display: flex; flex-direction: column; justify-content: center;">';
+        html += '        <span style="font-size: 8.5px; color: var(--text-secondary); text-transform: uppercase; font-weight: 600;">Buy vs Avoid Tally</span>';
+        html += `        <strong style="font-size: 13.5px; color: #ffffff; margin-top: 1px; font-family: 'Outfit', sans-serif;"><span style="color:#10B981;">${buyCount}B</span> <span style="color:var(--text-muted); font-size:10px;">/</span> <span style="color:#EF4444;">${avoidCount}A</span></strong>`;
+        html += '      </div>';
+        html += '    </div>';
+        
+        if (topPick) {
+            const cleanTopPickName = topPick.name.length > 22 ? topPick.name.substring(0, 20) + '...' : topPick.name;
+            html += `    <div class="top-pick-highlight-badge" style="background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.25); padding: 8px 12px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: all 0.2s;" onclick="loadStockAnalyzer('${topPick.symbol}')" title="Click to load workspace instantly">`;
+            html += '      <div style="display: flex; flex-direction: column; gap: 1px;">';
+            html += '        <span style="font-size: 8.5px; color: var(--text-secondary); text-transform: uppercase; font-weight: 600;">👑 Top Conviction Pick</span>';
+            html += `        <strong style="font-size: 12px; color: #ffffff; font-family: 'Outfit', sans-serif;">${cleanTopPickName} <span style="font-size: 9.5px; color: var(--text-muted); font-weight: 500;">(${topPick.symbol})</span></strong>`;
+            html += '      </div>';
+            html += `      <div style="background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.35); border-radius: 6px; padding: 3px 8px; font-size: 11px; font-weight: 700; color: #60a5fa; font-family: 'Outfit', sans-serif;">${topPick.score}/100</div>`;
+            html += '    </div>';
+        }
+        
+        html += '  </div>';
+        html += '</div>';
+        
+        summaryText.innerHTML = html;
+        summaryBox.style.display = 'block';
+    }
     
     const resultsBox = document.getElementById('screener-results-box');
     if (resultsBox) resultsBox.style.display = 'block';
@@ -978,6 +1145,9 @@ function renderStockDashboard(p) {
     if (emptyStateEl) emptyStateEl.style.display = 'none';
     const dashboardEl = document.getElementById('analyzer-dashboard');
     if (dashboardEl) dashboardEl.style.display = 'block';
+    
+    const exportBtn = document.getElementById('export-pdf-btn');
+    if (exportBtn) exportBtn.removeAttribute('disabled');
     
     // Explicitly align search input with active stock
     const searchInput = document.getElementById('analyzer-search-input');
@@ -3530,6 +3700,18 @@ async function runDynamicSandboxAI() {
 function setupComparisonArena() {
     document.getElementById('run-comparison-btn').addEventListener('click', runComparisonAnalysis);
 
+    // Hook up suggestion pills for quick benchmarks
+    const suggestionPills = document.querySelectorAll('#tab-compare .suggestion-tag-pill');
+    suggestionPills.forEach(pill => {
+        pill.addEventListener('click', () => {
+            const symbolsInput = document.getElementById('compare-symbols-input');
+            if (symbolsInput) {
+                symbolsInput.value = pill.getAttribute('data-symbols');
+                runComparisonAnalysis();
+            }
+        });
+    });
+
     // Implement Premium Print Peer Battleground PDF Exporter
     const printBattlegroundBtn = document.getElementById('print-battleground-btn');
     if (printBattlegroundBtn) {
@@ -3923,49 +4105,85 @@ function renderComparisonArena(data) {
     
     matrix.forEach((item, index) => {
         const isChamp = index === bestIndex;
-        headerRow.innerHTML += `<th style="${isChamp ? 'border-top: 3px solid var(--color-emerald); background: rgba(16, 185, 129, 0.04);' : ''}">${item.company_name} ${isChamp ? '🏆' : ''}</th>`;
+        if (isChamp) {
+            headerRow.innerHTML += `<th class="champion-column-header">${item.company_name} <span class="champion-trophy-badge">🏆 CHAMPION</span></th>`;
+        } else {
+            headerRow.innerHTML += `<th>${item.company_name}</th>`;
+        }
     });
     
     const metrics = [
-        { label: 'AI Advisory Score', key: 'score', format: v => v !== null && v !== undefined ? `<strong>${v}/100</strong>` : 'N/A' },
-        { label: 'AI Analyst Action', key: 'action', format: v => v ? `<span class="badge-rec ${v.includes('BUY') ? 'rec-buy' : (v.includes('HOLD') ? 'rec-hold' : 'rec-sell')}" style="font-size:10px; padding: 2px 6px; font-weight:600;">${v}</span>` : 'N/A' },
-        { label: 'Current Price (Rs)', key: 'price', format: v => v !== null && v !== undefined ? `Rs. ${v.toLocaleString('en-IN')}` : 'N/A' },
-        { label: 'Stock Trailing P/E', key: 'pe', format: v => v !== null && v !== undefined ? (typeof v === 'number' ? v.toFixed(1) : v) : 'N/A' },
-        { label: 'Return on Equity (ROE)', key: 'roe', format: v => v !== null && v !== undefined ? (typeof v === 'number' ? `${v.toFixed(1)}%` : `${v}%`) : 'N/A' },
-        { label: 'Return on Capital (ROCE)', key: 'roce', format: v => v !== null && v !== undefined ? (typeof v === 'number' ? `${v.toFixed(1)}%` : `${v}%`) : 'N/A' },
-        { label: 'Debt to Equity', key: 'debt_eq', format: v => v !== null && v !== undefined ? (typeof v === 'number' ? v.toFixed(2) : v) : 'N/A' },
-        { label: 'DCF Margin of Safety', key: 'margin_of_safety', format: v => v !== null && v !== undefined ? (typeof v === 'number' ? `${v > 0 ? '+' : ''}${v.toFixed(1)}%` : `${v}%`) : 'N/A' },
-        { label: 'RSI-14 momentum', key: 'rsi', format: v => v !== null && v !== undefined ? (typeof v === 'number' ? v.toFixed(1) : v) : 'N/A' },
-        { label: 'Moving Average Trend', key: 'trend', format: v => v || 'N/A' }
+        { label: 'AI Advisory Score', key: 'score', icon: '📊', format: v => v !== null && v !== undefined ? `<strong>${v}/100</strong>` : 'N/A' },
+        { label: 'AI Analyst Action', key: 'action', icon: '💎', format: v => {
+            if (!v) return 'N/A';
+            let cls = 'badge-hold';
+            if (v.toUpperCase().includes('BUY')) cls = 'badge-buy';
+            if (v.toUpperCase().includes('SELL') || v.toUpperCase().includes('UNDERPERFORM')) cls = 'badge-sell';
+            return `<span class="rec-glowing-badge ${cls}">${v}</span>`;
+        }},
+        { label: 'Current Price', key: 'price', icon: '💰', format: v => v !== null && v !== undefined ? `Rs. ${v.toLocaleString('en-IN')}` : 'N/A' },
+        { label: 'Stock Trailing P/E', key: 'pe', icon: '⚙️', format: v => v !== null && v !== undefined ? (typeof v === 'number' ? v.toFixed(1) : v) : 'N/A' },
+        { label: 'Return on Equity (ROE)', key: 'roe', icon: '📈', format: v => v !== null && v !== undefined ? (typeof v === 'number' ? `${v.toFixed(1)}%` : `${v}%`) : 'N/A' },
+        { label: 'Return on Capital (ROCE)', key: 'roce', icon: '📈', format: v => v !== null && v !== undefined ? (typeof v === 'number' ? `${v.toFixed(1)}%` : `${v}%`) : 'N/A' },
+        { label: 'Debt to Equity', key: 'debt_eq', icon: '🛡️', format: v => v !== null && v !== undefined ? (typeof v === 'number' ? v.toFixed(2) : v) : 'N/A' },
+        { label: 'DCF Margin of Safety', key: 'margin_of_safety', icon: '🛡️', format: v => v !== null && v !== undefined ? (typeof v === 'number' ? `${v > 0 ? '+' : ''}${v.toFixed(1)}%` : `${v}%`) : 'N/A' },
+        { label: 'RSI-14 Momentum', key: 'rsi', icon: '⚡', format: v => v !== null && v !== undefined ? (typeof v === 'number' ? v.toFixed(1) : v) : 'N/A' },
+        { label: 'Moving Average Trend', key: 'trend', icon: '⚡', format: v => v || 'N/A' }
     ];
     
     metrics.forEach(m => {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td><strong>${m.label}</strong></td>`;
+        tr.innerHTML = `<td><span class="metric-lead-icon">${m.icon}</span><strong>${m.label}</strong></td>`;
         
         matrix.forEach((item, index) => {
             const val = item[m.key];
             const formatted = m.format(val);
             const isChamp = index === bestIndex;
             
-            let tdClass = "";
-            if (m.key === 'roe' && val > 15) tdClass = "green-text";
-            if (m.key === 'margin_of_safety' && val > 10) tdClass = "green-text";
-            if (m.key === 'margin_of_safety' && val < -10) tdClass = "red-text";
-            if (m.key === 'debt_eq' && val > 1.5) tdClass = "red-text";
-            if (m.key === 'trend' && val === 'Bullish') tdClass = "green-text";
+            let tdClass = isChamp ? "champion-cell" : "";
+            if (m.key === 'roe' && val > 15) tdClass += " green-text";
+            if (m.key === 'margin_of_safety' && val > 10) tdClass += " green-text";
+            if (m.key === 'margin_of_safety' && val < -10) tdClass += " red-text";
+            if (m.key === 'debt_eq' && val > 1.5) tdClass += " red-text";
+            if (m.key === 'trend' && val === 'Bullish') tdClass += " green-text";
             
-            let style = isChamp ? 'background: rgba(16, 185, 129, 0.02);' : '';
+            let style = "";
             if (isChamp && m.key === 'score') style += ' font-size: 14px;';
             
-            tr.innerHTML += `<td class="${tdClass}" style="${style}">${formatted}</td>`;
+            tr.innerHTML += `<td class="${tdClass.trim()}" style="${style}">${formatted}</td>`;
         });
         
         tbody.appendChild(tr);
     });
     
     const compareThesisEl = document.getElementById('compare-ai-thesis');
-    if (compareThesisEl) compareThesisEl.innerHTML = data.thesis;
+    if (compareThesisEl) {
+        const champCompany = bestIndex !== -1 ? matrix[bestIndex].company_name : "N/A";
+        const champScore = bestIndex !== -1 ? matrix[bestIndex].score : 0;
+        
+        let thesisHTML = `
+        <div class="battleground-playoff-card">
+            <div class="playoff-header">
+                <div class="playoff-title">⚔️ AI Competitive Arena Audits</div>
+                <div class="playoff-badge">Playoff Playbook</div>
+            </div>
+            <p class="playoff-analogy-text">
+                Think of benchmarking rival equities like analyzing a high-stakes sports championship playoff bracket. Every company enters the arena with distinct strengths—some have dominant offensive statistics (high ROE & momentum) while others boast fortress-like defensive lines (undervalued PE & large DCF Margin of Safety). Sector champion status is awarded not merely to the largest player, but to the competitor that displays the most balanced combination of capital efficiency, margin protection, and technical momentum to dominate the tournament.
+            </p>
+            <div class="playoff-champion-box">
+                <span class="playoff-champ-label">Current Sector Playoff Leader:</span>
+                <span class="playoff-champ-value">
+                    🏆 <strong>${champCompany}</strong>
+                    <span class="badge-rec rec-buy" style="font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight:700;">${champScore}/100</span>
+                </span>
+            </div>
+        </div>
+        `;
+        
+        thesisHTML += data.thesis;
+        compareThesisEl.innerHTML = thesisHTML;
+    }
+    
     const compareBox = document.getElementById('comparison-results-box');
     if (compareBox) compareBox.style.display = 'block';
 }
@@ -4139,22 +4357,26 @@ function renderAlertsList(list) {
     list.forEach(item => {
         const tr = document.createElement('tr');
         
-        let statusClass = 'yellow-text';
-        if (item.status === 'Triggered') statusClass = 'green-text';
+        let statusBadge = '';
+        if (item.status === 'Triggered') {
+            statusBadge = `<span class="alert-status-badge triggered">🚨 Triggered</span>`;
+        } else {
+            statusBadge = `<span class="alert-status-badge scanning">🟢 Scanning</span>`;
+        }
         
         tr.innerHTML = `
-            <td>#${item.id}</td>
+            <td style="font-weight:600;">#${item.id}</td>
             <td><strong>${item.ticker}</strong></td>
             <td><span class="badge-ticker" style="font-size:10px;">${item.condition_type}</span></td>
-            <td>${item.operator} ${item.value}</td>
-            <td><span class="${statusClass} font-weight-bold">${item.status}</span></td>
+            <td style="font-family: monospace; font-size:12px; font-weight:600;">${item.operator} ${item.value}</td>
+            <td>${statusBadge}</td>
             <td><span class="text-muted" style="font-size:11px;">${item.trigger_date || 'Active scan...'}</span></td>
             <td>
-                <button class="btn-delete-alert" data-id="${item.id}">Delete</button>
+                <button class="btn-translucent-delete" data-id="${item.id}">Delete 🗑️</button>
             </td>
         `;
         
-        tr.querySelector('.btn-delete-alert').addEventListener('click', async () => {
+        tr.querySelector('.btn-translucent-delete').addEventListener('click', async () => {
             if (confirm(`Are you sure you want to delete alert #${item.id}?`)) {
                 try {
                     const response = await fetch(`/api/alerts/${item.id}`, { method: 'DELETE' });
@@ -4820,7 +5042,29 @@ function appendChatMessage(role, content) {
     
     msg.id = msgId;
     msg.className = `chat-message ${role}`;
-    msg.innerText = content;
+    
+    if (role === 'assistant') {
+        // Escape HTML to prevent XSS but allow specific markdown formatting
+        let escaped = content
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
+            
+        let formatted = escaped
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/### (.*?)(?:\n|$)/g, '<h3>$1</h3>')
+            .replace(/\* (.*?)(?:\n|$)/g, '<li>$1</li>')
+            .replace(/\n\n/g, '</p><p>')
+            .replace(/\n/g, '<br>');
+            
+        if (formatted.includes('<li>')) {
+            formatted = formatted.replace(/(<li>.*?<\/li>)/gs, '<ul>$1</ul>');
+        }
+        
+        msg.innerHTML = `<p>${formatted}</p>`;
+    } else {
+        msg.innerText = content;
+    }
     
     box.appendChild(msg);
     box.scrollTop = box.scrollHeight;
@@ -5818,6 +6062,9 @@ async function setupWatchlistControls() {
         // Autocomplete online suggestions for Personal Watchlists inline stock adder
         const watchlistInlineSuggestionsDiv = document.getElementById('watchlist-inline-suggestions');
         if (watchlistInlineSuggestionsDiv) {
+            watchlistInlineSuggestionsDiv.className = 'watchlist-autocomplete-box';
+            watchlistInlineSuggestionsDiv.removeAttribute('style'); // Remove inline styles to allow CSS to take over
+            
             inlineAddInput.addEventListener('input', async () => {
                 const query = inlineAddInput.value.trim();
                 if (query.length < 2) {
@@ -5833,18 +6080,9 @@ async function setupWatchlistControls() {
                             watchlistInlineSuggestionsDiv.innerHTML = '';
                             data.forEach(item => {
                                 const div = document.createElement('div');
-                                div.style.padding = '8px 12px';
-                                div.style.cursor = 'pointer';
-                                div.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
-                                div.style.transition = 'background 0.2s';
-                                div.innerHTML = `<span style="color:#fff; font-weight:600;">${item.base_symbol}</span> - <span style="color:var(--text-secondary);">${item.name}</span> <span style="float:right; color:var(--text-muted); font-size:9.5px;">${item.sector}</span>`;
+                                div.className = 'watchlist-autocomplete-item';
+                                div.innerHTML = `<div><span class="ticker-pill">${item.base_symbol}</span><span style="color:var(--text-secondary); margin-left: 6px; font-size:11px;">- ${item.name}</span></div><span class="sector-pill">${item.sector}</span>`;
                                 
-                                div.addEventListener('mouseenter', () => {
-                                    div.style.background = 'rgba(255,255,255,0.05)';
-                                });
-                                div.addEventListener('mouseleave', () => {
-                                    div.style.background = 'transparent';
-                                });
                                 div.addEventListener('click', () => {
                                     inlineAddInput.value = item.base_symbol;
                                     watchlistInlineSuggestionsDiv.style.display = 'none';
@@ -5971,12 +6209,9 @@ function renderWatchlistControls() {
         
         watchlistsList.forEach(w => {
             const btn = document.createElement('button');
-            btn.className = `btn-secondary w-full text-left ${w.id === activeWatchlistId ? 'active' : ''}`;
+            btn.className = `btn-secondary w-full text-left watchlist-sidebar-btn ${w.id === activeWatchlistId ? 'active' : ''}`;
             btn.style.fontSize = '12px';
             btn.style.padding = '8px 12px';
-            btn.style.border = '1px solid var(--border-glass)';
-            btn.style.background = w.id === activeWatchlistId ? 'rgba(59,130,246,0.1)' : 'rgba(255,255,255,0.01)';
-            btn.style.color = w.id === activeWatchlistId ? 'var(--text-primary)' : 'var(--text-secondary)';
             btn.style.borderRadius = '6px';
             btn.style.cursor = 'pointer';
             btn.style.display = 'block';
@@ -6163,8 +6398,8 @@ function renderWatchlistItems() {
             <td><strong>${item.name}</strong></td>
             <td><span class="text-muted" style="font-size:11px;">${item.sector}</span></td>
             <td>
-                <button class="btn-secondary load-watchlist-workspace-btn" data-ticker="${item.symbol}" style="font-size: 11px; padding: 4px 10px; margin-right: 8px; border-color: var(--neon-green); color: var(--neon-green); background: rgba(0, 200, 115, 0.05); cursor:pointer;">Load Workspace</button>
-                <button class="btn-secondary remove-watchlist-item-btn" data-ticker="${item.symbol}" style="font-size: 11px; padding: 4px 10px; border-color: var(--neon-red); color: var(--neon-red); background: rgba(255, 75, 75, 0.05); cursor:pointer;">Remove</button>
+                <button class="btn-secondary load-watchlist-workspace-btn" data-ticker="${item.symbol}" style="font-size: 11px; padding: 4px 10px; margin-right: 8px; cursor:pointer;">Load Workspace 📊</button>
+                <button class="btn-secondary remove-watchlist-item-btn" data-ticker="${item.symbol}" style="font-size: 11px; padding: 4px 10px; cursor:pointer;">Remove 🗑️</button>
             </td>
         `;
         
@@ -6843,10 +7078,9 @@ async function runWatchlistBatchAnalysis() {
         data.results.forEach(res => {
             const tr = document.createElement('tr');
             
-            let recClass = 'rec-hold';
-            if (res.action.includes("BUY")) recClass = 'rec-buy';
-            if (res.action.includes("STRONG BUY")) recClass = 'rec-strong-buy';
-            if (res.action.includes("SELL") || res.action.includes("AVOID")) recClass = 'rec-sell';
+            let recClass = 'badge-hold';
+            if (res.action.toUpperCase().includes("BUY")) recClass = 'badge-buy';
+            if (res.action.toUpperCase().includes("SELL") || res.action.toUpperCase().includes("AVOID") || res.action.toUpperCase().includes("UNDERPERFORM")) recClass = 'badge-sell';
             
             let trendClass = "yellow-text";
             if (res.trend === 'Bullish') trendClass = "green-text";
@@ -6861,8 +7095,8 @@ async function runWatchlistBatchAnalysis() {
             
             tr.innerHTML = `
                 <td><strong>${res.symbol}</strong><br><span style="font-size: 9px;" class="text-muted">${res.name}</span></td>
-                <td><span class="badge-ticker" style="font-size:10px;">${res.score}/100</span></td>
-                <td><span class="badge-rec ${recClass}" style="font-size:9px; padding:2px 6px; font-weight:600;">${res.action}</span></td>
+                <td><span style="font-size:11px; font-weight:700; color:var(--text-primary);">${res.score}/100</span></td>
+                <td><span class="rec-glowing-badge ${recClass}">${res.action}</span></td>
                 <td>${formattedPrice}</td>
                 <td>${formattedPE}</td>
                 <td>${formattedROE}</td>
@@ -7009,31 +7243,32 @@ function filterAndRenderUniverse() {
     
     filtered.forEach((item, idx) => {
         const tr = document.createElement('tr');
-        tr.style.borderBottom = '1px solid var(--border-glass)';
-        tr.style.transition = 'background 0.2s';
+        tr.style.transition = 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)';
+        tr.style.cursor = 'default';
         
-        // Hover dynamic background highlight
         tr.addEventListener('mouseenter', () => {
-            tr.style.background = 'rgba(255, 255, 255, 0.02)';
+            tr.style.background = 'rgba(255, 255, 255, 0.025)';
+            tr.style.transform = 'scale(1.003)';
         });
         tr.addEventListener('mouseleave', () => {
             tr.style.background = 'transparent';
+            tr.style.transform = 'none';
         });
 
         // Cap type badge
-        let capBadge = `<span class="badge-rec rec-hold" style="font-size:10px; font-weight:600; padding:2px 6px;">${item.cap_type.toUpperCase()}</span>`;
+        let capBadge = `<span class="badge-rec rec-hold" style="font-size:9.5px; font-weight:700; padding:3px 8px; border-radius: 5px;">${item.cap_type.toUpperCase()}</span>`;
         if (item.cap_type === 'large') {
-            capBadge = `<span class="badge-rec rec-buy" style="font-size:10px; font-weight:600; padding:2px 6px; background: rgba(0,200,100,0.1); color: #00ff88;">LARGE</span>`;
+            capBadge = `<span class="badge-rec rec-buy" style="font-size:9.5px; font-weight:700; padding:3px 8px; border-radius: 5px; background: rgba(16, 185, 129, 0.12); color: #10B981; border: 1px solid rgba(16, 185, 129, 0.3);">LARGE</span>`;
         } else if (item.cap_type === 'mid') {
-            capBadge = `<span class="badge-rec rec-strong-buy" style="font-size:10px; font-weight:600; padding:2px 6px; background: rgba(0,150,255,0.1); color: #00a0ff;">MID</span>`;
+            capBadge = `<span class="badge-rec rec-strong-buy" style="font-size:9.5px; font-weight:700; padding:3px 8px; border-radius: 5px; background: rgba(59, 130, 246, 0.12); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3);">MID</span>`;
         } else if (item.cap_type === 'small') {
-            capBadge = `<span class="badge-rec rec-sell" style="font-size:10px; font-weight:600; padding:2px 6px; background: rgba(255,100,0,0.1); color: #ff6000;">SMALL</span>`;
+            capBadge = `<span class="badge-rec rec-sell" style="font-size:9.5px; font-weight:700; padding:3px 8px; border-radius: 5px; background: rgba(245, 158, 11, 0.12); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3);">SMALL</span>`;
         }
 
         // Cache status badge
         const cacheBadge = item.is_cached === 1 
-            ? '<span class="badge-rec rec-buy" style="font-size:10px; font-weight:600; padding:2px 6px; background: rgba(0,250,150,0.15); color: #00ffaa;">WARMED 🟢</span>'
-            : '<span class="badge-rec rec-hold" style="font-size:10px; font-weight:600; padding:2px 6px; background: rgba(255,255,255,0.05); color: var(--text-secondary);">COLD ⚪</span>';
+            ? '<span class="badge-rec rec-buy" style="font-size:9.5px; font-weight:700; padding:3px 8px; border-radius: 5px; background: rgba(16, 185, 129, 0.15); color: #10B981; border: 1px solid rgba(16,185,129,0.35);">WARMED 🟢</span>'
+            : '<span class="badge-rec rec-hold cache-cold-badge" style="font-size:9.5px; font-weight:500; padding:3px 8px; border-radius: 5px;">COLD ⚪</span>';
 
         // Build watchlist selection options
         let watchlistOptions = '<option value="">Select Watchlist...</option>';
@@ -7047,18 +7282,18 @@ function filterAndRenderUniverse() {
 
         tr.innerHTML = `
             <td style="padding: 12px 15px; color: var(--text-secondary);">${idx + 1}</td>
-            <td style="padding: 12px 15px;"><strong>${item.symbol}</strong></td>
-            <td style="padding: 12px 15px;">${item.company_name}</td>
+            <td style="padding: 12px 15px;"><strong style="color: var(--text-primary); font-family: 'Outfit', sans-serif;">${item.symbol}</strong></td>
+            <td style="padding: 12px 15px; color: var(--text-primary); font-weight: 500;">${item.company_name}</td>
             <td style="padding: 12px 15px; color: var(--text-secondary);">${item.sector}</td>
             <td style="padding: 12px 15px;">${capBadge}</td>
             <td style="padding: 12px 15px; text-align: center;">${cacheBadge}</td>
             <td style="padding: 12px 15px; text-align: center;">
-                <div style="display: inline-flex; gap: 8px; align-items: center; justify-content: center;">
-                    <button class="btn-primary universe-action-analyze-btn" data-symbol="${item.symbol}" style="font-size: 11px; padding: 4px 10px; height: auto; margin-right: 0; display: inline-block;">Research 📊</button>
-                    <select class="universe-action-select" style="padding: 4px 8px; border-radius: 4px; font-size: 11px; background: rgba(0,0,0,0.3); color: var(--text-primary); border: 1px solid var(--border-glass); cursor: pointer; min-width: 120px;">
+                <div style="display: inline-flex; gap: 8px; align-items: center; justify-content: center; width: 100%;">
+                    <button class="btn-primary universe-action-analyze-btn" data-symbol="${item.symbol}" style="font-size: 10.5px; padding: 5px 12px; font-family: 'Outfit', sans-serif; font-weight: 600; border-radius: 6px; cursor: pointer; transition: all 0.2s;">Research 📊</button>
+                    <select class="universe-action-select" style="padding: 5px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; outline: none; transition: all 0.2s; min-width: 130px;">
                         ${watchlistOptions}
                     </select>
-                    <button class="btn-secondary universe-action-add-btn" style="font-size: 11px; padding: 4px 10px; height: auto; display: inline-block;">➕ Add</button>
+                    <button class="btn-secondary universe-action-add-btn" style="font-size: 10.5px; padding: 5px 12px; font-family: 'Outfit', sans-serif; font-weight: 600; border-radius: 6px; cursor: pointer; transition: all 0.2s;">➕ Add</button>
                 </div>
             </td>
         `;
@@ -7105,6 +7340,74 @@ function filterAndRenderUniverse() {
         
         tbody.appendChild(tr);
     });
+    
+    // Dynamic AI Universe Explorer Analyst Summary Block Generator
+    const summaryBox = document.getElementById('universe-summary-block');
+    const summaryText = document.getElementById('universe-summary-text');
+    
+    if (summaryBox && summaryText) {
+        const totalCount = filtered.length;
+        const warmedCount = filtered.filter(item => item.is_cached === 1).length;
+        const warmedPct = totalCount > 0 ? (warmedCount / totalCount) * 100 : 0;
+        
+        const largeCount = filtered.filter(item => item.cap_type === 'large').length;
+        const midCount = filtered.filter(item => item.cap_type === 'mid').length;
+        const smallCount = filtered.filter(item => item.cap_type === 'small').length;
+        
+        let accentColor = '#EF4444'; // red (cold cache warning)
+        let ratingTitle = '❄️ COLD DATABASE STATUS (Latency Exists)';
+        let ratingMetaphor = 'Think of this database as a kitchen where no fresh ingredients have been pre-chopped. Every single stock lookup will require remote NSE server queries over HTTP, introducing significant visual loading latency.';
+        
+        if (warmedPct >= 40) {
+            accentColor = '#10B981'; // emerald green
+            ratingTitle = '🔥 HIGHLY PRE-PREPPED KITCHEN (Warmed Cache Widescreen)';
+            ratingMetaphor = 'Think of database caching as pre-prepping common fresh ingredients in a busy restaurant kitchen before rush hour begins. Warming the cache ensures that when a stock analysis is requested, the workstation compiles calculations instantly instead of fetching data from remote NSE servers, keeping terminals operating with zero latency.';
+        } else if (warmedPct >= 10) {
+            accentColor = '#F59E0B'; // amber yellow
+            ratingTitle = '⚖️ SEMI-WARMED ENGINE (Moderate Latency Risk)';
+            ratingMetaphor = 'Think of this as a restaurant kitchen where only half the ingredients are prepped. While major Large-Cap index assets will load instantly, queries for Small-Cap or niche industry tickers will trigger cold lookups, resulting in brief analysis delays.';
+        }
+        
+        summaryBox.style.borderLeft = `4px solid ${accentColor}`;
+        
+        let html = '';
+        html += '<div style="display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 18px; align-items: start;">';
+        
+        // Left Column: Metaphor
+        html += '  <div>';
+        html += `    <div style="font-size: 11px; font-weight: 700; color: ${accentColor}; margin-bottom: 5px; letter-spacing: 0.04em;">${ratingTitle}</div>`;
+        html += `    <p style="font-size: 11px; color: var(--text-muted); line-height: 1.6; margin: 0; font-family: 'Inter', sans-serif;">${ratingMetaphor}</p>`;
+        html += '  </div>';
+        
+        // Right Column: Metrics Grid
+        html += '  <div style="display: grid; grid-template-columns: 1fr; gap: 8px;">';
+        html += '    <div style="display: flex; gap: 8px;">';
+        html += '      <div style="flex: 1; background: rgba(0,0,0,0.15); border: 1px solid rgba(255,255,255,0.03); padding: 8px 10px; border-radius: 6px; display: flex; flex-direction: column; justify-content: center;">';
+        html += '        <span style="font-size: 8.5px; color: var(--text-secondary); text-transform: uppercase; font-weight: 600;">Warmed Cache Rate</span>';
+        html += `        <strong style="font-size: 13.5px; color: ${accentColor}; margin-top: 1px; font-family: 'Outfit', sans-serif;">${warmedPct.toFixed(1)}%</strong>`;
+        html += '      </div>';
+        html += '      <div style="flex: 1; background: rgba(0,0,0,0.15); border: 1px solid rgba(255,255,255,0.03); padding: 8px 10px; border-radius: 6px; display: flex; flex-direction: column; justify-content: center;">';
+        html += '        <span style="font-size: 8.5px; color: var(--text-secondary); text-transform: uppercase; font-weight: 600;">Warmed vs Total</span>';
+        html += `        <strong style="font-size: 13.5px; color: #ffffff; margin-top: 1px; font-family: 'Outfit', sans-serif;"><span style="color:#10B981;">${warmedCount}W</span> <span style="color:var(--text-muted); font-size:10px;">/</span> <span style="color:var(--text-secondary); font-size:12px;">${totalCount}T</span></strong>`;
+        html += '      </div>';
+        html += '    </div>';
+        
+        // Segment breakdown
+        html += '    <div style="background: rgba(0, 0, 0, 0.15); border: 1px solid rgba(255, 255, 255, 0.03); padding: 8px 12px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;">';
+        html += '      <span style="font-size: 8.5px; color: var(--text-secondary); text-transform: uppercase; font-weight: 600;">Segment Constituents</span>';
+        html += '      <div style="display: flex; gap: 8px; font-family: \'Outfit\', sans-serif; font-size: 10.5px; font-weight: 700;">';
+        html += `        <span style="color: #10B981;">${largeCount} Large</span>`;
+        html += `        <span style="color: #60a5fa;">${midCount} Mid</span>`;
+        html += `        <span style="color: #f59e0b;">${smallCount} Small</span>`;
+        html += '      </div>';
+        html += '    </div>';
+        
+        html += '  </div>';
+        html += '</div>';
+        
+        summaryText.innerHTML = html;
+        summaryBox.style.display = 'block';
+    }
 }
 
 // Fix #4: Load universe status into the sidebar status card
@@ -8218,6 +8521,11 @@ function setupPortfolioDoctor() {
         });
         
         // Add Autocomplete suggestions online matching
+        if (suggestionsDiv) {
+            suggestionsDiv.className = 'watchlist-autocomplete-box';
+            suggestionsDiv.removeAttribute('style'); // Remove inline styles to let CSS take over
+        }
+        
         customInput.addEventListener('input', async () => {
             const query = customInput.value.trim();
             if (!suggestionsDiv) return;
@@ -8235,18 +8543,9 @@ function setupPortfolioDoctor() {
                         suggestionsDiv.innerHTML = '';
                         data.forEach(item => {
                             const div = document.createElement('div');
-                            div.style.padding = '8px 12px';
-                            div.style.cursor = 'pointer';
-                            div.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
-                            div.style.transition = 'background 0.2s';
-                            div.innerHTML = `<span style="color:#fff; font-weight:600;">${item.base_symbol}</span> - <span style="color:var(--text-secondary);">${item.name}</span> <span style="float:right; color:var(--text-muted); font-size:9.5px;">${item.sector}</span>`;
+                            div.className = 'watchlist-autocomplete-item';
+                            div.innerHTML = `<div><span class="ticker-pill">${item.base_symbol}</span><span style="color:var(--text-secondary); margin-left: 6px; font-size:11px;">- ${item.name}</span></div><span class="sector-pill">${item.sector}</span>`;
                             
-                            div.addEventListener('mouseenter', () => {
-                                div.style.background = 'rgba(255,255,255,0.05)';
-                            });
-                            div.addEventListener('mouseleave', () => {
-                                div.style.background = 'transparent';
-                            });
                             div.addEventListener('click', () => {
                                 customInput.value = item.base_symbol;
                                 suggestionsDiv.style.display = 'none';
@@ -8844,12 +9143,12 @@ async function loadPortfolioDoctorLedger() {
                 <td style="padding: 10px;">
                     <strong>${item.symbol}</strong><br>
                     <span style="font-size:10px; color:var(--text-muted);">${item.name}</span><br>
-                    <a href="#" class="toggle-targets-btn" data-symbol="${item.symbol}" style="font-size: 10px; color: var(--color-primary); text-decoration: none; display: inline-flex; align-items: center; gap: 4px; margin-top: 5px; font-weight: 600;">👁️ View Targets & Research</a>
+                    <a href="#" class="btn-secondary toggle-targets-btn" data-symbol="${item.symbol}" style="font-size: 9px; padding: 4px 8px; margin-top: 8px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; font-weight: 600; border-color: rgba(59,130,246,0.25); color: var(--color-primary); background: rgba(59,130,246,0.03); border-radius: 4px; cursor: pointer; transition: all 0.2s;">👁️ View Targets & Research</a>
                 </td>
                 <td style="padding: 10px; color: var(--text-secondary);">${item.sector || 'Other'}</td>
                 <td style="padding: 10px;"><input type="number" class="portfolio-qty-input" data-symbol="${item.symbol}" value="${item.quantity !== undefined && item.quantity !== null ? item.quantity : 10}" style="width: 70px; padding: 4px; border-radius:4px; background:rgba(0,0,0,0.3); border:1px solid var(--border-glass); color:#fff; font-size:11px;"></td>
                 <td style="padding: 10px;"><input type="number" class="portfolio-price-input" data-symbol="${item.symbol}" value="${item.purchase_price !== undefined && item.purchase_price !== null ? item.purchase_price : 100}" style="width: 100px; padding: 4px; border-radius:4px; background:rgba(0,0,0,0.3); border:1px solid var(--border-glass); color:#fff; font-size:11px;"></td>
-                <td style="padding: 10px;"><button class="btn-secondary remove-portfolio-ledger-item-btn" data-symbol="${item.symbol}" style="font-size: 11px; padding: 4px 8px; border-color: var(--neon-red); color: var(--neon-red); background: rgba(255, 75, 75, 0.05); cursor:pointer;">Remove</button></td>
+                <td style="padding: 10px;"><button class="btn-secondary remove-portfolio-ledger-item-btn" data-symbol="${item.symbol}" style="font-size: 11px; padding: 4px 8px; border-color: rgba(239,68,68,0.25); color: var(--color-crimson); background: rgba(239,68,68,0.03); cursor:pointer; font-weight: 600; border-radius: 4px; transition: all 0.2s;">Remove 🗑️</button></td>
             `;
             
             // Collapsible Detail Row
@@ -9023,8 +9322,18 @@ async function runPortfolioDoctorAnalysis() {
         if (data.health_score >= 70) healthEl.style.color = 'var(--neon-green)';
         else if (data.health_score >= 45) healthEl.style.color = 'var(--color-amber)';
         else healthEl.style.color = 'var(--neon-red)';
+        healthEl.style.textShadow = '0 0 10px rgba(16, 185, 129, 0.1)';
         
-        document.getElementById('port-concentration-label').innerText = data.concentration_label;
+        const concEl = document.getElementById('port-concentration-label');
+        concEl.innerText = data.concentration_label;
+        if (data.concentration_label.toLowerCase().includes('well')) {
+            concEl.style.color = 'var(--color-emerald)';
+        } else if (data.concentration_label.toLowerCase().includes('highly') || data.concentration_label.toLowerCase().includes('poor')) {
+            concEl.style.color = 'var(--neon-red)';
+        } else {
+            concEl.style.color = 'var(--color-amber)';
+        }
+        concEl.style.fontWeight = '700';
         
         const prescriptionBox = document.getElementById('portfolio-doctor-prescription-box');
         const prescriptionContent = document.getElementById('portfolio-prescription-content');
@@ -9033,7 +9342,27 @@ async function runPortfolioDoctorAnalysis() {
             prescriptionBox.style.display = 'block';
             
             let mdText = data.prescription;
-            let html = mdText
+            
+            let doctorHTML = `
+            <div class="portfolio-prescription-card">
+                <div class="prescription-header">
+                    <div class="prescription-title">🩺 AI Structural Cardiology Audit</div>
+                    <div class="prescription-badge">Vascular Diagnostics</div>
+                </div>
+                <p class="prescription-analogy-text">
+                    Think of auditing a portfolio like a cardiologist running a high-precision cardiac stress test on an athlete. Each equity represents an essential valve or pathway inside the vascular system—some control blood flow efficiency (holding quantities and average buy prices) while others measure systemic pressure under heavy stress loads (sector concentrations & HHI indexes). Running a portfolio diagnostic allows the AI Doctor to locate single-point blockages (over-exposure to a single sector) and prescribe a targeted structural rebalancing regimen to keep your assets operating with maximum longevity and peak circulatory power.
+                </p>
+                <div class="prescription-health-box">
+                    <span class="prescription-health-label">Systemic Composite Health Rating:</span>
+                    <span class="prescription-health-value">
+                        🩺 <strong>${data.health_score}/100</strong>
+                        <span class="badge-rec rec-buy" style="font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight:700; ${data.health_score >= 70 ? 'background: rgba(16, 185, 129, 0.15); color: #10b981;' : (data.health_score >= 45 ? 'background: rgba(245, 158, 11, 0.15); color: #f59e0b;' : 'background: rgba(239, 68, 68, 0.15); color: #ef4444;')}">${data.health_score >= 70 ? 'STABLE' : (data.health_score >= 45 ? 'ADVISED' : 'CRITICAL')}</span>
+                    </span>
+                </div>
+            </div>
+            `;
+            
+            let html = doctorHTML + mdText
                 .replace(/^# (.*$)/gim, '<h2 style="color:var(--neon-green); margin-top:20px; font-size:16px;">$1</h2>')
                 .replace(/^## (.*$)/gim, '<h3 style="color:var(--text-primary); margin-top:15px; font-size:14px; border-bottom: 1px dashed var(--border-glass); padding-bottom:5px;">$1</h3>')
                 .replace(/^### (.*$)/gim, '<h4 style="color:var(--text-secondary); margin-top:10px; font-size:12px;">$1</h4>')
@@ -9229,7 +9558,41 @@ Keep the response professional, mathematically grounded, and extremely concise. 
                 if (!response.ok) throw new Error("LLM synthesis failed.");
                 const chatRes = await response.json();
                 
-                let html = chatRes.response
+                // Calculate Portfolio Admiral (highest score asset)
+                let bestWatchItem = null;
+                let bestWatchScore = -1;
+                if (activeWatchlistBatchData && activeWatchlistBatchData.results) {
+                    activeWatchlistBatchData.results.forEach(item => {
+                        if (item.score > bestWatchScore) {
+                            bestWatchScore = item.score;
+                            bestWatchItem = item;
+                        }
+                    });
+                }
+                
+                let cockpitHTML = '';
+                if (bestWatchItem) {
+                    cockpitHTML = `
+                    <div class="watchlist-cockpit-card">
+                        <div class="cockpit-header">
+                            <div class="cockpit-title">✈️ AI Watchlist Cockpit Diagnostics</div>
+                            <div class="cockpit-badge">Pre-Flight Checklist</div>
+                        </div>
+                        <p class="cockpit-analogy-text">
+                            Think of auditing a watchlist like a flight commander running a pre-flight cockpit diagnostic before takeoff. Each stock in the watchlist is an essential instrument panel metric—some represent engine thrust (AI Score & technical momentum) while others monitor fuel reserves and aerodynamic safety margins (Margin of Safety & P/E valuations). Conducting a batch scorecard audit ensures all systems show optimal green readings, indicating the portfolio is aerodynamically stable and cleared for immediate altitude gains with zero structural warning alerts.
+                        </p>
+                        <div class="cockpit-admiral-box">
+                            <span class="cockpit-admiral-label">Current Watchlist Portfolio Admiral:</span>
+                            <span class="cockpit-admiral-value">
+                                🏆 <strong>${bestWatchItem.symbol} (${bestWatchItem.name})</strong>
+                                <span class="badge-rec rec-buy" style="font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight:700;">${bestWatchItem.score}/100</span>
+                            </span>
+                        </div>
+                    </div>
+                    `;
+                }
+                
+                let html = cockpitHTML + chatRes.response
                     .replace(/\*\*(.*?)\*\*/g, '<strong style="color:var(--text-primary);">$1</strong>')
                     .replace(/\*(.*?)\*/g, '<em>$1</em>')
                     .replace(/\n/g, '<br>');
