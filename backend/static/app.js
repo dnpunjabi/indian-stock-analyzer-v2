@@ -2051,8 +2051,7 @@ function calculateRegressionTrendline(prices) {
 }
 
 function drawStockChartCanvas(data) {
-    const canvas = document.getElementById('stock-chart');
-    const container = canvas?.parentElement;
+    const container = document.querySelector('[data-subtab="technical"] .chart-container');
     if (!container) return;
 
     // Check if TradingView Lightweight Charts is available
@@ -2290,10 +2289,8 @@ function drawStockChartCanvas(data) {
     resizeObserver.observe(container);
 }
 
-// Legacy Chart.js drawer to ensure robust offline fallback
 function drawChartJSStockChart(data) {
-    const canvas = document.getElementById('stock-chart');
-    const container = canvas?.parentElement;
+    const container = document.querySelector('[data-subtab="technical"] .chart-container');
     if (!container) return;
 
     const restoredCanvas = getOrCreateCanvas('stock-chart', container);
@@ -5842,10 +5839,8 @@ function setupRebalanceButton() {
 
 /* ==================== 9-FEATURE MEGA-UPGRADE CLIENT MODULES ==================== */
 
-// 1. Relative Strength Canvas Chart Drawer
 function drawRSChartCanvas(data) {
-    const canvas = document.getElementById('stock-chart');
-    const container = canvas?.parentElement;
+    const container = document.querySelector('[data-subtab="technical"] .chart-container');
     if (!container) return;
     if (typeof Chart === 'undefined') return;
     const restoredCanvas = getOrCreateCanvas('stock-chart', container);
