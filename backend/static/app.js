@@ -1452,6 +1452,14 @@ function renderStockDashboard(p) {
     document.getElementById('tech-dist-high').innerText = `${safeFixed(p.technicals.dist_high_52w_pct, 1)}%`;
     document.getElementById('tech-dist-low').innerText = `${safeFixed(p.technicals.dist_low_52w_pct, 1)}%`;
     
+    // Bind new daily and 52-week price indicators
+    document.getElementById('tech-daily-open').innerText = safeFormatRupees(p.technicals.daily_open, 2);
+    document.getElementById('tech-daily-high').innerText = safeFormatRupees(p.technicals.daily_high, 2);
+    document.getElementById('tech-daily-low').innerText = safeFormatRupees(p.technicals.daily_low, 2);
+    document.getElementById('tech-daily-close').innerText = safeFormatRupees(p.technicals.daily_close, 2);
+    document.getElementById('tech-high-52w').innerText = safeFormatRupees(p.technicals.high_52w, 2);
+    document.getElementById('tech-low-52w').innerText = safeFormatRupees(p.technicals.low_52w, 2);
+    
     // Bind Up-Market & Down-Market Capture Ratios
     const upCapEl = document.getElementById('tech-up-capture');
     const downCapEl = document.getElementById('tech-down-capture');
@@ -1584,6 +1592,17 @@ function renderStockDashboard(p) {
     if (p.peers && p.peers.length > 0) {
         p.peers.forEach(peer => {
             const tr = document.createElement('tr');
+            
+            // Safe string clean and formatting for percentages
+            const divYield = (peer["Div Yield %"] || peer["Div Yield"] || "N/A").toString().replace('%', '');
+            const pbRatio = (peer["P/B"] || peer["PB"] || "N/A").toString().replace('%', '');
+            const debtEquity = (peer["Debt to Equity"] || peer["Debt/Equity"] || peer["Debt/Eq"] || "N/A").toString().replace('%', '');
+            const roce = (peer["ROCE %"] || peer["ROCE"] || "N/A").toString().replace('%', '');
+            const roe = (peer["ROE %"] || peer["ROE"] || "N/A").toString().replace('%', '');
+            const npm = (peer["NPM %"] || peer["NPM"] || "N/A").toString().replace('%', '');
+            const profitQtr = (peer["Profit Qtr YoY %"] || peer["Profit Qtr YoY"] || peer["Qtr Profit Var %"] || "N/A").toString().replace('%', '');
+            const salesQtr = (peer["Sales Qtr YoY %"] || peer["Sales Qtr YoY"] || "N/A").toString().replace('%', '');
+            
             tr.innerHTML = `
                 <td style="text-align: center; width: 50px;">
                     <input type="checkbox" class="peer-select-checkbox" data-ticker="${peer["Name"] || peer["Company"]}" checked style="cursor: pointer; transform: scale(1.15);">
@@ -1591,9 +1610,14 @@ function renderStockDashboard(p) {
                 <td><strong class="peer-name-click" style="color: var(--neon-blue); cursor: pointer;" title="Click to load workspace for this peer company">${peer["Name"] || peer["Company"] || "Peer"}</strong></td>
                 <td>${peer["P/E"] || "N/A"}</td>
                 <td>${peer["Mar Cap"] || "N/A"}</td>
-                <td>${peer["ROCE %"] || peer["ROCE"] || "N/A"}%</td>
-                <td>${peer["ROE %"] || peer["ROE"] || "N/A"}%</td>
-                <td>${peer["Sales Qtr YoY %"] || peer["Sales Qtr YoY"] || "N/A"}%</td>
+                <td>${pbRatio}</td>
+                <td>${debtEquity}</td>
+                <td>${roce}${roce !== 'N/A' ? '%' : ''}</td>
+                <td>${roe}${roe !== 'N/A' ? '%' : ''}</td>
+                <td>${npm}${npm !== 'N/A' ? '%' : ''}</td>
+                <td>${profitQtr}${profitQtr !== 'N/A' ? '%' : ''}</td>
+                <td>${divYield}${divYield !== 'N/A' ? '%' : ''}</td>
+                <td>${salesQtr}${salesQtr !== 'N/A' ? '%' : ''}</td>
             `;
             
             // Stop event propagation when clicking the checkbox to avoid workspace reload triggers
@@ -1615,7 +1639,7 @@ function renderStockDashboard(p) {
             peerBody.appendChild(tr);
         });
     } else {
-        peerBody.innerHTML = `<tr><td colspan="7" class="center-text text-muted">No peer companies retrieved from Screener.</td></tr>`;
+        peerBody.innerHTML = `<tr><td colspan="12" class="center-text text-muted">No peer companies retrieved from Screener.</td></tr>`;
     }
     
     // Dynamically calculate Sector Median P/E and relative premium/discount summaries

@@ -586,14 +586,14 @@
                         </div>
 
                         <!-- Technical & Momentum Indicators Card -->
-                        <div class="card col-span-2 card-hidden" id="tech-timing-card" data-subtab="technical">
+                        <div class="card col-span-4 card-hidden" id="tech-timing-card" data-subtab="technical">
                             <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border: none; padding: 0; width: 100%;">
                                 <h3 style="margin:0;">TECHNICAL & MOMENTUM TIMING</h3>
                                 <span style="font-size: 9px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Oscillators & Trend Tracking</span>
                             </div>
                             <p style="font-size: 11px; color: var(--text-secondary); margin-bottom: 12px;">Monitoring moving average crossovers, relative strength indexes, and capture thresholds.</p>
                             
-                            <div class="tech-metrics-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 12px; margin-bottom: 15px;">
+                            <div class="tech-metrics-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 12px; margin-bottom: 15px;">
                                 <div class="tech-capsule" style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-glass); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; justify-content: space-between; min-height: 70px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
                                     <div style="display: flex; align-items: center; gap: 6px;">
                                         <span style="font-size: 14px;">📊</span>
@@ -624,6 +624,48 @@
                                 </div>
                                 <div class="tech-capsule" style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-glass); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; justify-content: space-between; min-height: 70px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
                                     <div style="display: flex; align-items: center; gap: 6px;">
+                                        <span style="font-size: 14px;">🔔</span>
+                                        <span style="font-size: 10px; color: var(--text-secondary); text-transform: uppercase; font-weight: 500; letter-spacing: 0.03em;">Daily Open</span>
+                                    </div>
+                                    <strong id="tech-daily-open" style="font-size: 13px; margin-top: 6px; color: var(--text-primary);">Rs. 0.00</strong>
+                                </div>
+                                <div class="tech-capsule" style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-glass); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; justify-content: space-between; min-height: 70px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                                    <div style="display: flex; align-items: center; gap: 6px;">
+                                        <span style="font-size: 14px;">🔺</span>
+                                        <span style="font-size: 10px; color: var(--text-secondary); text-transform: uppercase; font-weight: 500; letter-spacing: 0.03em;">Daily High</span>
+                                    </div>
+                                    <strong id="tech-daily-high" style="font-size: 13px; margin-top: 6px; color: var(--text-primary);">Rs. 0.00</strong>
+                                </div>
+                                <div class="tech-capsule" style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-glass); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; justify-content: space-between; min-height: 70px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                                    <div style="display: flex; align-items: center; gap: 6px;">
+                                        <span style="font-size: 14px;">🔻</span>
+                                        <span style="font-size: 10px; color: var(--text-secondary); text-transform: uppercase; font-weight: 500; letter-spacing: 0.03em;">Daily Low</span>
+                                    </div>
+                                    <strong id="tech-daily-low" style="font-size: 13px; margin-top: 6px; color: var(--text-primary);">Rs. 0.00</strong>
+                                </div>
+                                <div class="tech-capsule" style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-glass); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; justify-content: space-between; min-height: 70px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                                    <div style="display: flex; align-items: center; gap: 6px;">
+                                        <span style="font-size: 14px;">🏁</span>
+                                        <span style="font-size: 10px; color: var(--text-secondary); text-transform: uppercase; font-weight: 500; letter-spacing: 0.03em;">Daily Close</span>
+                                    </div>
+                                    <strong id="tech-daily-close" style="font-size: 13px; margin-top: 6px; color: var(--text-primary);">Rs. 0.00</strong>
+                                </div>
+                                <div class="tech-capsule" style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-glass); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; justify-content: space-between; min-height: 70px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                                    <div style="display: flex; align-items: center; gap: 6px;">
+                                        <span style="font-size: 14px;">🏰</span>
+                                        <span style="font-size: 10px; color: var(--text-secondary); text-transform: uppercase; font-weight: 500; letter-spacing: 0.03em;">52W High Price</span>
+                                    </div>
+                                    <strong id="tech-high-52w" style="font-size: 13px; margin-top: 6px; color: var(--text-primary);">Rs. 0.00</strong>
+                                </div>
+                                <div class="tech-capsule" style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-glass); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; justify-content: space-between; min-height: 70px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                                    <div style="display: flex; align-items: center; gap: 6px;">
+                                        <span style="font-size: 14px;">🌊</span>
+                                        <span style="font-size: 10px; color: var(--text-secondary); text-transform: uppercase; font-weight: 500; letter-spacing: 0.03em;">52W Low Price</span>
+                                    </div>
+                                    <strong id="tech-low-52w" style="font-size: 13px; margin-top: 6px; color: var(--text-primary);">Rs. 0.00</strong>
+                                </div>
+                                <div class="tech-capsule" style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-glass); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; justify-content: space-between; min-height: 70px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                                    <div style="display: flex; align-items: center; gap: 6px;">
                                         <span style="font-size: 14px;">🏔️</span>
                                         <span style="font-size: 9px; color: var(--text-secondary); text-transform: uppercase; font-weight: 500; letter-spacing: 0.03em;">52W High Dist</span>
                                     </div>
@@ -636,14 +678,14 @@
                                     </div>
                                     <strong id="tech-dist-low" style="font-size: 14px; margin-top: 6px; color: var(--text-primary);">22.8%</strong>
                                 </div>
-                                <div class="tech-capsule" style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-glass); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; justify-content: space-between; min-height: 70px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                                <div class="tech-capsule" style="grid-column: span 2; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-glass); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; justify-content: space-between; min-height: 70px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
                                     <div style="display: flex; align-items: center; gap: 6px;">
                                         <span style="font-size: 14px;">🚀</span>
                                         <span style="font-size: 9px; color: var(--text-secondary); text-transform: uppercase; font-weight: 500; letter-spacing: 0.03em;">Up Capture</span>
                                     </div>
                                     <strong id="tech-up-capture" style="font-size: 12px; margin-top: 6px; color: var(--text-primary);">N/A</strong>
                                 </div>
-                                <div class="tech-capsule" style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-glass); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; justify-content: space-between; min-height: 70px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                                <div class="tech-capsule" style="grid-column: span 2; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-glass); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; justify-content: space-between; min-height: 70px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
                                     <div style="display: flex; align-items: center; gap: 6px;">
                                         <span style="font-size: 14px;">🛡️</span>
                                         <span style="font-size: 9px; color: var(--text-secondary); text-transform: uppercase; font-weight: 500; letter-spacing: 0.03em;">Down Capture</span>
@@ -1033,7 +1075,7 @@
                         </div>
 
                         <!-- Peer Group & Relative Sector Benchmarking -->
-                        <div class="card col-span-2 card-hidden" id="peers-card" data-subtab="peers" style="display: flex; flex-direction: column; justify-content: space-between;">
+                        <div class="card col-span-4 card-hidden" id="peers-card" data-subtab="peers" style="display: flex; flex-direction: column; justify-content: space-between;">
                             <div>
                                 <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 10px; margin-bottom:12px; width: 100%; border:none; padding:0;">
                                     <h3 style="margin:0; font-size:12px; letter-spacing:0.04em;">SECTOR PEER BENCHMARKING</h3>
@@ -1053,8 +1095,13 @@
                                                 <th style="text-align: left; padding: 6px;">Peer Company</th>
                                                 <th style="padding: 6px;">P/E</th>
                                                 <th style="padding: 6px;">Mar Cap (Cr)</th>
+                                                <th style="padding: 6px;">P/B</th>
+                                                <th style="padding: 6px;">Debt/Eq</th>
                                                 <th style="padding: 6px;">ROCE %</th>
                                                 <th style="padding: 6px;">ROE %</th>
+                                                <th style="padding: 6px;">NPM %</th>
+                                                <th style="padding: 6px;">Profit Qtr YoY%</th>
+                                                <th style="padding: 6px;">Div Yield %</th>
                                                 <th style="padding: 6px;">Sales Qtr YoY%</th>
                                             </tr>
                                         </thead>

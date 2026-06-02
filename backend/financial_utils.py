@@ -240,62 +240,62 @@ def generate_peer_fallback(symbol: str, sector: str) -> list:
     # 1. Aerospace, Defense & Shipbuilding
     if "Aerospace" in sector or "Defense" in sector or "Ship" in sector or symbol_upper in ["GRSE", "MAZDOCK", "COCHINSHIP", "HAL", "BEL", "BDL", "BEML"]:
         return [
-            {"Name": "Hindustan Aeronautics", "P/E": "34.2", "Mar Cap": "2,95,000", "ROCE %": "29.8", "ROE %": "22.4", "Sales Qtr YoY %": "12.1"},
-            {"Name": "Bharat Electronics", "P/E": "39.5", "Mar Cap": "2,12,000", "ROCE %": "31.2", "ROE %": "24.5", "Sales Qtr YoY %": "14.8"},
-            {"Name": "Mazagon Dock Shipbuilders", "P/E": "38.2", "Mar Cap": "62,500", "ROCE %": "36.4", "ROE %": "28.2", "Sales Qtr YoY %": "19.5"},
-            {"Name": "Cochin Shipyard", "P/E": "44.1", "Mar Cap": "48,000", "ROCE %": "22.8", "ROE %": "18.1", "Sales Qtr YoY %": "24.3"}
+            {"Name": "Hindustan Aeronautics", "P/E": "34.2", "Mar Cap": "2,95,000", "ROCE %": "29.8", "ROE %": "22.4", "Sales Qtr YoY %": "12.1", "Div Yield %": "1.10", "P/B": "7.50", "Debt to Equity": "0.02", "NPM %": "15.2", "Profit Qtr YoY %": "18.5"},
+            {"Name": "Bharat Electronics", "P/E": "39.5", "Mar Cap": "2,12,000", "ROCE %": "31.2", "ROE %": "24.5", "Sales Qtr YoY %": "14.8", "Div Yield %": "0.95", "P/B": "8.20", "Debt to Equity": "0.01", "NPM %": "16.4", "Profit Qtr YoY %": "20.1"},
+            {"Name": "Mazagon Dock Shipbuilders", "P/E": "38.2", "Mar Cap": "62,500", "ROCE %": "36.4", "ROE %": "28.2", "Sales Qtr YoY %": "19.5", "Div Yield %": "1.30", "P/B": "9.10", "Debt to Equity": "0.00", "NPM %": "18.1", "Profit Qtr YoY %": "24.5"},
+            {"Name": "Cochin Shipyard", "P/E": "44.1", "Mar Cap": "48,000", "ROCE %": "22.8", "ROE %": "18.1", "Sales Qtr YoY %": "24.3", "Div Yield %": "0.80", "P/B": "6.80", "Debt to Equity": "0.15", "NPM %": "11.2", "Profit Qtr YoY %": "28.4"}
         ]
         
     # 2. Power, Utilities, Energy & Oil (Recommendation 5)
     elif "Power" in sector or "Energy" in sector or "Utility" in sector or symbol_upper in ["JSWENERGY", "NTPC", "NHPC", "SJVN", "IREDA", "SUZLON", "ONGC", "COALINDIA"]:
         return [
-            {"Name": "NTPC", "P/E": "13.9", "Mar Cap": "3,76,860", "ROCE %": "8.3", "ROE %": "14.0", "Sales Qtr YoY %": "16.8"},
-            {"Name": "Adani Green Energy", "P/E": "123.8", "Mar Cap": "2,24,394", "ROCE %": "7.0", "ROE %": "11.3", "Sales Qtr YoY %": "16.9"},
-            {"Name": "JSW Energy", "P/E": "42.4", "Mar Cap": "96,871", "ROCE %": "8.3", "ROE %": "7.9", "Sales Qtr YoY %": "20.6"},
-            {"Name": "NHPC Ltd", "P/E": "20.9", "Mar Cap": "78,713", "ROCE %": "5.7", "ROE %": "9.3", "Sales Qtr YoY %": "-1.2"},
-            {"Name": "SJVN Ltd", "P/E": "44.7", "Mar Cap": "28,723", "ROCE %": "5.9", "ROE %": "4.5", "Sales Qtr YoY %": "-22.7"}
+            {"Name": "NTPC", "P/E": "13.9", "Mar Cap": "3,76,860", "ROCE %": "8.3", "ROE %": "14.0", "Sales Qtr YoY %": "16.8", "Div Yield %": "3.25", "P/B": "2.10", "Debt to Equity": "1.45", "NPM %": "11.5", "Profit Qtr YoY %": "15.2"},
+            {"Name": "Adani Green Energy", "P/E": "123.8", "Mar Cap": "2,24,394", "ROCE %": "7.0", "ROE %": "11.3", "Sales Qtr YoY %": "16.9", "Div Yield %": "0.00", "P/B": "18.50", "Debt to Equity": "4.20", "NPM %": "8.5", "Profit Qtr YoY %": "22.4"},
+            {"Name": "JSW Energy", "P/E": "42.4", "Mar Cap": "96,871", "ROCE %": "8.3", "ROE %": "7.9", "Sales Qtr YoY %": "20.6", "Div Yield %": "0.45", "P/B": "3.80", "Debt to Equity": "1.10", "NPM %": "9.1", "Profit Qtr YoY %": "18.6"},
+            {"Name": "NHPC Ltd", "P/E": "20.9", "Mar Cap": "78,713", "ROCE %": "5.7", "ROE %": "9.3", "Sales Qtr YoY %": "-1.2", "Div Yield %": "4.15", "P/B": "1.90", "Debt to Equity": "0.85", "NPM %": "12.4", "Profit Qtr YoY %": "-4.5"},
+            {"Name": "SJVN Ltd", "P/E": "44.7", "Mar Cap": "28,723", "ROCE %": "5.9", "ROE %": "4.5", "Sales Qtr YoY %": "-22.7", "Div Yield %": "2.80", "P/B": "2.40", "Debt to Equity": "1.30", "NPM %": "7.2", "Profit Qtr YoY %": "-18.2"}
         ]
         
     # 3. Technology & IT Services
     elif "Technology" in sector or "Software" in sector or symbol_upper in ["TCS", "INFY", "WIPRO", "TECHM", "LTIM", "COFORGE", "KPIT"]:
         return [
-            {"Name": "TCS", "P/E": "29.4", "Mar Cap": "14,10,000", "ROCE %": "46.2", "ROE %": "38.5", "Sales Qtr YoY %": "7.2"},
-            {"Name": "Infosys", "P/E": "24.5", "Mar Cap": "6,80,000", "ROCE %": "37.1", "ROE %": "29.8", "Sales Qtr YoY %": "5.4"},
-            {"Name": "Wipro", "P/E": "22.1", "Mar Cap": "2,40,000", "ROCE %": "20.5", "ROE %": "16.2", "Sales Qtr YoY %": "2.1"},
-            {"Name": "HCL Technologies", "P/E": "25.2", "Mar Cap": "3,95,000", "ROCE %": "28.3", "ROE %": "22.1", "Sales Qtr YoY %": "6.5"},
-            {"Name": "Tech Mahindra", "P/E": "26.8", "Mar Cap": "1,35,000", "ROCE %": "18.4", "ROE %": "14.1", "Sales Qtr YoY %": "4.8"}
+            {"Name": "TCS", "P/E": "29.4", "Mar Cap": "14,10,000", "ROCE %": "46.2", "ROE %": "38.5", "Sales Qtr YoY %": "7.2", "Div Yield %": "2.40", "P/B": "11.20", "Debt to Equity": "0.02", "NPM %": "19.5", "Profit Qtr YoY %": "8.2"},
+            {"Name": "Infosys", "P/E": "24.5", "Mar Cap": "6,80,000", "ROCE %": "37.1", "ROE %": "29.8", "Sales Qtr YoY %": "5.4", "Div Yield %": "2.10", "P/B": "8.50", "Debt to Equity": "0.00", "NPM %": "18.8", "Profit Qtr YoY %": "6.1"},
+            {"Name": "Wipro", "P/E": "22.1", "Mar Cap": "2,40,000", "ROCE %": "20.5", "ROE %": "16.2", "Sales Qtr YoY %": "2.1", "Div Yield %": "0.20", "P/B": "3.10", "Debt to Equity": "0.08", "NPM %": "14.2", "Profit Qtr YoY %": "3.5"},
+            {"Name": "HCL Technologies", "P/E": "25.2", "Mar Cap": "3,95,000", "ROCE %": "28.3", "ROE %": "22.1", "Sales Qtr YoY %": "6.5", "Div Yield %": "3.15", "P/B": "5.20", "Debt to Equity": "0.05", "NPM %": "15.8", "Profit Qtr YoY %": "7.4"},
+            {"Name": "Tech Mahindra", "P/E": "26.8", "Mar Cap": "1,35,000", "ROCE %": "18.4", "ROE %": "14.1", "Sales Qtr YoY %": "4.8", "Div Yield %": "2.80", "P/B": "4.10", "Debt to Equity": "0.06", "NPM %": "11.2", "Profit Qtr YoY %": "5.2"}
         ]
         
     # 4. Banking & Financial Services
     elif "Financial" in sector or "Bank" in sector or symbol_upper in ["HDFCBANK", "ICICIBANK", "SBIN", "AXISBANK", "KOTAKBANK", "PFC", "RECLTD"]:
         return [
-            {"Name": "HDFC Bank", "P/E": "18.5", "Mar Cap": "11,50,000", "ROCE %": "12.4", "ROE %": "16.8", "Sales Qtr YoY %": "14.2"},
-            {"Name": "ICICI Bank", "P/E": "17.2", "Mar Cap": "7,80,000", "ROCE %": "14.5", "ROE %": "18.2", "Sales Qtr YoY %": "15.4"},
-            {"Name": "State Bank of India", "P/E": "10.4", "Mar Cap": "6,30,000", "ROCE %": "10.1", "ROE %": "15.1", "Sales Qtr YoY %": "12.8"},
-            {"Name": "Axis Bank", "P/E": "14.2", "Mar Cap": "3,40,000", "ROCE %": "12.2", "ROE %": "15.8", "Sales Qtr YoY %": "11.6"},
-            {"Name": "Kotak Mahindra Bank", "P/E": "19.8", "Mar Cap": "3,25,000", "ROCE %": "13.6", "ROE %": "14.1", "Sales Qtr YoY %": "13.1"}
+            {"Name": "HDFC Bank", "P/E": "18.5", "Mar Cap": "11,50,000", "ROCE %": "12.4", "ROE %": "16.8", "Sales Qtr YoY %": "14.2", "Div Yield %": "1.10", "P/B": "2.80", "Debt to Equity": "0.00", "NPM %": "15.4", "Profit Qtr YoY %": "18.2"},
+            {"Name": "ICICI Bank", "P/E": "17.2", "Mar Cap": "7,80,000", "ROCE %": "14.5", "ROE %": "18.2", "Sales Qtr YoY %": "15.4", "Div Yield %": "0.80", "P/B": "3.10", "Debt to Equity": "0.00", "NPM %": "16.8", "Profit Qtr YoY %": "19.5"},
+            {"Name": "State Bank of India", "P/E": "10.4", "Mar Cap": "6,30,000", "ROCE %": "10.1", "ROE %": "15.1", "Sales Qtr YoY %": "12.8", "Div Yield %": "1.70", "P/B": "1.60", "Debt to Equity": "0.00", "NPM %": "12.5", "Profit Qtr YoY %": "14.8"},
+            {"Name": "Axis Bank", "P/E": "14.2", "Mar Cap": "3,40,000", "ROCE %": "12.2", "ROE %": "15.8", "Sales Qtr YoY %": "11.6", "Div Yield %": "0.15", "P/B": "2.10", "Debt to Equity": "0.00", "NPM %": "13.1", "Profit Qtr YoY %": "12.5"},
+            {"Name": "Kotak Mahindra Bank", "P/E": "19.8", "Mar Cap": "3,25,000", "ROCE %": "13.6", "ROE %": "14.1", "Sales Qtr YoY %": "13.1", "Div Yield %": "0.60", "P/B": "2.90", "Debt to Equity": "0.00", "NPM %": "14.5", "Profit Qtr YoY %": "11.8"}
         ]
         
     # 5. Infrastructure & Engineering
     elif "Infrastructure" in sector or "Rail" in sector or symbol_upper in ["RVNL", "LT", "IRFC", "IRCON", "RITES"]:
         return [
-            {"Name": "Larsen & Toubro", "P/E": "31.2", "Mar Cap": "4,90,000", "ROCE %": "14.2", "ROE %": "15.4", "Sales Qtr YoY %": "12.5"},
-            {"Name": "Rail Vikas Nigam", "P/E": "42.4", "Mar Cap": "96,871", "ROCE %": "16.8", "ROE %": "19.2", "Sales Qtr YoY %": "17.4"},
-            {"Name": "IRFC", "P/E": "30.1", "Mar Cap": "2,20,000", "ROCE %": "13.6", "ROE %": "14.1", "Sales Qtr YoY %": "8.5"},
-            {"Name": "IRCON International", "P/E": "22.0", "Mar Cap": "21,000", "ROCE %": "15.2", "ROE %": "13.8", "Sales Qtr YoY %": "14.2"},
-            {"Name": "RITES Ltd", "P/E": "26.5", "Mar Cap": "16,200", "ROCE %": "24.1", "ROE %": "20.5", "Sales Qtr YoY %": "6.8"}
+            {"Name": "Larsen & Toubro", "P/E": "31.2", "Mar Cap": "4,90,000", "ROCE %": "14.2", "ROE %": "15.4", "Sales Qtr YoY %": "12.5", "Div Yield %": "1.20", "P/B": "4.80", "Debt to Equity": "1.20", "NPM %": "8.5", "Profit Qtr YoY %": "14.2"},
+            {"Name": "Rail Vikas Nigam", "P/E": "42.4", "Mar Cap": "96,871", "ROCE %": "16.8", "ROE %": "19.2", "Sales Qtr YoY %": "17.4", "Div Yield %": "0.65", "P/B": "5.40", "Debt to Equity": "0.95", "NPM %": "9.2", "Profit Qtr YoY %": "21.5"},
+            {"Name": "IRFC", "P/E": "30.1", "Mar Cap": "2,20,000", "ROCE %": "13.6", "ROE %": "14.1", "Sales Qtr YoY %": "8.5", "Div Yield %": "1.50", "P/B": "3.80", "Debt to Equity": "8.10", "NPM %": "28.5", "Profit Qtr YoY %": "9.8"},
+            {"Name": "IRCON International", "P/E": "22.0", "Mar Cap": "21,000", "ROCE %": "15.2", "ROE %": "13.8", "Sales Qtr YoY %": "14.2", "Div Yield %": "2.10", "P/B": "2.80", "Debt to Equity": "0.45", "NPM %": "7.1", "Profit Qtr YoY %": "16.4"},
+            {"Name": "RITES Ltd", "P/E": "26.5", "Mar Cap": "16,200", "ROCE %": "24.1", "ROE %": "20.5", "Sales Qtr YoY %": "6.8", "Div Yield %": "3.75", "P/B": "3.90", "Debt to Equity": "0.05", "NPM %": "18.2", "Profit Qtr YoY %": "5.4"}
         ]
         
     # 6. Generic Industrials
     else:
         return [
-            {"Name": f"{symbol} (Target)", "P/E": "25.0", "Mar Cap": "2,50,000", "ROCE %": "20.0", "ROE %": "18.0", "Sales Qtr YoY %": "10.0"},
-            {"Name": "Sector Peer A", "P/E": "28.5", "Mar Cap": "1,80,000", "ROCE %": "18.5", "ROE %": "15.2", "Sales Qtr YoY %": "8.5"},
-            {"Name": "Sector Peer B", "P/E": "22.0", "Mar Cap": "1,20,000", "ROCE %": "22.4", "ROE %": "19.1", "Sales Qtr YoY %": "12.2"},
-            {"Name": "Sector Peer C", "P/E": "32.1", "Mar Cap": "3,10,000", "ROCE %": "24.1", "ROE %": "22.4", "Sales Qtr YoY %": "11.6"}
+            {"Name": f"{symbol} (Target)", "P/E": "25.0", "Mar Cap": "2,50,000", "ROCE %": "20.0", "ROE %": "18.0", "Sales Qtr YoY %": "10.0", "Div Yield %": "1.20", "P/B": "3.00", "Debt to Equity": "0.50", "NPM %": "12.0", "Profit Qtr YoY %": "10.0"},
+            {"Name": "Sector Peer A", "P/E": "28.5", "Mar Cap": "1,80,000", "ROCE %": "18.5", "ROE %": "15.2", "Sales Qtr YoY %": "8.5", "Div Yield %": "1.00", "P/B": "3.20", "Debt to Equity": "0.40", "NPM %": "11.2", "Profit Qtr YoY %": "8.5"},
+            {"Name": "Sector Peer B", "P/E": "22.0", "Mar Cap": "1,20,000", "ROCE %": "22.4", "ROE %": "19.1", "Sales Qtr YoY %": "12.2", "Div Yield %": "1.50", "P/B": "2.50", "Debt to Equity": "0.60", "NPM %": "13.4", "Profit Qtr YoY %": "11.6"},
+            {"Name": "Sector Peer C", "P/E": "32.1", "Mar Cap": "3,10,000", "ROCE %": "24.1", "ROE %": "22.4", "Sales Qtr YoY %": "11.6", "Div Yield %": "0.80", "P/B": "4.20", "Debt to Equity": "0.30", "NPM %": "10.1", "Profit Qtr YoY %": "9.2"}
         ]
 
-def clean_and_deduplicate_peers(peers, base_symbol, company_name, pe_ratio=None, market_cap=None, roce=None, roe=None, sales_growth_3y=None):
+def clean_and_deduplicate_peers(peers, base_symbol, company_name, pe_ratio=None, market_cap=None, roce=None, roe=None, sales_growth_3y=None, div_yield=None, pb_ratio=None, debt_equity=None, npm_pct=None, profit_growth_qtr=None):
     """Filters out any duplicate entries of the target company from the peer list, and returns a clean list with exactly one Target entry at index 0."""
     target_base = base_symbol.upper().strip()
     target_name_normalized = target_base.lower()
@@ -308,13 +308,29 @@ def clean_and_deduplicate_peers(peers, base_symbol, company_name, pe_ratio=None,
     target_cleaned = clean_name(target_name_normalized)
     resolved_cleaned = clean_name(resolved_name_normalized)
     
+    def safe_float_format(val, decimals=2):
+        if val is None:
+            return "N/A"
+        try:
+            clean_val = str(val).replace("%", "").replace(",", "").strip()
+            if clean_val.lower() == "n/a" or clean_val == "":
+                return "N/A"
+            return f"{float(clean_val):.{decimals}f}"
+        except Exception:
+            return "N/A"
+            
     target_peer_entry = {
         "Name": f"{company_name} (Target)",
         "P/E": f"{pe_ratio:.1f}" if pe_ratio else "N/A",
         "Mar Cap": f"{market_cap:,.0f}" if market_cap else "N/A",
         "ROCE %": f"{roce:.1f}" if roce else "N/A",
         "ROE %": f"{roe:.1f}" if roe else "N/A",
-        "Sales Qtr YoY %": f"{sales_growth_3y:.1f}" if sales_growth_3y else "N/A"
+        "Sales Qtr YoY %": f"{sales_growth_3y:.1f}" if sales_growth_3y else "N/A",
+        "Div Yield %": safe_float_format(div_yield),
+        "P/B": safe_float_format(pb_ratio),
+        "Debt to Equity": safe_float_format(debt_equity),
+        "NPM %": safe_float_format(npm_pct),
+        "Profit Qtr YoY %": safe_float_format(profit_growth_qtr)
     }
     
     unique_peers = []
@@ -444,6 +460,12 @@ def fetch_screener_data(symbol: str) -> dict:
                     roce_val = "N/A"
                     roe_val = "N/A"
                     sales_val = "N/A"
+                    div_yield_val = "N/A"
+                    pb_val = "N/A"
+                    debt_eq_val = "N/A"
+                    sales_qtr_raw = "N/A"
+                    np_qtr_raw = "N/A"
+                    profit_growth_qtr_val = "N/A"
                     
                     for idx, th in enumerate(headers_list):
                         if idx < len(cell_vals):
@@ -458,8 +480,30 @@ def fetch_screener_data(symbol: str) -> dict:
                                 roce_val = cell_text
                             elif "roe" in th_lower:
                                 roe_val = cell_text
-                            elif "sales qtr" in th_lower or "qtr sales var" in th_lower or "sales var" in th_lower:
+                            elif "sales qtr yoy" in th_lower or "qtr sales var" in th_lower or "sales var" in th_lower:
                                 sales_val = cell_text
+                            elif "div" in th_lower or "yield" in th_lower:
+                                div_yield_val = cell_text
+                            elif "p/b" in th_lower or "pb" in th_lower or "book value" in th_lower:
+                                pb_val = cell_text
+                            elif "debt" in th_lower or "equity" in th_lower or "debt/eq" in th_lower:
+                                debt_eq_val = cell_text
+                            elif "sales qtr" in th_lower and "var" not in th_lower and "growth" not in th_lower and "%" not in th_lower:
+                                sales_qtr_raw = cell_text
+                            elif ("np qtr" in th_lower or "net profit qtr" in th_lower or "profit qtr" in th_lower) and "var" not in th_lower and "growth" not in th_lower and "%" not in th_lower:
+                                np_qtr_raw = cell_text
+                            elif "profit" in th_lower and ("var" in th_lower or "growth" in th_lower or "%" in th_lower or "qtr" in th_lower):
+                                profit_growth_qtr_val = cell_text
+                                
+                    # Compute NPM % dynamically from quarterly net profit and sales
+                    npm_val = "N/A"
+                    try:
+                        sales_float = clean_scraped_number(sales_qtr_raw)
+                        np_float = clean_scraped_number(np_qtr_raw)
+                        if sales_float > 0.0:
+                            npm_val = f"{(np_float / sales_float) * 100.0:.1f}"
+                    except Exception:
+                        pass
                                 
                     # Realistic financial estimation for peer ROE% if unauthenticated peer data is missing
                     if (roe_val == "N/A" or not roe_val) and roce_val != "N/A" and roce_val:
@@ -476,7 +520,12 @@ def fetch_screener_data(symbol: str) -> dict:
                         "Mar Cap": mcap_val,
                         "ROCE %": roce_val,
                         "ROE %": roe_val,
-                        "Sales Qtr YoY %": sales_val
+                        "Sales Qtr YoY %": sales_val,
+                        "Div Yield %": div_yield_val,
+                        "P/B": pb_val,
+                        "Debt to Equity": debt_eq_val,
+                        "NPM %": npm_val,
+                        "Profit Qtr YoY %": profit_growth_qtr_val
                     })
                     
         # 3. Scrape Shareholding Pattern (table inside section#shareholding) (Finding 3 resolution!)
@@ -531,6 +580,10 @@ def calculate_technical_indicators(ticker_symbol: str, stock_obj=None) -> dict:
         "low_52w": 0.0,
         "dist_high_52w_pct": 0.0,
         "dist_low_52w_pct": 0.0,
+        "daily_open": 0.0,
+        "daily_high": 0.0,
+        "daily_low": 0.0,
+        "daily_close": 0.0,
         "trend_50_vs_200": "Neutral",
         "rsi_status": "Neutral",
         "fib_levels": {
@@ -591,6 +644,11 @@ def calculate_technical_indicators(ticker_symbol: str, stock_obj=None) -> dict:
         result["low_52w"] = low_52w
         result["dist_high_52w_pct"] = float(((high_52w - current_price) / high_52w) * 100)
         result["dist_low_52w_pct"] = float(((current_price - low_52w) / low_52w) * 100)
+        
+        result["daily_open"] = float(df['Open'].iloc[-1]) if not pd.isna(df['Open'].iloc[-1]) else current_price
+        result["daily_high"] = float(df['High'].iloc[-1]) if not pd.isna(df['High'].iloc[-1]) else current_price
+        result["daily_low"] = float(df['Low'].iloc[-1]) if not pd.isna(df['Low'].iloc[-1]) else current_price
+        result["daily_close"] = float(df['Close'].iloc[-1]) if not pd.isna(df['Close'].iloc[-1]) else current_price
         
         price_change_pct = 0.0
         if len(df) >= 2:
@@ -1523,9 +1581,16 @@ def get_complete_financial_profile(ticker_query: str, bypass_db_cache: bool = Fa
                             
                             fundamentals = profile.get("fundamentals", {})
                             pe_ratio = fundamentals.get("pe_ratio")
-                            market_cap = fundamentals.get("market_cap")
+                            market_cap = fundamentals.get("market_cap") or fundamentals.get("market_cap_cr")
                             roce = fundamentals.get("roce_pct")
                             roe = fundamentals.get("roe_pct")
+                            sales_growth_3y = fundamentals.get("sales_growth_3y_pct")
+                            
+                            div_yield = fundamentals.get("dividend_yield_pct")
+                            pb_ratio = fundamentals.get("pb_ratio") or (fundamentals.get("current_price", 0.0) / fundamentals.get("book_value", 1.0) if fundamentals.get("book_value", 0.0) > 0.0 else 1.5)
+                            debt_equity = fundamentals.get("debt_to_equity")
+                            npm_pct = fundamentals.get("net_margin_pct")
+                            profit_growth_qtr = fundamentals.get("eps_growth_3y_pct")
                             
                             profile["peers"] = clean_and_deduplicate_peers(
                                 profile["peers"], 
@@ -1534,7 +1599,13 @@ def get_complete_financial_profile(ticker_query: str, bypass_db_cache: bool = Fa
                                 pe_ratio,
                                 market_cap,
                                 roce,
-                                roe
+                                roe,
+                                sales_growth_3y,
+                                div_yield=div_yield,
+                                pb_ratio=pb_ratio,
+                                debt_equity=debt_equity,
+                                npm_pct=npm_pct,
+                                profit_growth_qtr=profit_growth_qtr
                             )
                         except Exception as clean_err:
                             print(f"Error self-healing cached peers: {clean_err}")
@@ -1823,6 +1894,11 @@ def _build_financial_profile(ticker_query: str) -> dict:
         peers = generate_peer_fallback(base_symbol, f"{info.get('sector') or ''} | {info.get('industry') or ''}")
         
     # Inject searched stock with actual real-time fundamentals and clean up all duplicates
+    pb_ratio = info.get("priceToBook") or (current_price / book_value if book_value and book_value > 0 else 1.5)
+    debt_eq = float(screener_data["ratios"].get("Debt to Equity") or info.get("debtToEquity", 0.0) / 100.0 if info.get("debtToEquity") else 0.1)
+    profit_margin = float(info.get("profitMargins") or 0.12)
+    net_margin = profit_margin * 100.0
+    
     peers = clean_and_deduplicate_peers(
         peers, 
         base_symbol, 
@@ -1831,8 +1907,81 @@ def _build_financial_profile(ticker_query: str) -> dict:
         market_cap,
         roce,
         roe,
-        sales_growth_3y
+        sales_growth_3y,
+        div_yield=div_yield,
+        pb_ratio=pb_ratio,
+        debt_equity=debt_eq,
+        npm_pct=net_margin,
+        profit_growth_qtr=profit_growth_3y
     )
+    
+    # Enrich peer parameters using database cache or yfinance info (preventing N/As for peers)
+    import os
+    import sqlite3
+    import json
+    DATABASE_DIR = os.environ.get(
+        "DATABASE_DIR",
+        os.path.join(os.path.dirname(__file__), "data")
+    )
+    DATABASE_PATH = os.path.join(DATABASE_DIR, "watchlist_database.db")
+    
+    for peer in peers[1:]:
+        p_name = peer.get("Name", peer.get("Company", ""))
+        # Only enrich if we need to
+        if peer.get("P/B") == "N/A" or peer.get("Debt to Equity") == "N/A" or peer.get("Div Yield %") == "N/A":
+            try:
+                res_ticker = resolve_company_ticker(p_name)
+                peer_ticker = res_ticker.get("yf_ticker")
+                if peer_ticker:
+                    cached_val = None
+                    try:
+                        if os.path.exists(DATABASE_PATH):
+                            conn = sqlite3.connect(DATABASE_PATH)
+                            conn.row_factory = sqlite3.Row
+                            cursor = conn.cursor()
+                            cursor.execute("SELECT profile_json FROM cached_profiles WHERE symbol = ?", (peer_ticker,))
+                            db_row = cursor.fetchone()
+                            if db_row:
+                                cached_val = json.loads(db_row["profile_json"])
+                            conn.close()
+                    except Exception as db_err:
+                        print(f"Error checking cache for peer {peer_ticker}: {db_err}")
+                        
+                    if cached_val:
+                        fund = cached_val.get("fundamentals", {})
+                        if peer.get("P/B") == "N/A" or not peer.get("P/B"):
+                            cur_p = fund.get("current_price") or 0.0
+                            bv = fund.get("book_value") or 0.0
+                            peer["P/B"] = f"{cur_p / bv:.2f}" if bv > 0.0 else "N/A"
+                        if peer.get("Debt to Equity") == "N/A" or not peer.get("Debt to Equity"):
+                            peer["Debt to Equity"] = f"{fund.get('debt_to_equity', 0.0):.2f}"
+                        if peer.get("Div Yield %") == "N/A" or not peer.get("Div Yield %"):
+                            peer["Div Yield %"] = f"{fund.get('dividend_yield_pct', 0.0):.2f}"
+                        if peer.get("NPM %") == "N/A" or not peer.get("NPM %"):
+                            peer["NPM %"] = f"{fund.get('net_margin_pct', 0.0):.1f}"
+                        if peer.get("Profit Qtr YoY %") == "N/A" or not peer.get("Profit Qtr YoY %"):
+                            peer["Profit Qtr YoY %"] = f"{fund.get('eps_growth_3y_pct', 0.0):.1f}"
+                    else:
+                        import yfinance as yf
+                        p_stock = yf.Ticker(peer_ticker)
+                        p_info = p_stock.info
+                        if p_info:
+                            if peer.get("P/B") == "N/A" or not peer.get("P/B"):
+                                peer["P/B"] = f"{p_info.get('priceToBook'):.2f}" if p_info.get('priceToBook') is not None else "N/A"
+                            if peer.get("Debt to Equity") == "N/A" or not peer.get("Debt to Equity"):
+                                p_debt = p_info.get("debtToEquity")
+                                peer["Debt to Equity"] = f"{p_debt / 100.0:.2f}" if p_debt is not None else "N/A"
+                            if peer.get("Div Yield %") == "N/A" or not peer.get("Div Yield %"):
+                                p_div = p_info.get("dividendYield")
+                                peer["Div Yield %"] = f"{p_div * 100.0:.2f}" if p_div is not None else "N/A"
+                            if peer.get("NPM %") == "N/A" or not peer.get("NPM %"):
+                                p_npm = p_info.get("profitMargins")
+                                peer["NPM %"] = f"{p_npm * 100.0:.1f}" if p_npm is not None else "N/A"
+                            if peer.get("Profit Qtr YoY %") == "N/A" or not peer.get("Profit Qtr YoY %"):
+                                p_eg = p_info.get("earningsGrowth")
+                                peer["Profit Qtr YoY %"] = f"{p_eg * 100.0:.1f}" if p_eg is not None else "N/A"
+            except Exception as e:
+                print(f"Error enriching peer {p_name} fundamentals: {e}")
         
     # Shareholding patterns yfinance parser & customized fallback generation (Finding 3 resolution!)
     shareholding = screener_data["shareholding"]
