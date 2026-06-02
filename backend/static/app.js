@@ -1931,27 +1931,13 @@ function setupDynamicChartControls() {
     document.getElementById('chart-interval').addEventListener('change', fetchAndRenderChart);
     
     // Overlays change hooks
-    document.getElementById('toggle-sma50').addEventListener('change', () => {
-        if (activeChartInstance) fetchAndRenderChart();
-    });
-    document.getElementById('toggle-sma200').addEventListener('change', () => {
-        if (activeChartInstance) fetchAndRenderChart();
-    });
-    document.getElementById('toggle-bb').addEventListener('change', () => {
-        if (activeChartInstance) fetchAndRenderChart();
-    });
-    document.getElementById('toggle-rs').addEventListener('change', () => {
-        if (activeChartInstance) fetchAndRenderChart();
-    });
-    document.getElementById('toggle-trendline').addEventListener('change', () => {
-        if (activeChartInstance) fetchAndRenderChart();
-    });
-    document.getElementById('toggle-ai-lines').addEventListener('change', () => {
-        if (activeChartInstance) fetchAndRenderChart();
-    });
-    document.getElementById('chart-style').addEventListener('change', () => {
-        if (activeChartInstance) fetchAndRenderChart();
-    });
+    document.getElementById('toggle-sma50').addEventListener('change', fetchAndRenderChart);
+    document.getElementById('toggle-sma200').addEventListener('change', fetchAndRenderChart);
+    document.getElementById('toggle-bb').addEventListener('change', fetchAndRenderChart);
+    document.getElementById('toggle-rs').addEventListener('change', fetchAndRenderChart);
+    document.getElementById('toggle-trendline').addEventListener('change', fetchAndRenderChart);
+    document.getElementById('toggle-ai-lines').addEventListener('change', fetchAndRenderChart);
+    document.getElementById('chart-style').addEventListener('change', fetchAndRenderChart);
 }
 
 async function fetchAndRenderChart() {
@@ -2228,7 +2214,7 @@ function drawStockChartCanvas(data) {
                 position: 'belowBar',
                 color: '#10b981',
                 shape: 'arrowUp',
-                text: 'BUY',
+                text: 'B',
             });
         }
         // Bearish Breakdown crossover: Price crosses below SMA 200
@@ -2238,7 +2224,7 @@ function drawStockChartCanvas(data) {
                 position: 'aboveBar',
                 color: '#ef4444',
                 shape: 'arrowDown',
-                text: 'SELL',
+                text: 'S',
             });
         }
     }
