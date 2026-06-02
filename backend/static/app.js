@@ -2122,7 +2122,7 @@ function drawStockChartCanvas(data) {
             priceScaleId: '', // overlay on same price pane
         });
         
-        volumeSeries.priceScale().configure({
+        volumeSeries.priceScale().applyOptions({
             scaleMargins: { top: 0.8, bottom: 0 }, // place in the bottom 20%
         });
 
