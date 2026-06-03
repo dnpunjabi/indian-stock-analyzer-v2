@@ -2239,6 +2239,9 @@ def calculate_portfolio_backtest(tickers: list, weights: list, start_date: str, 
     if price_df.empty:
         raise ValueError("No overlapping trading days found for the selected tickers.")
         
+    # Forward-fill and backward-fill any minor gaps in the benchmark index or stocks
+    price_df = price_df.ffill().bfill()
+        
     div_df = pd.DataFrame(dividends_dict).reindex(price_df.index).fillna(0.0)
     
     bench_series = price_df[bench_ticker]

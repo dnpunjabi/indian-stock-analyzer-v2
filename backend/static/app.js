@@ -10236,23 +10236,27 @@ async function runPortfolioBacktest() {
         }
         
         // 2. Render comparative metrics table
-        document.getElementById('backtest-final-val').innerText = '₹' + data.metrics.portfolio.final_value.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-        document.getElementById('bench-final-val').innerText = '₹' + data.metrics.benchmark.final_value.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        const safeFormatVal = (val, formatFn) => {
+            return (val !== null && val !== undefined) ? formatFn(val) : '--';
+        };
         
-        document.getElementById('backtest-cagr').innerText = data.metrics.portfolio.cagr + '%';
-        document.getElementById('bench-cagr').innerText = data.metrics.benchmark.cagr + '%';
+        document.getElementById('backtest-final-val').innerText = safeFormatVal(data.metrics.portfolio.final_value, v => '₹' + v.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+        document.getElementById('bench-final-val').innerText = safeFormatVal(data.metrics.benchmark.final_value, v => '₹' + v.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
         
-        document.getElementById('backtest-max-dd').innerText = data.metrics.portfolio.max_drawdown + '%';
-        document.getElementById('bench-max-dd').innerText = data.metrics.benchmark.max_drawdown + '%';
+        document.getElementById('backtest-cagr').innerText = safeFormatVal(data.metrics.portfolio.cagr, v => v + '%');
+        document.getElementById('bench-cagr').innerText = safeFormatVal(data.metrics.benchmark.cagr, v => v + '%');
         
-        document.getElementById('backtest-volatility').innerText = data.metrics.portfolio.volatility + '%';
-        document.getElementById('bench-volatility').innerText = data.metrics.benchmark.volatility + '%';
+        document.getElementById('backtest-max-dd').innerText = safeFormatVal(data.metrics.portfolio.max_drawdown, v => v + '%');
+        document.getElementById('bench-max-dd').innerText = safeFormatVal(data.metrics.benchmark.max_drawdown, v => v + '%');
         
-        document.getElementById('backtest-sharpe').innerText = data.metrics.portfolio.sharpe_ratio;
-        document.getElementById('bench-sharpe').innerText = data.metrics.benchmark.sharpe_ratio;
+        document.getElementById('backtest-volatility').innerText = safeFormatVal(data.metrics.portfolio.volatility, v => v + '%');
+        document.getElementById('bench-volatility').innerText = safeFormatVal(data.metrics.benchmark.volatility, v => v + '%');
         
-        document.getElementById('backtest-dividends').innerText = '₹' + data.metrics.portfolio.total_dividends.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-        document.getElementById('backtest-fees-paid').innerText = '₹' + data.metrics.portfolio.total_fees.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        document.getElementById('backtest-sharpe').innerText = safeFormatVal(data.metrics.portfolio.sharpe_ratio, v => v);
+        document.getElementById('bench-sharpe').innerText = safeFormatVal(data.metrics.benchmark.sharpe_ratio, v => v);
+        
+        document.getElementById('backtest-dividends').innerText = safeFormatVal(data.metrics.portfolio.total_dividends, v => '₹' + v.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+        document.getElementById('backtest-fees-paid').innerText = safeFormatVal(data.metrics.portfolio.total_fees, v => '₹' + v.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
         
         // 3. Render Chart
         renderBacktestChart(data);
