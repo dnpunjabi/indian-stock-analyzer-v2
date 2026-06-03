@@ -10026,9 +10026,15 @@ function setupPortfolioBacktester() {
         });
     }
     
-    // Watch for theme changes to dynamically update gridlines
+    // Watch for theme/resize changes to dynamically update chart bounds
     window.addEventListener('resize', () => {
-        if (backtestChartInstance) {
+        if (window.activeBacktestLightweightChart) {
+            const container = document.getElementById('backtest-chart-container');
+            if (container) {
+                window.activeBacktestLightweightChart.resize(container.clientWidth || 600, 300);
+            }
+            updateBacktestChartThemeColors();
+        } else if (backtestChartInstance) {
             updateBacktestChartThemeColors();
         }
     });
@@ -10263,9 +10269,8 @@ async function runPortfolioBacktest() {
         document.getElementById('backtest-fees-paid').innerText = safeFormatVal(data.metrics.portfolio.total_fees, v => '₹' + v.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
         
         // 3. Render Chart
-        renderBacktestChart(data);
-        
         if (resultsContainer) resultsContainer.style.display = 'block';
+        renderBacktestChart(data);
         
         // 4. Trigger LLM summary synthesis
         if (summaryText) {
@@ -10341,7 +10346,7 @@ function renderBacktestChart(data) {
 
     // 1. Initialize TradingView Chart
     const chart = LightweightCharts.createChart(container, {
-        width: container.clientWidth,
+        width: container.clientWidth || 600,
         height: 300,
         layout: {
             background: { type: 'solid', color: 'transparent' },
