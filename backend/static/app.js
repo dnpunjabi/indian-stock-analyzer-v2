@@ -9872,6 +9872,22 @@ function setupPortfolioBacktester() {
     const portPanelDiagnostics = document.getElementById('port-panel-diagnostics');
     const portPanelBacktester = document.getElementById('port-panel-backtester');
     
+    // Collapsible Ledger Block Click Listener
+    const ledgerHeader = document.getElementById('backtest-rebalance-ledger-header');
+    if (ledgerHeader) {
+        ledgerHeader.addEventListener('click', () => {
+            const body = document.getElementById('backtest-rebalance-ledger-text');
+            const arrow = document.getElementById('backtest-rebalance-ledger-arrow');
+            if (body && arrow) {
+                const isCollapsed = body.style.display === 'none';
+                body.style.display = isCollapsed ? 'block' : 'none';
+                arrow.style.transform = isCollapsed ? 'rotate(90deg)' : 'rotate(0deg)';
+                ledgerHeader.style.marginBottom = isCollapsed ? '12px' : '0px';
+                ledgerHeader.style.borderBottom = isCollapsed ? '1px dashed var(--border-glass)' : 'none';
+            }
+        });
+    }
+    
     if (!portTabDiagnosticsBtn || !portTabBacktesterBtn) return;
     
     // Tab switching event listeners
@@ -10268,6 +10284,90 @@ async function runPortfolioBacktest() {
         document.getElementById('backtest-dividends').innerText = safeFormatVal(data.metrics.portfolio.total_dividends, v => '₹' + v.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
         document.getElementById('backtest-fees-paid').innerText = safeFormatVal(data.metrics.portfolio.total_fees, v => '₹' + v.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
         
+        // Render Rebalancing Transaction Ledger
+        const ledgerBlock = document.getElementById('backtest-rebalance-ledger-block');
+        const ledgerText = document.getElementById('backtest-rebalance-ledger-text');
+        const ledgerCount = document.getElementById('backtest-rebalance-ledger-count');
+        const ledgerArrow = document.getElementById('backtest-rebalance-ledger-arrow');
+        
+        if (ledgerBlock && ledgerText) {
+            const rebalHistory = data.metrics.rebalancing_history || [];
+            if (rebalHistory.length > 0) {
+                ledgerCount.innerText = `${rebalHistory.length} Rebalance${rebalHistory.length > 1 ? 's' : ''}`;
+                
+                // Initialize block to expanded state
+                ledgerText.style.display = 'block';
+                if (ledgerArrow) ledgerArrow.style.transform = 'rotate(90deg)';
+                const header = document.getElementById('backtest-rebalance-ledger-header');
+                if (header) {
+                    header.style.marginBottom = '12px';
+                    header.style.borderBottom = '1px dashed var(--border-glass)';
+                }
+                
+                let html = '<div style="display: flex; flex-direction: column; gap: 10px; margin-top: 8px;">';
+                rebalHistory.forEach((event, idx) => {
+                    const isFirst = idx === 0;
+                    html += `
+                        <div style="background: rgba(255, 255, 255, 0.01); border: 1px solid var(--border-glass); border-radius: 6px; overflow: hidden;">
+                            <div class="rebalance-event-header" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: rgba(255,255,255,0.02); cursor: pointer; user-select: none; transition: background 0.2s;" onclick="toggleRebalanceEventDetails(${idx})">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span id="rebalance-collapse-arrow-${idx}" style="font-size: 8px; transition: transform 0.2s; display: inline-block; transform: ${isFirst ? 'rotate(90deg)' : 'rotate(0deg)'}; color: var(--text-muted);">▶</span>
+                                    <strong style="color: var(--text-primary); font-size: 11.5px;">📅 Date: ${event.date}</strong>
+                                    <span style="font-size: 10px; color: var(--text-muted);">(${event.trades.length} trade${event.trades.length > 1 ? 's' : ''})</span>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <span style="font-size: 10.5px; color: var(--neon-green); font-weight: 600;">Fees: ₹${event.fees.toFixed(2)}</span>
+                                </div>
+                            </div>
+                            <div id="rebalance-event-details-${idx}" style="padding: 10px 14px; border-top: 1px solid var(--border-glass); display: ${isFirst ? 'block' : 'none'};">
+                                <div class="table-scroll" style="border: 1px solid rgba(255,255,255,0.04); border-radius: 4px; overflow: hidden;">
+                                    <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 11px; line-height: 1.4;">
+                                        <thead>
+                                            <tr style="background: rgba(255,255,255,0.03); border-bottom: 1px solid rgba(255,255,255,0.06);">
+                                                <th style="padding: 6px 10px; color: var(--text-secondary); font-weight: 600;">Stock</th>
+                                                <th style="padding: 6px 10px; color: var(--text-secondary); font-weight: 600;">Action</th>
+                                                <th style="padding: 6px 10px; color: var(--text-secondary); text-align: right; font-weight: 600;">Shares</th>
+                                                <th style="padding: 6px 10px; color: var(--text-secondary); text-align: right; font-weight: 600;">Price</th>
+                                                <th style="padding: 6px 10px; color: var(--text-secondary); text-align: right; font-weight: 600;">Total Value</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                    `;
+                    
+                    event.trades.forEach(t => {
+                        const isBuy = t.action === "BUY";
+                        const actionBadge = isBuy 
+                            ? `<span style="background: rgba(16, 185, 129, 0.15); color: #10b981; padding: 1px 6px; border-radius: 4px; font-weight: 700; font-size: 9px;">BUY</span>`
+                            : `<span style="background: rgba(239, 68, 68, 0.15); color: #ef4444; padding: 1px 6px; border-radius: 4px; font-weight: 700; font-size: 9px;">SELL</span>`;
+                        
+                        html += `
+                                            <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
+                                                <td style="padding: 6px 10px; font-weight: 700; color: var(--text-primary);">${t.ticker}</td>
+                                                <td style="padding: 6px 10px;">${actionBadge}</td>
+                                                <td style="padding: 6px 10px; text-align: right; color: var(--text-primary);">${t.shares.toLocaleString('en-IN')}</td>
+                                                <td style="padding: 6px 10px; text-align: right; color: var(--text-secondary);">₹${t.price.toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
+                                                <td style="padding: 6px 10px; text-align: right; color: var(--text-primary); font-weight: 600;">₹${t.value.toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
+                                            </tr>
+                        `;
+                    });
+                    
+                    html += `
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                
+                ledgerText.innerHTML = html;
+                ledgerBlock.style.display = 'block';
+            } else {
+                ledgerBlock.style.display = 'none';
+            }
+        }
+        
         // 3. Render Chart
         if (resultsContainer) resultsContainer.style.display = 'block';
         renderBacktestChart(data);
@@ -10518,4 +10618,14 @@ function updateBacktestChartThemeColors() {
     
     backtestChartInstance.update();
 }
+
+window.toggleRebalanceEventDetails = function(idx) {
+    const details = document.getElementById(`rebalance-event-details-${idx}`);
+    const arrow = document.getElementById(`rebalance-collapse-arrow-${idx}`);
+    if (details && arrow) {
+        const isCollapsed = details.style.display === 'none';
+        details.style.display = isCollapsed ? 'block' : 'none';
+        arrow.style.transform = isCollapsed ? 'rotate(90deg)' : 'rotate(0deg)';
+    }
+};
 

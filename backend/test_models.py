@@ -751,6 +751,8 @@ class TestPortfolioAPI(unittest.TestCase):
         self.assertIn("portfolio_values", data)
         self.assertIn("benchmark_values", data)
         self.assertIn("metrics", data)
+        self.assertIn("rebalancing_history", data["metrics"])
+        self.assertGreater(len(data["metrics"]["rebalancing_history"]), 0)
         self.assertGreater(data["metrics"]["portfolio"]["final_value"], 100000.0)
         self.assertGreater(data["metrics"]["portfolio"]["total_dividends"], 0.0)
         

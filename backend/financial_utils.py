@@ -2258,16 +2258,23 @@ def calculate_portfolio_backtest(tickers: list, weights: list, start_date: str, 
     fee_factor = transaction_fee_pct / 100.0
     total_initial_fee = 0.0
     
+    # Calculate initial allocation in whole shares and assign leftover to cash
+    remaining_cash = starting_capital
     for i in range(n_assets):
         asset_capital = starting_capital * weights_ratio[i]
-        buy_fee = asset_capital * fee_factor
-        net_capital = asset_capital - buy_fee
-        total_initial_fee += buy_fee
-        shares[i] = net_capital / initial_prices[i]
+        max_shares = int(np.floor((asset_capital / (1.0 + fee_factor)) / initial_prices[i]))
+        cost_before_fee = max_shares * initial_prices[i]
+        buy_fee = cost_before_fee * fee_factor
+        total_cost = cost_before_fee + buy_fee
         
-    cash = 0.0
+        shares[i] = max_shares
+        total_initial_fee += buy_fee
+        remaining_cash -= total_cost
+        
+    cash = remaining_cash
     total_fees_paid = total_initial_fee
     total_dividends_earned = 0.0
+    rebalancing_history = []
     
     # Determine rebalancing schedule dates
     rebalance_dates = []
@@ -2316,22 +2323,66 @@ def calculate_portfolio_backtest(tickers: list, weights: list, start_date: str, 
             total_value = holdings_value + cash
             target_values = total_value * np.array(weights_ratio)
             
-            rebalance_fees = 0.0
-            for i in range(n_assets):
-                current_asset_val = shares[i] * current_prices[i]
-                target_asset_val = target_values[i]
-                diff = target_asset_val - current_asset_val
-                rebalance_fees += abs(diff) * fee_factor
-                
-            net_total_value = total_value - rebalance_fees
-            total_fees_paid += rebalance_fees
-            
             new_shares = np.zeros(n_assets)
+            allocated_cost = 0.0
+            rebalance_fees = 0.0
+            
+            # Step 1: Calculate target whole shares
             for i in range(n_assets):
-                new_shares[i] = (net_total_value * weights_ratio[i]) / current_prices[i]
+                target_sh = int(np.floor((target_values[i] / (1.0 + fee_factor)) / current_prices[i]))
+                new_shares[i] = target_sh
+                
+                share_diff = target_sh - shares[i]
+                trade_value = abs(share_diff) * current_prices[i]
+                rebalance_fees += trade_value * fee_factor
+                allocated_cost += target_sh * current_prices[i]
+                
+            total_required = allocated_cost + rebalance_fees
+            
+            # Step 2: Budget solver to handle edge cases where total_required exceeds total_value
+            while total_required > total_value:
+                trimmed = False
+                for idx in np.argsort(-target_values):
+                    if new_shares[idx] > 0:
+                        new_shares[idx] -= 1
+                        # Recompute
+                        rebalance_fees = 0.0
+                        allocated_cost = 0.0
+                        for i in range(n_assets):
+                            share_diff = new_shares[i] - shares[i]
+                            trade_value = abs(share_diff) * current_prices[i]
+                            rebalance_fees += trade_value * fee_factor
+                            allocated_cost += new_shares[i] * current_prices[i]
+                        total_required = allocated_cost + rebalance_fees
+                        trimmed = True
+                        break
+                if not trimmed:
+                    break
+            
+            # Step 3: Record trade transactions as whole share integers
+            trades_this_period = []
+            for i in range(n_assets):
+                share_diff = new_shares[i] - shares[i]
+                if abs(share_diff) > 0:
+                    action = "BUY" if share_diff > 0 else "SELL"
+                    trades_this_period.append({
+                        "ticker": resolved_tickers[i],
+                        "action": action,
+                        "shares": int(abs(share_diff)),
+                        "price": round(float(current_prices[i]), 2),
+                        "value": round(abs(share_diff) * float(current_prices[i]), 2)
+                    })
+                    
+            if trades_this_period:
+                rebalancing_history.append({
+                    "date": current_date.strftime("%Y-%m-%d"),
+                    "fees": round(float(rebalance_fees), 2),
+                    "trades": trades_this_period
+                })
                 
             shares = new_shares
-            cash = 0.0
+            total_fees_paid += rebalance_fees
+            cash = total_value - (np.sum(shares * current_prices) + rebalance_fees)
             
         daily_portfolio_value = np.sum(shares * current_prices) + cash
         portfolio_values.append(daily_portfolio_value)
@@ -2378,6 +2429,7 @@ def calculate_portfolio_backtest(tickers: list, weights: list, start_date: str, 
         "portfolio_values": [round(val, 2) for val in portfolio_values],
         "benchmark_values": [round(val, 2) for val in bench_indexed_values],
         "metrics": {
+            "rebalancing_history": rebalancing_history,
             "portfolio": {
                 "final_value": round(portfolio_series.iloc[-1], 2),
                 "cagr": round(portfolio_cagr, 2),
