@@ -2283,6 +2283,13 @@ def calculate_portfolio_backtest(tickers: list, weights: list, start_date: str, 
                 if last_period and period != last_period:
                     rebalance_dates.append(d)
                 last_period = period
+        elif rebalance_freq == "semiannually":
+            last_period = None
+            for d in dates:
+                period = (d.year, (d.month - 1) // 6)
+                if last_period and period != last_period:
+                    rebalance_dates.append(d)
+                last_period = period
         elif rebalance_freq == "annually":
             last_period = None
             for d in dates:

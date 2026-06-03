@@ -1974,6 +1974,7 @@
                                     <option value="none" selected>No Rebalancing (Buy & Hold)</option>
                                     <option value="monthly">Monthly Rebalancing</option>
                                     <option value="quarterly">Quarterly Rebalancing</option>
+                                    <option value="semiannually">Semi-annually (6 Months)</option>
                                     <option value="annually">Annual Rebalancing</option>
                                 </select>
                             </div>
@@ -2001,6 +2002,10 @@
                                     <input type="text" id="backtest-custom-stock-input" placeholder="Type stock (e.g. RELIANCE)..." style="padding: 4px 8px; font-size:11px; border-radius: 4px; background: rgba(0,0,0,0.3); color: var(--text-primary); border: 1px solid var(--border-glass); width: 180px; outline: none;" autocomplete="off">
                                     <div id="backtest-custom-suggestions" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: #0b1329; border: 1px solid var(--border-glass); border-radius: 4px; max-height: 150px; overflow-y: auto; z-index: 10;"></div>
                                     <button id="backtest-add-custom-btn" class="btn-primary" style="font-size: 11px; padding: 4px 10px; height: auto;">+ Add Asset</button>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 10px; margin-left: auto;">
+                                    <button id="backtest-sync-ledger-btn" class="btn-secondary" style="font-size: 11px; padding: 4px 10px; height: auto; display: flex; align-items: center; gap: 4px;" title="Reset sandbox to match active portfolio optimization ledger.">🔄 Sync Active Ledger</button>
+                                    <button id="backtest-clear-all-btn" class="btn-secondary" style="font-size: 11px; padding: 4px 10px; height: auto; display: flex; align-items: center; gap: 4px; border-color: rgba(239, 68, 68, 0.4); color: #ef4444;" title="Remove all stocks from the sandbox to build custom portfolio.">🗑️ Clear All</button>
                                 </div>
                             </div>
 

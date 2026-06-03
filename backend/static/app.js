@@ -9900,8 +9900,10 @@ function setupPortfolioBacktester() {
         portTabDiagnosticsBtn.style.background = 'transparent';
         portTabDiagnosticsBtn.style.color = 'var(--text-muted)';
         
-        // Synchronize ledger items to sandbox on first load or tab change
-        await syncLedgerToBacktestSandbox();
+        // Synchronize ledger items to sandbox on first load if sandbox is empty
+        if (backtestSandboxStocks.length === 0) {
+            await syncLedgerToBacktestSandbox();
+        }
     });
     
     // Set default dates
@@ -9996,10 +9998,28 @@ function setupPortfolioBacktester() {
         });
     }
     
-    // Run simulation button listener
     const runBacktestBtn = document.getElementById('run-backtest-btn');
     if (runBacktestBtn) {
         runBacktestBtn.addEventListener('click', runPortfolioBacktest);
+    }
+    
+    // Sync active ledger button listener
+    const syncLedgerBtn = document.getElementById('backtest-sync-ledger-btn');
+    if (syncLedgerBtn) {
+        syncLedgerBtn.addEventListener('click', async () => {
+            await syncLedgerToBacktestSandbox();
+            showToast("Sandbox weights loaded from active portfolio ledger.", "info");
+        });
+    }
+
+    // Clear all button listener
+    const clearAllBtn = document.getElementById('backtest-clear-all-btn');
+    if (clearAllBtn) {
+        clearAllBtn.addEventListener('click', () => {
+            backtestSandboxStocks = [];
+            renderBacktestSandbox();
+            showToast("Sandbox portfolio cleared.", "info");
+        });
     }
     
     // Watch for theme changes to dynamically update gridlines

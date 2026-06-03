@@ -739,7 +739,7 @@ class TestPortfolioAPI(unittest.TestCase):
             "weights": [60.0, 40.0],
             "start_date": "2023-01-01",
             "end_date": "2023-12-31",
-            "rebalance_freq": "quarterly",
+            "rebalance_freq": "semiannually",
             "starting_capital": 100000.0,
             "transaction_fee_pct": 0.1
         }
