@@ -5299,3 +5299,38 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 [data-theme="light"] input[type="date"]::-webkit-calendar-picker-indicator {
     filter: invert(0) !important;
 }
+
+/* Sticky table headers for Acquisition Ledger and Active Holdings */
+.ledger-table-wrap th,
+.table-container th {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 10 !important;
+    background: #121929 !important;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+[data-theme="light"] .ledger-table-wrap th,
+[data-theme="light"] .table-container th {
+    background: #ffffff !important;
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.08);
+}
+
+/* Collapsible CSS enhancements */
+.collapsible-header {
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s ease;
+}
+.collapsible-header:hover {
+    opacity: 0.85;
+}
+.collapse-arrow {
+    font-size: 10px;
+    color: var(--text-secondary);
+    transition: transform 0.2s ease;
+    display: inline-block;
+}
+.collapsed .collapse-arrow {
+    transform: rotate(-90deg);
+}
+

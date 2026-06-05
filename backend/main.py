@@ -10,7 +10,7 @@ import numpy as np
 from datetime import datetime, timedelta
 from contextlib import contextmanager
 import math
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, UploadFile, File
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -74,16 +74,35 @@ def init_db():
         except Exception:
             pass
         # Dedicated Portfolio Items table for AI Portfolio Doctor
-        cursor.execute("""
-        CREATE TABLE IF NOT EXISTS portfolio_items (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            symbol TEXT UNIQUE NOT NULL,
-            name TEXT,
-            sector TEXT,
-            quantity REAL DEFAULT 10.0,
-            purchase_price REAL DEFAULT 100.0
-        )
-        """)
+        try:
+            cursor.execute("SELECT purchase_date FROM portfolio_items LIMIT 1")
+        except Exception:
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='portfolio_items'")
+            exists = cursor.fetchone()
+            if exists:
+                # Migrate by creating a temporary table without UNIQUE on symbol
+                cursor.execute("CREATE TABLE IF NOT EXISTS portfolio_items_temp (id INTEGER PRIMARY KEY AUTOINCREMENT, symbol TEXT NOT NULL, name TEXT, sector TEXT, quantity REAL DEFAULT 10.0, purchase_price REAL DEFAULT 100.0, purchase_date TEXT DEFAULT '2026-06-05')")
+                cursor.execute("INSERT INTO portfolio_items_temp (symbol, name, sector, quantity, purchase_price, purchase_date) SELECT symbol, name, sector, quantity, purchase_price, '2026-06-05' FROM portfolio_items")
+                cursor.execute("DROP TABLE portfolio_items")
+                cursor.execute("ALTER TABLE portfolio_items_temp RENAME TO portfolio_items")
+            else:
+                # Create fresh table
+                cursor.execute("""
+                CREATE TABLE IF NOT EXISTS portfolio_items (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    symbol TEXT NOT NULL,
+                    name TEXT,
+                    sector TEXT,
+                    quantity REAL DEFAULT 10.0,
+                    purchase_price REAL DEFAULT 100.0,
+                    purchase_date TEXT DEFAULT '2026-06-05',
+                    transaction_type TEXT DEFAULT 'buy'
+                )
+                """)
+        try:
+            cursor.execute("ALTER TABLE portfolio_items ADD COLUMN transaction_type TEXT DEFAULT 'buy'")
+        except Exception:
+            pass
         # Persistent alerts table
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS alerts (
@@ -120,12 +139,76 @@ def init_db():
 
 init_db()
 
+def compute_active_holdings(transactions: list) -> list:
+    """
+    Applies chronological First-In-First-Out (FIFO) netting on a list of raw transaction records.
+    Returns the list of active buy tranches (with remaining quantities > 0).
+    """
+    from collections import defaultdict
+    from datetime import datetime
+
+    # Group transactions by symbol
+    grouped = defaultdict(list)
+    for tx in transactions:
+        symbol = tx.get("symbol", "").strip().upper()
+        if symbol:
+            grouped[symbol].append(tx)
+
+    active_tranches = []
+    for symbol, symbol_txs in grouped.items():
+        # Sort chronologically by date, then by transaction ID to preserve original order
+        def get_sort_key(x):
+            date_str = x.get("purchase_date") or "2026-06-05"
+            try:
+                dt = datetime.strptime(date_str, "%Y-%m-%d")
+            except Exception:
+                dt = datetime.strptime("2026-06-05", "%Y-%m-%d")
+            return (dt, x.get("id") or 0)
+
+        symbol_txs.sort(key=get_sort_key)
+
+        buys = []
+        for tx in symbol_txs:
+            t_type = (tx.get("transaction_type") or "buy").strip().lower()
+            qty = float(tx.get("quantity") or 0.0)
+            if qty <= 0:
+                continue
+
+            if t_type == "buy":
+                # Create a copy to prevent modifying the database dict in-place
+                buys.append({
+                    "id": tx.get("id"),
+                    "symbol": tx.get("symbol"),
+                    "name": tx.get("name"),
+                    "sector": tx.get("sector") or "General Equities",
+                    "quantity": qty,
+                    "purchase_price": float(tx.get("purchase_price") or 0.0),
+                    "purchase_date": tx.get("purchase_date"),
+                    "transaction_type": "buy"
+                })
+            elif t_type == "sell":
+                sell_qty = qty
+                while sell_qty > 0 and buys:
+                    oldest_buy = buys[0]
+                    if oldest_buy["quantity"] > sell_qty:
+                        oldest_buy["quantity"] = round(oldest_buy["quantity"] - sell_qty, 6)
+                        sell_qty = 0
+                    else:
+                        sell_qty = round(sell_qty - oldest_buy["quantity"], 6)
+                        buys.pop(0)
+
+        for buy in buys:
+            if buy["quantity"] > 0:
+                active_tranches.append(buy)
+
+    return active_tranches
+
 # Load env variables from root directory
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
 
 # Import analytical and agent engines
 from backend.financial_utils import get_complete_financial_profile, resolve_company_ticker, calculate_portfolio_backtest
-from backend.agent import run_cio_parent_agent, run_ai_stock_screener, run_comparison_synthesizer, run_conversational_chat, run_portfolio_doctor, call_groq_llm, run_single_stock_audit, generate_backtest_synthesis
+from backend.agent import run_cio_parent_agent, run_ai_stock_screener, run_comparison_synthesizer, run_conversational_chat, run_portfolio_doctor, call_groq_llm, run_single_stock_audit, generate_backtest_synthesis, calculate_portfolio_taxes
 
 def sanitize_nan_values(x):
     """Recursively replaces float('nan'), inf, and -inf with None for JSON compliance."""
@@ -424,10 +507,14 @@ class PortfolioItemCreate(BaseModel):
     symbol: str
     quantity: Optional[float] = 10.0
     purchase_price: Optional[float] = 100.0
+    purchase_date: Optional[str] = "2026-06-05"
+    transaction_type: Optional[str] = "buy"
 
 class PortfolioItemUpdate(BaseModel):
     quantity: Optional[float] = None
     purchase_price: Optional[float] = None
+    purchase_date: Optional[str] = None
+    transaction_type: Optional[str] = None
 
 class WatchlistRename(BaseModel):
     name: str
@@ -1433,6 +1520,7 @@ class PortfolioItemInput(BaseModel):
     symbol: str
     quantity: float
     buy_price: float
+    purchase_date: Optional[str] = "2026-06-05"
 
 class PortfolioDoctorInput(BaseModel):
     items: List[PortfolioItemInput]
@@ -1689,12 +1777,31 @@ async def get_relative_strength(symbol: str, period: str = "1y"):
 # ==================== STANDALONE AI PORTFOLIO DOCTOR ====================
 
 @app.get("/api/portfolio")
-async def get_portfolio():
+async def get_portfolio(refresh: bool = False):
     import json
+    
+    # 1. Handle price refreshing if requested
+    if refresh:
+        try:
+            with get_db() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT id, symbol, name, sector, quantity, purchase_price, purchase_date, transaction_type FROM portfolio_items")
+                all_txs = [dict(row) for row in cursor.fetchall()]
+                active_txs = compute_active_holdings(all_txs)
+                symbols = list(set(row["symbol"] for row in active_txs))
+            if symbols:
+                tasks = [asyncio.to_thread(get_complete_financial_profile, sym, True) for sym in symbols]
+                await asyncio.gather(*tasks)
+        except Exception as ref_err:
+            print(f"Error refreshing portfolio prices: {ref_err}")
+
     with get_db() as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT symbol, name, sector, quantity, purchase_price FROM portfolio_items")
-        rows = [dict(row) for row in cursor.fetchall()]
+        cursor.execute("SELECT id, symbol, name, sector, quantity, purchase_price, purchase_date, transaction_type FROM portfolio_items")
+        all_txs = [dict(row) for row in cursor.fetchall()]
+        
+        # Calculate active holdings dynamically via FIFO netting
+        rows = compute_active_holdings(all_txs)
         
         # Hydrate target ranges and current price from cached_profiles if available
         hydrated_rows = []
@@ -1710,6 +1817,8 @@ async def get_portfolio():
             row["target_12m"] = None
             row["stop_loss_12m"] = None
             row["current_price"] = None
+            row["day_change_pct"] = None
+            row["score"] = 50
             
             if cache_row:
                 try:
@@ -1721,11 +1830,21 @@ async def get_portfolio():
                     row["target_12m"] = analysis.get("target_12m")
                     row["stop_loss_12m"] = analysis.get("stop_loss_12m")
                     row["current_price"] = profile.get("fundamentals", {}).get("current_price")
+                    row["day_change_pct"] = profile.get("technicals", {}).get("price_change_pct")
+                    row["score"] = profile.get("score_metrics", {}).get("final_score", 50)
                 except Exception as e:
                     print(f"Error parsing cached profile for {sym}: {e}")
             
             hydrated_rows.append(row)
         return hydrated_rows
+
+@app.get("/api/portfolio/transactions")
+async def get_portfolio_transactions():
+    """Returns the complete list of raw buy and sell transactions stored in the database."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, symbol, name, sector, quantity, purchase_price, purchase_date, transaction_type FROM portfolio_items ORDER BY id DESC")
+        return [dict(row) for row in cursor.fetchall()]
 
 @app.post("/api/portfolio")
 async def add_portfolio_item(data: PortfolioItemCreate):
@@ -1747,27 +1866,62 @@ async def add_portfolio_item(data: PortfolioItemCreate):
     
     # Fetch detailed profile online/cache to resolve sector and longname
     try:
-        profile = await asyncio.to_thread(get_complete_financial_profile, full_ticker)
+        # Run the CIO parent agent to get complete multi-agent audit & warm cached_profiles
+        profile = await run_cio_parent_agent(full_ticker, "Long-term (3+ years)", "Moderate")
         company_name = profile.get("company_name") or company_name
         sector = profile.get("sector") or sector
-    except Exception:
-        pass
         
+        # Save to cached_profiles persistent SQLite cache
+        try:
+            with get_db() as conn:
+                conn.execute(
+                    "INSERT OR REPLACE INTO cached_profiles (symbol, profile_json, updated_at) VALUES (?, ?, ?)",
+                    (full_ticker, json.dumps(profile), datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+                )
+                conn.commit()
+        except Exception as db_err:
+            print(f"Error caching added portfolio item profile: {db_err}")
+    except Exception as e:
+        print(f"Orchestration warning on add_portfolio_item (falling back to yfinance scrape): {e}")
+        try:
+            profile = await asyncio.to_thread(get_complete_financial_profile, full_ticker)
+            company_name = profile.get("company_name") or company_name
+            sector = profile.get("sector") or sector
+        except Exception:
+            pass
+        
+    p_date = data.purchase_date or "2026-06-05"
+    t_type = (data.transaction_type or "buy").strip().lower()
+    try:
+        datetime.strptime(p_date, "%Y-%m-%d")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Purchase date must be in YYYY-MM-DD format.")
+        
+    if p_date > "2026-06-05":
+        raise HTTPException(status_code=400, detail="Purchase date cannot be in the future.")
+
     with get_db() as conn:
         cursor = conn.cursor()
-        try:
-            cursor.execute(
-                "INSERT INTO portfolio_items (symbol, name, sector, quantity, purchase_price) VALUES (?, ?, ?, ?, ?)",
-                (full_ticker, company_name, sector, data.quantity or 10.0, data.purchase_price or 100.0)
-            )
-            conn.commit()
-            return {"symbol": full_ticker, "name": company_name, "sector": sector, "quantity": data.quantity or 10.0, "purchase_price": data.purchase_price or 100.0}
-        except sqlite3.IntegrityError:
-            raise HTTPException(status_code=400, detail="Stock already exists in the portfolio.")
+        cursor.execute(
+            "INSERT INTO portfolio_items (symbol, name, sector, quantity, purchase_price, purchase_date, transaction_type) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (full_ticker, company_name, sector, data.quantity or 10.0, data.purchase_price or 100.0, p_date, t_type)
+        )
+        inserted_id = cursor.lastrowid
+        conn.commit()
+        return {
+            "id": inserted_id,
+            "symbol": full_ticker,
+            "name": company_name,
+            "sector": sector,
+            "quantity": data.quantity or 10.0,
+            "purchase_price": data.purchase_price or 100.0,
+            "purchase_date": p_date,
+            "transaction_type": t_type
+        }
 
-@app.put("/api/portfolio/{symbol}")
-async def update_portfolio_item(symbol: str, data: PortfolioItemUpdate):
-    symbol = symbol.strip().upper()
+@app.put("/api/portfolio/{item_id_or_symbol}")
+async def update_portfolio_item(item_id_or_symbol: str, data: PortfolioItemUpdate):
+    is_id = item_id_or_symbol.isdigit()
     with get_db() as conn:
         cursor = conn.cursor()
         updates = []
@@ -1778,25 +1932,47 @@ async def update_portfolio_item(symbol: str, data: PortfolioItemUpdate):
         if data.purchase_price is not None:
             updates.append("purchase_price = ?")
             params.append(data.purchase_price)
+        if data.purchase_date is not None:
+            try:
+                datetime.strptime(data.purchase_date, "%Y-%m-%d")
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Purchase date must be in YYYY-MM-DD format.")
+            if data.purchase_date > "2026-06-05":
+                raise HTTPException(status_code=400, detail="Purchase date cannot be in the future.")
+            updates.append("purchase_date = ?")
+            params.append(data.purchase_date)
+        if data.transaction_type is not None:
+            updates.append("transaction_type = ?")
+            params.append(data.transaction_type.strip().lower())
             
         if not updates:
             raise HTTPException(status_code=400, detail="No fields to update.")
             
-        query = f"UPDATE portfolio_items SET {', '.join(updates)} WHERE UPPER(symbol) = ?"
-        params.append(symbol)
-        
+        if is_id:
+            query = f"UPDATE portfolio_items SET {', '.join(updates)} WHERE id = ?"
+            params.append(int(item_id_or_symbol))
+        else:
+            query = f"UPDATE portfolio_items SET {', '.join(updates)} WHERE UPPER(symbol) = ?"
+            params.append(item_id_or_symbol.upper())
+            
         cursor.execute(query, params)
         if cursor.rowcount == 0:
-            raise HTTPException(status_code=404, detail="Stock not found in portfolio.")
+            raise HTTPException(status_code=404, detail="Stock tranche not found in portfolio.")
         conn.commit()
     return {"status": "success"}
 
-@app.delete("/api/portfolio/{symbol}")
-async def delete_portfolio_item(symbol: str):
-    symbol = symbol.strip().upper()
+@app.delete("/api/portfolio/{item_id_or_symbol}")
+async def delete_portfolio_item(item_id_or_symbol: str):
+    is_id = item_id_or_symbol.isdigit()
     with get_db() as conn:
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM portfolio_items WHERE UPPER(symbol) = ?", (symbol,))
+        if is_id:
+            cursor.execute("DELETE FROM portfolio_items WHERE id = ?", (int(item_id_or_symbol),))
+        else:
+            cursor.execute("DELETE FROM portfolio_items WHERE UPPER(symbol) = ?", (item_id_or_symbol.upper(),))
+            
+        if cursor.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Stock tranche not found in portfolio.")
         conn.commit()
     return {"status": "success"}
 
@@ -1805,12 +1981,193 @@ async def get_portfolio_watchlist_stocks():
     """Returns all unique stocks from all watchlists that are not in the portfolio."""
     with get_db() as conn:
         cursor = conn.cursor()
-        cursor.execute("""
-            SELECT DISTINCT symbol, name, sector 
-            FROM watchlist_items 
-            WHERE UPPER(symbol) NOT IN (SELECT UPPER(symbol) FROM portfolio_items)
-        """)
-        return [dict(row) for row in cursor.fetchall()]
+        cursor.execute("SELECT id, symbol, name, sector, quantity, purchase_price, purchase_date, transaction_type FROM portfolio_items")
+        all_txs = [dict(row) for row in cursor.fetchall()]
+        active_holdings = compute_active_holdings(all_txs)
+        active_symbols = set(item["symbol"].upper() for item in active_holdings)
+        
+        cursor.execute("SELECT DISTINCT symbol, name, sector FROM watchlist_items")
+        wl_items = [dict(row) for row in cursor.fetchall()]
+        
+        filtered = [item for item in wl_items if item["symbol"].upper() not in active_symbols]
+        return filtered
+
+@app.post("/api/portfolio/upload")
+async def upload_portfolio_file(file: UploadFile = File(...)):
+    import pandas as pd
+    import io
+    import json
+    
+    contents = await file.read()
+    filename = file.filename.lower()
+    
+    try:
+        if filename.endswith('.csv'):
+            df = pd.read_csv(io.BytesIO(contents))
+        elif filename.endswith(('.xls', '.xlsx')):
+            df = pd.read_excel(io.BytesIO(contents))
+        else:
+            raise HTTPException(status_code=400, detail="Unsupported file format. Please upload an Excel (.xlsx/.xls) or CSV file.")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to parse spreadsheet file: {str(e)}")
+        
+    df.columns = [str(c).strip().lower() for c in df.columns]
+    
+    symbol_aliases = ['symbol', 'ticker', 'stock', 'isin', 'instrument', 'code', 'stock symbol', 'instrument name', 'token']
+    qty_aliases = ['quantity', 'qty', 'volume', 'shares', 'units', 'available qty', 'holding qty', 'qty.', 'balance']
+    price_aliases = ['average cost', 'avg price', 'buy price', 'purchase price', 'price', 'cost', 'avg. price', 'avg_cost', 'cost price', 'acquisition price']
+    date_aliases = ['date', 'purchase date', 'buy date', 'trade date', 'acquired date', 'purchase_date', 'buy_date', 'order_execution_time', 'order execution time']
+    type_aliases = ['trade_type', 'trade type', 'type', 'action', 'transaction_type', 'transaction type', 'buy/sell', 'buy or sell']
+    
+    symbol_col = None
+    qty_col = None
+    price_col = None
+    date_col = None
+    type_col = None
+    
+    for c in df.columns:
+        if c in symbol_aliases:
+            symbol_col = c
+        elif c in qty_aliases:
+            qty_col = c
+        elif c in price_aliases:
+            price_col = c
+        elif c in date_aliases:
+            date_col = c
+        elif c in type_aliases:
+            type_col = c
+            
+    if not symbol_col:
+        for c in df.columns:
+            sample = df[c].dropna().head(3).tolist()
+            if sample and all(isinstance(x, str) and (x.isupper() or x.endswith('.NS') or len(x) <= 10) for x in sample):
+                symbol_col = c
+                break
+                
+    if not symbol_col or not qty_col or not price_col:
+        found_cols = ", ".join(df.columns)
+        raise HTTPException(status_code=400, detail=f"Could not map columns. Required: Symbol, Quantity, and Buy Price. Found columns: [{found_cols}]. Please align your spreadsheet columns.")
+        
+    imported_count = 0
+    errors = []
+    today_str = "2026-06-05"
+    
+    trades = []
+    for idx, row in df.iterrows():
+        try:
+            raw_sym = str(row[symbol_col]).strip()
+            if not raw_sym or raw_sym.lower() in ['nan', 'null']:
+                continue
+            raw_sym = raw_sym.upper()
+            
+            # Resolve symbol
+            try:
+                resolved = resolve_company_ticker(raw_sym)
+                full_ticker = resolved.get("yf_ticker") or f"{raw_sym}.NS"
+            except Exception:
+                full_ticker = f"{raw_sym}.NS"
+            
+            # Quantity
+            qty_val = row[qty_col]
+            if pd.isna(qty_val):
+                continue
+            qty = float(qty_val)
+            if qty <= 0:
+                continue
+                
+            # Price
+            price_val = row[price_col]
+            if pd.isna(price_val):
+                continue
+            price = float(price_val)
+            if price < 0:
+                continue
+                
+            # Date
+            p_date = today_str
+            dt_for_sorting = pd.to_datetime(today_str)
+            if date_col and not pd.isna(row[date_col]):
+                raw_date = str(row[date_col]).strip()
+                try:
+                    parsed_dt = pd.to_datetime(raw_date)
+                    p_date = parsed_dt.strftime('%Y-%m-%d')
+                    dt_for_sorting = parsed_dt
+                except Exception:
+                    pass
+            
+            # Type (buy/sell)
+            t_type = 'buy'
+            if type_col and not pd.isna(row[type_col]):
+                raw_type = str(row[type_col]).strip().lower()
+                if 'sell' in raw_type or 'short' in raw_type:
+                    t_type = 'sell'
+                    
+            trades.append({
+                "symbol": full_ticker,
+                "quantity": qty,
+                "price": price,
+                "date": p_date,
+                "dt": dt_for_sorting,
+                "type": t_type,
+                "row_idx": idx + 2
+            })
+        except Exception as row_err:
+            errors.append(f"Row {idx+2}: {str(row_err)}")
+            
+    # Sort all trades chronologically
+    trades.sort(key=lambda x: x["dt"])
+    
+    # Insert all parsed buy and sell transactions into the SQLite database, clearing it first
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM portfolio_items")
+        
+        for trade in trades:
+            try:
+                full_ticker = trade["symbol"]
+                qty = trade["quantity"]
+                price = trade["price"]
+                p_date = trade["date"]
+                t_type = trade["type"]
+                
+                # Resolve base symbol
+                base_symbol = full_ticker.split('.')[0] if '.' in full_ticker else full_ticker
+                company_name = base_symbol
+                sector = "General Equities"
+                
+                # Try cached_profiles first
+                cursor.execute("SELECT profile_json FROM cached_profiles WHERE symbol = ?", (full_ticker,))
+                cache_row = cursor.fetchone()
+                if cache_row:
+                    profile = json.loads(cache_row["profile_json"])
+                    company_name = profile.get("company_name") or company_name
+                    sector = profile.get("sector") or sector
+                
+                cursor.execute(
+                    "INSERT INTO portfolio_items (symbol, name, sector, quantity, purchase_price, purchase_date, transaction_type) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (full_ticker, company_name, sector, qty, price, p_date, t_type)
+                )
+                imported_count += 1
+            except Exception as ins_err:
+                errors.append(f"Insert error for {trade['symbol']}: {str(ins_err)}")
+        conn.commit()
+        
+    return {"status": "success", "imported": imported_count, "errors": errors}
+
+@app.get("/api/portfolio/tax-report")
+async def get_portfolio_tax_report():
+    try:
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, symbol, name, sector, quantity, purchase_price, purchase_date, transaction_type FROM portfolio_items")
+            portfolio_items = [dict(row) for row in cursor.fetchall()]
+        
+        # Calculate active holdings dynamically via FIFO netting for unrealized loss harvesting
+        active_holdings = compute_active_holdings(portfolio_items)
+        tax_report = await asyncio.to_thread(calculate_portfolio_taxes, active_holdings)
+        return tax_report
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Tax Analysis Error: {str(e)}")
 
 @app.get("/api/search/suggestions")
 async def search_suggestions(q: str):

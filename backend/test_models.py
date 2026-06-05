@@ -2,7 +2,7 @@ import unittest
 import os
 import json
 import sqlite3
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, AsyncMock
 from fastapi.testclient import TestClient
 
 # Set database directory environment variable to a test database directory before importing main
@@ -652,9 +652,18 @@ class TestPortfolioAPI(unittest.TestCase):
         # 2. Add custom stock (with mock financial profile to resolve metadata online)
         mock_profile = {
             "company_name": "Bharat Heavy Electricals",
-            "sector": "Industrials"
+            "sector": "Industrials",
+            "ticker": "BHEL.NS",
+            "analysis": {
+                "suggested_buy_price_range": "Rs. 220 - Rs. 230",
+                "suggested_sell_price_range": "Rs. 260 - Rs. 280",
+                "target_12m": 270.0,
+                "stop_loss_12m": 210.0
+            }
         }
-        with patch("backend.main.get_complete_financial_profile", return_value=mock_profile):
+        with patch("backend.main.get_complete_financial_profile", return_value=mock_profile), \
+             patch("backend.main.run_cio_parent_agent", new_callable=AsyncMock) as mock_agent:
+            mock_agent.return_value = mock_profile
             post_payload = {"symbol": "BHEL", "quantity": 150.0, "purchase_price": 240.0}
             post_res = self.client.post("/api/portfolio", json=post_payload)
             self.assertEqual(post_res.status_code, 200)
@@ -687,6 +696,55 @@ class TestPortfolioAPI(unittest.TestCase):
         # Verify empty
         get_res = self.client.get("/api/portfolio")
         self.assertEqual(len(get_res.json()), 0)
+
+    def test_portfolio_fifo_netting(self):
+        """Verifies that the portfolio API dynamically nets buy and sell transactions using FIFO."""
+        mock_profile = {
+            "company_name": "Bharat Heavy Electricals",
+            "sector": "Industrials",
+            "ticker": "BHEL.NS",
+            "analysis": {
+                "suggested_buy_price_range": "Rs. 220 - Rs. 230",
+                "suggested_sell_price_range": "Rs. 260 - Rs. 280",
+                "target_12m": 270.0,
+                "stop_loss_12m": 210.0
+            }
+        }
+        with patch("backend.main.get_complete_financial_profile", return_value=mock_profile), \
+             patch("backend.main.run_cio_parent_agent", new_callable=AsyncMock) as mock_agent:
+            mock_agent.return_value = mock_profile
+
+            # 1. Buy 100 shares of BHEL
+            b1 = self.client.post("/api/portfolio", json={"symbol": "BHEL", "quantity": 100.0, "purchase_price": 240.0, "transaction_type": "buy"})
+            self.assertEqual(b1.status_code, 200)
+
+            # 2. Buy 50 shares of BHEL
+            b2 = self.client.post("/api/portfolio", json={"symbol": "BHEL", "quantity": 50.0, "purchase_price": 250.0, "transaction_type": "buy"})
+            self.assertEqual(b2.status_code, 200)
+
+            # 3. Sell 60 shares of BHEL
+            s1 = self.client.post("/api/portfolio", json={"symbol": "BHEL", "quantity": 60.0, "purchase_price": 260.0, "transaction_type": "sell"})
+            self.assertEqual(s1.status_code, 200)
+
+        # 4. Get computed active holdings - FIFO should net 60 shares off the first tranche (100 -> 40 remaining)
+        active_res = self.client.get("/api/portfolio")
+        self.assertEqual(active_res.status_code, 200)
+        active = active_res.json()
+        
+        # We should have exactly 2 active tranches: one of 40 shares and one of 50 shares
+        self.assertEqual(len(active), 2)
+        active_sorted = sorted(active, key=lambda x: x["quantity"])
+        self.assertEqual(active_sorted[0]["quantity"], 40.0)
+        self.assertEqual(active_sorted[1]["quantity"], 50.0)
+
+        # 5. Get complete raw transactions list
+        txs_res = self.client.get("/api/portfolio/transactions")
+        self.assertEqual(txs_res.status_code, 200)
+        txs = txs_res.json()
+        self.assertEqual(len(txs), 3)
+        self.assertEqual(txs[0]["transaction_type"], "sell")
+        self.assertEqual(txs[1]["transaction_type"], "buy")
+        self.assertEqual(txs[2]["transaction_type"], "buy")
 
     def test_search_suggestions_endpoint(self):
         """Verifies that search suggestions autocomplete route works offline and online."""

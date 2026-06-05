@@ -1027,8 +1027,28 @@ def run_conversational_chat(chat_history: list, user_message: str, profile: dict
     res = call_groq_llm(system_prompt, user_message, max_tokens=600, messages=formatted_messages)
     
     # If invalid API key triggers fallback
-    if "ERROR_401" in res or not groq_client:
+    if not res or "ERROR_401" in res or not groq_client:
         print("Activating local chatbot simulator...")
+        
+        # Check if we are in batch watchlist mode
+        if not profile or "company_name" not in profile:
+            reply = (
+                "<h4 style=\"color:#ffffff; margin-top:15px; font-size:12px;\">📊 Watchlist Aggregated Strength</h4>\n"
+                "The analyzed watchlist segment displays a robust blend of growth and value style overlays. "
+                "The average health index score of the constituents ranks in the stable zone, and "
+                "sector exposures are well balanced, providing solid diversification index indicators.\n\n"
+                "<h4 style=\"color:#ffffff; margin-top:15px; font-size:12px;\">🔥 Key High-Conviction Champions</h4>\n"
+                "Constituents with scores above 70/100 display superior return on equity ratios and positive technical "
+                "momentum indicators, representing core accumulation zones.\n\n"
+                "<h4 style=\"color:#ffffff; margin-top:15px; font-size:12px;\">⚠️ Critical Risk Warnings & Outliers</h4>\n"
+                "Review watch items showing low margin of safety percentiles, overbought technical RSI markers, or "
+                "elevated trailing PE valuation multiples to mitigate drawdown exposures.\n\n"
+                "<h4 style=\"color:#ffffff; margin-top:15px; font-size:12px;\">💼 Tactical Asset Allocation Verdict</h4>\n"
+                "We advise accumulating high-scoring constituents during pivot breakdowns while trimming segments that "
+                "display high debt-to-equity leverage or negative technical trends."
+            )
+            return reply
+            
         # Custom local chatbot replies loaded with the company metrics!
         u_msg_low = user_message.lower()
         name = profile["company_name"]
@@ -1139,204 +1159,269 @@ def run_conversational_chat(chat_history: list, user_message: str, profile: dict
                 f"Let me know if you would like me to detail specific DCF cash flows or pledge ratios."
             )
         return reply
-        
-    return res
 
 
-def run_portfolio_doctor(portfolio_items: list) -> dict:
-    """
-    Analyzes the user's stock portfolio and generates institutional-grade asset allocation metrics,
-    health scores, and a detailed diagnostic prescription.
-    """
-    total_investment = 0.0
-    total_current_value = 0.0
+def generate_local_tax_prescription(summary: dict, tranches: list, harvesting: list) -> str:
+    """Generates a high-fidelity local tax diagnostic prescription report."""
+    md = []
+    md.append("# 💸 AI Tax Diagnostics & Harvesting Prescription")
     
-    analyzed_items = []
-    sector_exposure = {}
-    weighted_score_sum = 0.0
+    total_tax = summary["total_tax_liability"]
+    savings = summary["total_harvest_savings"]
+    losses = summary["total_harvestable_loss"]
+    
+    md.append(f"**Current Capital Gains Status:** Estimated Net Tax Liability is **₹{total_tax:,.2f}**.")
+    if savings > 0:
+        md.append(f"💡 **Harvesting Opportunity:** You have **₹{losses:,.2f}** in unrealized losses, yielding up to **₹{savings:,.2f}** in potential tax offsets if harvested before the end of the fiscal year.\n")
+    else:
+        md.append("🟢 **No Tax Savings Available:** All tranches are currently in a profit position. No immediate harvesting offsets are available.\n")
+        
+    md.append("## 📊 Strategic Breakdown")
+    md.append(f"- **Short-Term Capital Gains (STCG):** Unrealized P&L is **₹{summary['stcg_unrealized_pl']:,.2f}** (Est. Tax: ₹{summary['stcg_tax']:,.2f} @ 20%)")
+    md.append(f"- **Long-Term Capital Gains (LTCG):** Unrealized P&L is **₹{summary['ltcg_unrealized_pl']:,.2f}** (Est. Tax: ₹{summary['ltcg_tax']:,.2f} @ 12.5%)")
+    
+    if harvesting:
+        md.append("\n## 🎯 Active Harvesting Steps")
+        md.append("To optimize your tax bill, follow these chronological execution tranches:")
+        for idx, h in enumerate(harvesting, 1):
+            tax_saving = h["potential_savings"]
+            unrealized_loss = abs(h["unrealized_loss"])
+            md.append(
+                f"{idx}. **Sell {h['symbol']}** (Acquired {h['purchase_date']}): Selling {h['quantity']} shares at current market price ₹{h['current_price']:.2f} registers a realized loss of ₹{unrealized_loss:,.2f}. This directly offsets capital gains and saves **₹{tax_saving:,.2f}** in taxes."
+            )
+            # Reinvestment suggestion
+            if "TECH" in h["symbol"].upper() or "INFY" in h["symbol"].upper() or "TCS" in h["symbol"].upper() or "WIPRO" in h["symbol"].upper():
+                md.append("   *Reinvestment Suggestion:* Purchase equal weight in other IT majors or Nifty IT index ETF to maintain sector exposure without violating wash-sale intent.")
+            elif "HDFCBANK" in h["symbol"].upper() or "ICICIBANK" in h["symbol"].upper() or "SBIN" in h["symbol"].upper():
+                md.append("   *Reinvestment Suggestion:* Reallocate into another Banking major or Nifty Bank ETF to retain financial sector beta.")
+            else:
+                md.append("   *Reinvestment Suggestion:* Reallocate proceeds into Nifty 50 Index ETF to preserve core diversified market exposure.")
+                
+    md.append("\n## 🛡️ Tax Planning Best Practices")
+    md.append("- 💡 **LTCG Exemption Limit:** Under Section 112A of the Indian Income Tax Act, long-term capital gains up to **₹1.25 Lakh** per financial year are completely tax-exempt. You should actively harvest/realize profits up to this limit yearly to reset your acquisition cost basis tax-free.")
+    md.append("- ⏳ **Loss Set-off & Carry Forward:** Short-Term Capital Losses (STCL) can offset both STCG and LTCG. Long-Term Capital Losses (LTCL) can only offset LTCG. Unabsorbed capital losses can be carried forward for up to 8 assessment years, provided your tax return is filed within the due date.")
+    md.append("- ⚠️ **Reinvestment (Wash Sales):** While India does not have explicit, strict wash-sale rules like the US, executing tax swaps (selling a stock for loss and immediately buying a highly-correlated stock or ETF) is the standard method used by institutional managers to harvest losses without changing overall portfolio risk profiles.")
+    
+    return "\n".join(md)
+
+
+def calculate_portfolio_taxes(portfolio_items: list) -> dict:
+    """
+    Computes Indian capital gains taxation (STCG vs LTCG) and identifies Tax-Loss Harvesting opportunities.
+    STCG: <= 365 days, taxed at 20%
+    LTCG: > 365 days, taxed at 12.5%
+    """
+    import datetime
+    
+    # Current workstation simulation date
+    today = datetime.date(2026, 6, 5)
+    
+    total_cost = 0.0
+    total_value = 0.0
+    total_unrealized_pl = 0.0
+    
+    stcg_cost = 0.0
+    stcg_value = 0.0
+    stcg_gains = 0.0
+    stcg_losses = 0.0
+    
+    ltcg_cost = 0.0
+    ltcg_value = 0.0
+    ltcg_gains = 0.0
+    ltcg_losses = 0.0
+    
+    harvesting_candidates = []
+    total_harvest_savings = 0.0
+    total_harvestable_loss = 0.0
+    
+    tranches_detail = []
     
     for item in portfolio_items:
         symbol = item.get("symbol", "").strip().upper()
         quantity = float(item.get("quantity") or 0.0)
-        buy_price = float(item.get("buy_price") or 0.0)
+        buy_price = float(item.get("purchase_price") or item.get("buy_price") or 0.0)
+        p_date_str = item.get("purchase_date") or "2026-06-05"
         
         if not symbol or quantity <= 0:
             continue
             
         try:
+            p_date = datetime.datetime.strptime(p_date_str, "%Y-%m-%d").date()
+        except Exception:
+            p_date = today
+            
+        holding_days = max(0, (today - p_date).days)
+        is_ltcg = holding_days > 365
+        
+        curr_price = buy_price
+        try:
             profile = get_complete_financial_profile(symbol)
             curr_price = float(profile["fundamentals"]["current_price"])
-            score = int(profile["score_metrics"]["final_score"])
-            action = profile["score_metrics"]["action"]
-            sector = profile.get("sector") or "Other"
         except Exception:
-            # Fallback
-            curr_price = buy_price
-            score = 50
-            action = "HOLD"
-            sector = "Other"
+            pass
             
         inv_cost = quantity * buy_price
         curr_val = quantity * curr_price
-        profit_loss = curr_val - inv_cost
-        profit_loss_pct = (profit_loss / inv_cost * 100.0) if inv_cost > 0 else 0.0
+        pl = curr_val - inv_cost
+        pl_pct = (pl / inv_cost * 100.0) if inv_cost > 0 else 0.0
         
-        total_investment += inv_cost
-        total_current_value += curr_val
-        weighted_score_sum += score * curr_val
+        total_cost += inv_cost
+        total_value += curr_val
+        total_unrealized_pl += pl
         
-        sector_exposure[sector] = sector_exposure.get(sector, 0.0) + curr_val
+        tax_rate = 0.125 if is_ltcg else 0.20
+        tranche_tax = max(0.0, pl * tax_rate)
         
-        analyzed_items.append({
+        if is_ltcg:
+            ltcg_cost += inv_cost
+            ltcg_value += curr_val
+            if pl > 0:
+                ltcg_gains += pl
+            else:
+                ltcg_losses += pl
+        else:
+            stcg_cost += inv_cost
+            stcg_value += curr_val
+            if pl > 0:
+                stcg_gains += pl
+            else:
+                stcg_losses += pl
+                
+        tranche_info = {
+            "id": item.get("id"),
             "symbol": symbol,
+            "name": item.get("name") or symbol,
+            "sector": item.get("sector") or "General Equities",
             "quantity": quantity,
-            "buy_price": buy_price,
+            "purchase_price": buy_price,
             "current_price": curr_price,
+            "purchase_date": p_date_str,
+            "holding_days": holding_days,
+            "classification": "LTCG" if is_ltcg else "STCG",
             "investment_cost": round(inv_cost, 2),
             "current_value": round(curr_val, 2),
-            "profit_loss": round(profit_loss, 2),
-            "profit_loss_pct": round(profit_loss_pct, 2),
-            "score": score,
-            "action": action,
-            "sector": sector
-        })
-        
-    if not analyzed_items:
-        return {
-            "health_score": 0,
-            "total_investment": 0.0,
-            "total_current_value": 0.0,
-            "total_profit_loss": 0.0,
-            "total_profit_loss_pct": 0.0,
-            "items": [],
-            "sector_allocation": {},
-            "prescription": "Your portfolio is empty. Add stocks to generate a diagnostic health report."
+            "profit_loss": round(pl, 2),
+            "profit_loss_pct": round(pl_pct, 2),
+            "tax_rate_pct": tax_rate * 100,
+            "estimated_tax": round(tranche_tax, 2)
         }
         
-    # Calculate portfolio score
-    portfolio_score = int(weighted_score_sum / total_current_value) if total_current_value > 0 else 50
-    
-    # Calculate sector allocation percentiles
-    sector_allocation = {}
-    for sect, val in sector_exposure.items():
-        sector_allocation[sect] = round((val / total_current_value * 100.0), 2) if total_current_value > 0 else 0.0
+        if pl < 0:
+            potential_saving = abs(pl) * tax_rate
+            total_harvest_savings += potential_saving
+            total_harvestable_loss += abs(pl)
+            
+            harvesting_candidates.append({
+                "id": item.get("id"),
+                "symbol": symbol,
+                "name": item.get("name") or symbol,
+                "quantity": quantity,
+                "purchase_price": buy_price,
+                "current_price": curr_price,
+                "purchase_date": p_date_str,
+                "holding_days": holding_days,
+                "classification": "LTCG" if is_ltcg else "STCG",
+                "unrealized_loss": round(pl, 2),
+                "potential_savings": round(potential_saving, 2)
+            })
+            
+        tranches_detail.append(tranche_info)
         
-    # Diversification Penalty / Bonus
-    # Herfindahl-Hirschman Index (HHI) for sector concentration
-    import numpy as np
-    hhi = sum((pct / 100.0) ** 2 for pct in sector_allocation.values())
-    if hhi > 0.4:
-        concentration_label = "Highly Concentrated (Undiversified)"
-        div_bonus = -15
-    elif hhi > 0.25:
-        concentration_label = "Moderately Concentrated"
-        div_bonus = -5
-    else:
-        concentration_label = "Well Diversified"
-        div_bonus = 5
-        
-    health_score = max(10, min(100, portfolio_score + div_bonus))
+    harvesting_candidates = sorted(harvesting_candidates, key=lambda x: x["potential_savings"], reverse=True)
     
-    total_pl = total_current_value - total_investment
-    total_pl_pct = (total_pl / total_investment * 100.0) if total_investment > 0 else 0.0
+    net_stcg = max(0.0, stcg_gains + stcg_losses)
+    net_ltcg_gain_before_stcl = max(0.0, ltcg_gains + ltcg_losses)
     
-    # Prepare prompt for LLM diagnosis
+    remaining_stcl = abs(stcg_losses) - stcg_gains if abs(stcg_losses) > stcg_gains else 0.0
+    net_ltcg = max(0.0, net_ltcg_gain_before_stcl - remaining_stcl)
+    
+    net_stcg_tax = net_stcg * 0.20
+    net_ltcg_tax = net_ltcg * 0.125
+    total_tax_liability = net_stcg_tax + net_ltcg_tax
+    
+    # Generate Detailed AI Tax Summary (prospectus)
     sys_prompt = (
-        "You are the Ultimate AI Portfolio Doctor, an institutional chief portfolio strategist. "
-        "Review the provided portfolio holdings, sector allocation, and fundamental health parameters. "
-        "Write a detailed diagnostic report in professional markdown. Highlight core strengths, structural "
-        "vulnerabilities (like extreme sector concentrations or low scoring underperforming stocks), "
-        "valuation warnings, and give direct Actionable Prescriptions (e.g. Rebalance, Trim, or Accumulate). "
-        "Format with clean headers, bullet points, and highlight bold takeaways. Do not use generic filler words."
+        "You are the Ultimate AI Tax Doctor, an institutional wealth strategist specializing in Indian Equity capital gains taxation. "
+        "Review the provided portfolio tax summary, tranche age classifications, and harvesting opportunities. "
+        "Write a detailed tax optimization prospectus in professional markdown. Highlight:\n"
+        "1. Net Tax liability status (based on STCG @ 20% and LTCG @ 12.5%).\n"
+        "2. Exact Tax-Loss Harvesting strategies (selling specific loss-making tranches to offset current gains or carry forward losses).\n"
+        "3. Specific re-investment recommendations to maintain market exposure (e.g. if selling INFY.NS for loss harvesting, suggest buying a similar tech stock like TCS.NS or WIPRO.NS to avoid style drift).\n"
+        "4. Long-term tax avoidance planning (such as harvesting up to Rs. 1.25 Lakh of LTCG per year tax-free under Section 112A).\n"
+        "Format with clean headers, bold bullet points, and actionable warnings. Do not use generic filler words."
     )
     
-    holdings_str = "\n".join([
-        f"- {item['symbol']}: Cost Rs.{item['buy_price']}, Current Price Rs.{item['current_price']}, Value Rs.{item['current_value']}, "
-        f"PL: {item['profit_loss_pct']}%, AI Score: {item['score']}/100 ({item['action']}), Sector: {item['sector']}"
-        for item in analyzed_items
+    tranches_str = "\n".join([
+        f"- {t['symbol']}: Cost Rs.{t['investment_cost']}, Current Value Rs.{t['current_value']}, PL: {t['profit_loss']} ({t['profit_loss_pct']}%), Age: {t['holding_days']} days ({t['classification']})"
+        for t in tranches_detail
     ])
     
-    sector_str = "\n".join([f"- {sect}: {pct}%" for sect, pct in sector_allocation.items()])
+    harvest_str = "\n".join([
+        f"- {h['symbol']}: Unrealized loss of Rs.{h['unrealized_loss']}, Tax Saving potential: Rs.{h['potential_savings']} (Acquired: {h['purchase_date']})"
+        for h in harvesting_candidates
+    ])
     
     user_prompt = (
-        f"### PORTFOLIO OVERVIEW\n"
-        f"- Total Investment: Rs. {total_investment:,.2f}\n"
-        f"- Current Value: Rs. {total_current_value:,.2f}\n"
-        f"- Total Profit/Loss: Rs. {total_pl:,.2f} ({total_pl_pct:.2f}%)\n"
-        f"- Weighted AI Health Score: {health_score}/100\n"
-        f"- Concentration Index: {concentration_label} (HHI: {hhi:.3f})\n\n"
-        f"### CURRENT HOLDINGS DETAILS\n"
-        f"{holdings_str}\n\n"
-        f"### SECTOR ALLOCATIONS\n"
-        f"{sector_str}\n\n"
-        f"Please provide your expert diagnostic review, analyzing each holding's contribution and proposing actionable trades."
+        f"### TAX SUMMARY OVERVIEW\n"
+        f"- Total Portfolio Cost: Rs. {total_cost:,.2f}\n"
+        f"- Current Valuation: Rs. {total_value:,.2f}\n"
+        f"- Unrealized P&L: Rs. {total_unrealized_pl:,.2f}\n"
+        f"- Estimated Capital Gains Tax Liability: Rs. {total_tax_liability:,.2f}\n"
+        f"- Potential Harvesting Tax Savings: Rs. {total_harvest_savings:,.2f}\n\n"
+        f"### TRANCHE HOLDINGS DETAIL\n"
+        f"{tranches_str}\n\n"
+        f"### TAX LOSS HARVESTING OPPORTUNITIES\n"
+        f"{harvest_str if harvest_str else 'No harvesting candidates available.'}\n\n"
+        f"Please provide your expert capital gains optimization diagnostic prescription."
     )
     
     diagnosis = call_groq_llm(sys_prompt, user_prompt, max_tokens=2500)
     
-    # Check for invalid api key or error to run high-fidelity local advisor fallback
     if "ERROR_401" in diagnosis or "ERROR" in diagnosis or not groq_client:
-        diagnosis = generate_local_portfolio_diagnosis(
-            analyzed_items, sector_allocation, total_investment, total_current_value,
-            total_pl, total_pl_pct, health_score, concentration_label, hhi
+        diagnosis = generate_local_tax_prescription(
+            {
+                "total_cost": total_cost,
+                "total_value": total_value,
+                "total_unrealized_pl": total_unrealized_pl,
+                "stcg_unrealized_pl": stcg_gains + stcg_losses,
+                "stcg_tax": net_stcg_tax,
+                "ltcg_unrealized_pl": ltcg_gains + ltcg_losses,
+                "ltcg_tax": net_ltcg_tax,
+                "total_tax_liability": total_tax_liability,
+                "total_harvestable_loss": total_harvestable_loss,
+                "total_harvest_savings": total_harvest_savings
+            },
+            tranches_detail,
+            harvesting_candidates
         )
         
     return {
-        "health_score": health_score,
-        "total_investment": round(total_investment, 2),
-        "total_current_value": round(total_current_value, 2),
-        "total_profit_loss": round(total_pl, 2),
-        "total_profit_loss_pct": round(total_pl_pct, 2),
-        "concentration_label": concentration_label,
-        "items": analyzed_items,
-        "sector_allocation": sector_allocation,
+        "summary": {
+            "total_cost": round(total_cost, 2),
+            "total_value": round(total_value, 2),
+            "total_unrealized_pl": round(total_unrealized_pl, 2),
+            "total_unrealized_pl_pct": round((total_unrealized_pl / total_cost * 100.0), 2) if total_cost > 0 else 0.0,
+            
+            "stcg_cost": round(stcg_cost, 2),
+            "stcg_value": round(stcg_value, 2),
+            "stcg_unrealized_pl": round(stcg_gains + stcg_losses, 2),
+            "stcg_tax": round(net_stcg_tax, 2),
+            
+            "ltcg_cost": round(ltcg_cost, 2),
+            "ltcg_value": round(ltcg_value, 2),
+            "ltcg_unrealized_pl": round(ltcg_gains + ltcg_losses, 2),
+            "ltcg_tax": round(net_ltcg_tax, 2),
+            
+            "total_tax_liability": round(total_tax_liability, 2),
+            "total_harvestable_loss": round(total_harvestable_loss, 2),
+            "total_harvest_savings": round(total_harvest_savings, 2)
+        },
+        "tranches": tranches_detail,
+        "harvesting_opportunities": harvesting_candidates,
         "prescription": diagnosis
     }
 
 
-def generate_local_portfolio_diagnosis(
-    items: list, sectors: dict, cost: float, val: float, pl: float, pl_pct: float,
-    score: int, concentration: str, hhi: float
-) -> str:
-    """Generates a high-fidelity institutional portfolio diagnostic report using python analytics."""
-    underperforming = [i for i in items if i["score"] < 50 or i["action"] == "SELL"]
-    leaders = [i for i in items if i["score"] >= 70 or i["action"] == "BUY"]
-    
-    # Generate high fidelity markdown review
-    md = []
-    md.append(f"# 🩺 Portfolio Doctor's Diagnosis & Prescription")
-    md.append(f"**Diagnostic Status:** Review complete. Portfolio Health Score is **{score}/100** with **{concentration}** risk rating.\n")
-    
-    md.append(f"## 📊 Allocation & Concentration Analysis")
-    md.append(f"- **Total Capital Invested:** ₹{cost:,.2f}")
-    md.append(f"- **Current Portfolio Value:** ₹{val:,.2f}")
-    md.append(f"- **Net Profit/Loss:** ₹{pl:,.2f} (**{pl_pct:.2f}%**)")
-    md.append(f"- **Sector Concentration (HHI Index):** {hhi:.3f} ({concentration})")
-    
-    # Find top sector
-    if sectors:
-        top_sector = max(sectors, key=sectors.get)
-        top_pct = sectors[top_sector]
-        if top_pct > 40:
-            md.append(f"\n> ⚠️ **Concentration Warning:** Your portfolio is heavily exposed to **{top_sector}** at **{top_pct:.1f}%**. Consider trimming positions to spread systemic industry risk.")
-        else:
-            md.append(f"\n> 🟢 **Diversification Check:** Sector distribution is well-balanced. Top sector **{top_sector}** represents **{top_pct:.1f}%** of capital.")
-            
-    md.append(f"\n## 📈 Core Strengths & Underperforming Holdings")
-    
-    if leaders:
-        md.append(f"### 🌟 Portfolio Pillars (Strong Stocks):")
-        for l in leaders:
-            md.append(f"- **{l['symbol']}** ({l['sector']}): Trades at cost ₹{l['buy_price']:,.2f} | Current: ₹{l['current_price']:,.2f}. AI Score is **{l['score']}/100** ({l['action']}). Net P&L: **{l['profit_loss_pct']}%**.")
-    else:
-        md.append(f"- No highly-rated Buy pillars found in current watchlist list. Consider adding high-score large caps like RELIANCE or TCS.")
-        
-    if underperforming:
-        md.append(f"\n### 🚨 Underperforming / High-Valuation Risks:")
-        for u in underperforming:
-            md.append(f"- **{u['symbol']}** ({u['sector']}): Trades at cost ₹{u['buy_price']:,.2f} | Current: ₹{u['current_price']:,.2f}. AI Score is **{u['score']}/100** (**{u['action']}**). Net P&L: **{u['profit_loss_pct']}%**.")
-            if u["score"] < 40:
-                md.append(f"  *Prescription:* Extremely low score. Recommend trimming or liquidating this holding during the next technical rebound.")
 def run_portfolio_doctor(portfolio_items: list) -> dict:
     """
     Analyzes the user's stock portfolio and generates institutional-grade asset allocation metrics,

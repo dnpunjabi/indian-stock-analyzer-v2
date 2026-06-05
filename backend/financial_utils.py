@@ -1621,6 +1621,30 @@ def get_complete_financial_profile(ticker_query: str, bypass_db_cache: bool = Fa
     # 3. Cache Miss: Rebuild profile using Yahoo/Screener scrapers
     result = _build_financial_profile(ticker_query)
     
+    # Preserve existing analysis data from SQLite to prevent wiping it out on refresh
+    existing_analysis = None
+    existing_has_analysis = False
+    if os.path.exists(DATABASE_PATH):
+        try:
+            conn = sqlite3.connect(DATABASE_PATH)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("SELECT profile_json FROM cached_profiles WHERE symbol = ?", (ticker,))
+            db_row = cursor.fetchone()
+            conn.close()
+            if db_row and db_row["profile_json"]:
+                old_profile = json.loads(db_row["profile_json"])
+                if "analysis" in old_profile:
+                    existing_analysis = old_profile["analysis"]
+                if "has_analysis" in old_profile:
+                    existing_has_analysis = old_profile["has_analysis"]
+        except Exception as read_err:
+            print(f"Error reading existing cached profile analysis: {read_err}")
+
+    if existing_analysis:
+        result["analysis"] = existing_analysis
+        result["has_analysis"] = existing_has_analysis
+
     with _cache_lock:
         _profile_cache[cache_key] = result
         _profile_cache[ticker] = result
@@ -2147,6 +2171,40 @@ def _build_financial_profile(ticker_query: str) -> dict:
     scoring_result = calculate_composite_score(unified_profile)
     unified_profile["score_metrics"] = scoring_result
     
+    # Calculate a baseline mathematical analysis (Buy range, Target price, etc.) for instant ledger hydration
+    try:
+        margin = dcf.get("margin_of_safety", 15.0) if isinstance(dcf, dict) else 15.0
+        beta = float(info.get("beta") or 1.0)
+        if beta <= 0:
+            beta = 1.0
+        base_upside = max(0.12, min(0.38, (margin / 100.0) * 0.8 + 0.08))
+        target_upside = max(0.10, min(0.30, base_upside))
+        target_val = current_price * (1 + target_upside)
+        stop_loss_val = current_price * (1 - max(0.08, min(0.18, 0.10 * beta)))
+        
+        buy_low = current_price * 0.95
+        buy_high = current_price * 1.02
+        sell_low = target_val * 0.97
+        sell_high = target_val * 1.0303
+        
+        baseline_analysis = {
+            "suggested_buy_price_range": f"Rs. {buy_low:.0f} - Rs. {buy_high:.0f}",
+            "suggested_sell_price_range": f"Rs. {sell_low:.0f} - Rs. {sell_high:.0f}",
+            "target_12m": round(target_val),
+            "stop_loss_12m": round(stop_loss_val),
+            "recommendation": scoring_result.get("action", "HOLD"),
+            "valuation_score": scoring_result.get("valuation_score", 5.0),
+            "growth_score": scoring_result.get("growth_score", 5.0),
+            "investment_thesis": f"Baseline quantitative research profile for {resolution['name']}.",
+            "key_growth_drivers": ["Steady market share and margins", "Favorable industry macro trends"],
+            "major_risks": ["General equity market volatility"]
+        }
+        
+        unified_profile["analysis"] = baseline_analysis
+        unified_profile["has_analysis"] = False
+    except Exception as base_analysis_err:
+        print(f"Error building baseline analysis for {yf_ticker}: {base_analysis_err}")
+        
     return unified_profile
 
 

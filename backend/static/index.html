@@ -1833,6 +1833,7 @@
                 <!-- Portfolio Doctor Sub-navigation Tabs -->
                 <div class="portfolio-subtabs-wrapper no-print" style="display: flex; gap: 10px; margin-top: 15px; margin-bottom: 5px;">
                     <button class="portfolio-subtab-btn active" id="port-tab-diagnostics-btn" style="cursor: pointer; padding: 8px 16px; border-radius: 6px; font-family: 'Outfit', sans-serif; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; transition: all 0.2s; border: 1px solid var(--border-glass); background: rgba(255,255,255,0.03); color: var(--text-primary); outline: none;">🩺 Diagnostics Audit</button>
+                    <button class="portfolio-subtab-btn" id="port-tab-tax-btn" style="cursor: pointer; padding: 8px 16px; border-radius: 6px; font-family: 'Outfit', sans-serif; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; transition: all 0.2s; border: 1px solid transparent; background: transparent; color: var(--text-muted); outline: none;">💸 Tax & Harvesting</button>
                     <button class="portfolio-subtab-btn" id="port-tab-backtester-btn" style="cursor: pointer; padding: 8px 16px; border-radius: 6px; font-family: 'Outfit', sans-serif; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; transition: all 0.2s; border: 1px solid transparent; background: transparent; color: var(--text-muted); outline: none;">📊 Historical Backtester</button>
                 </div>
 
@@ -1852,55 +1853,45 @@
 
                         <div id="portfolio-doctor-empty-state" style="padding: 30px; text-align: center; border: 1px dashed var(--border-glass); border-radius: 8px; color: var(--text-secondary); background: rgba(255,255,255,0.01); margin-bottom: 20px;">
                             <span style="font-size: 24px; display: block; margin-bottom: 10px;">🩺</span>
-                            No holdings detected. Add stocks from your watchlists or search symbols online above to initialize the AI Portfolio Doctor.
+                            No holdings detected. Please go to the **Tax & Harvesting** tab to add manual transactions (buys and sells) or import your broker trade history to initialize the AI Portfolio Doctor.
                         </div>
                         
                         <div class="portfolio-inputs-grid" id="portfolio-inputs-grid" style="display: none; grid-template-columns: 1.8fr 1fr; gap: 25px;">
                             <div>
-                                <h4 style="font-size: 12px; color: var(--text-primary); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0;">Acquisition Ledger</h4>
-                                
-                                <!-- Add Holdings Ledger Panel -->
-                                <div class="no-print" style="display: flex; gap: 12px; align-items: center; background: rgba(30, 41, 59, 0.25); border: 1px solid var(--border-glass); border-radius: 8px; padding: 10px 15px; margin-bottom: 15px; flex-wrap: wrap;">
-                                    <span style="font-size: 11px; font-weight: 700; color: var(--text-secondary); letter-spacing: 0.03em;">ADD TO LEDGER:</span>
-                                    
-                                    <!-- Select from watchlist -->
-                                    <div style="display: flex; align-items: center; gap: 6px;">
-                                        <select id="portfolio-watchlist-stock-select" style="padding: 4px 8px; border-radius: 4px; font-size:11px; cursor: pointer; min-width: 150px;">
-                                            <option value="" disabled selected>Choose from Watchlist</option>
-                                        </select>
-                                        <button id="portfolio-add-from-watchlist-btn" class="btn-primary" style="font-size: 11px; padding: 4px 10px; height: auto;">+ Add Selected</button>
-                                    </div>
-                                    
-                                    <span style="font-size: 11px; color: var(--text-muted);">or</span>
-                                    
-                                    <!-- Add custom stock symbol with autocomplete suggestions list -->
-                                    <div style="display: flex; align-items: center; gap: 6px; position: relative;">
-                                        <input type="text" id="portfolio-custom-stock-input" placeholder="Type stock (e.g. HAL)..." style="padding: 4px 8px; font-size:11px; border-radius: 4px; background: rgba(0,0,0,0.3); color: var(--text-primary); border: 1px solid var(--border-glass); width: 150px; outline: none;" autocomplete="off">
-                                        <div id="portfolio-custom-suggestions" style="display: none;"></div>
-                                        <button id="portfolio-add-custom-btn" class="btn-primary" style="font-size: 11px; padding: 4px 10px; height: auto;">+ Add Custom</button>
-                                    </div>
+                                <div id="portfolio-ledger-toggle" class="collapsible-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border-glass); padding-bottom: 8px;">
+                                    <h4 style="font-size: 12px; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.05em; margin: 0; display: flex; align-items: center; gap: 6px;">
+                                        <span>📋 Acquisition Ledger</span>
+                                    </h4>
+                                    <span id="portfolio-ledger-arrow" class="collapse-arrow">▼</span>
                                 </div>
+                                
+                                <div id="portfolio-ledger-content">
 
-                                <div class="ledger-table-wrap" style="max-height: 350px; overflow: auto; border: 1px solid var(--border-glass); border-radius: 8px;">
-                                    <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 12px;">
-                                        <thead>
-                                            <tr style="background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border-glass);">
-                                                <th style="padding: 10px; color: var(--text-secondary);">Stock</th>
-                                                <th style="padding: 10px; color: var(--text-secondary); text-align: right;">Quantity</th>
-                                                <th style="padding: 10px; color: var(--text-secondary); text-align: right;">Avg Price (₹)</th>
-                                                <th style="padding: 10px; color: var(--text-secondary); text-align: right;">Current Price (₹)</th>
-                                                <th style="padding: 10px; color: var(--text-secondary); text-align: right;">Invested Value (₹)</th>
-                                                <th style="padding: 10px; color: var(--text-secondary); text-align: right;">Current Value (₹)</th>
-                                                <th style="padding: 10px; color: var(--text-secondary); text-align: right;">P&L (₹)</th>
-                                                <th style="padding: 10px; color: var(--text-secondary); text-align: right;">Target buy range (₹)</th>
-                                                <th style="padding: 10px; color: var(--text-secondary); text-align: right;">Target sell range (₹)</th>
-                                                <th class="no-print" style="padding: 10px; color: var(--text-secondary); text-align: center; width: 60px;">Action</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="portfolio-ledger-body">
-                                            <!-- Loaded dynamically -->
-                                        </tbody>
-                                    </table>
+                                    <div class="ledger-table-wrap" style="max-height: 350px; overflow: auto; border: 1px solid var(--border-glass); border-radius: 8px;">
+                                        <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 12px;">
+                                            <thead>
+                                                <tr style="background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border-glass);">
+                                                    <th style="padding: 10px; color: var(--text-secondary);">Stock</th>
+                                                    <th style="padding: 10px; color: var(--text-secondary); text-align: right;">Quantity</th>
+                                                    <th style="padding: 10px; color: var(--text-secondary); text-align: right;">Avg Price (₹)</th>
+                                                    <th style="padding: 10px; color: var(--text-secondary); text-align: right;">Current Price (₹)</th>
+                                                    <th style="padding: 10px; color: var(--text-secondary); text-align: right;">Net chg. %</th>
+                                                    <th style="padding: 10px; color: var(--text-secondary); text-align: right;">Day chg%</th>
+                                                    <th style="padding: 10px; color: var(--text-secondary); text-align: right;">Invested Value (₹)</th>
+                                                    <th style="padding: 10px; color: var(--text-secondary); text-align: right;">Current Value (₹)</th>
+                                                    <th style="padding: 10px; color: var(--text-secondary); text-align: right;">P&L (₹)</th>
+                                                    <th style="padding: 10px; color: var(--text-secondary); text-align: right;">Target buy range (₹)</th>
+                                                    <th style="padding: 10px; color: var(--text-secondary); text-align: right;">Target sell range (₹)</th>
+                                                    <th style="padding: 10px; color: var(--text-secondary); text-align: right;">12M Target Price</th>
+                                                    <th style="padding: 10px; color: var(--text-secondary); text-align: right;">12M Protection Stop Loss</th>
+                                                    <th class="no-print" style="padding: 10px; color: var(--text-secondary); text-align: center; width: 60px;">Action</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="portfolio-ledger-body">
+                                                <!-- Loaded dynamically -->
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             </div>
                             
@@ -1910,15 +1901,19 @@
                                 <div class="card" style="margin: 0; padding: 15px; margin-bottom: 15px; background: rgba(255,255,255,0.01);">
                                     <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 10px; border-bottom: 1px solid var(--border-glass); padding-bottom: 8px;">
                                         <span style="color: var(--text-secondary);">Total Capital Invested:</span>
-                                        <span id="port-total-invested" style="font-weight: 700; color: var(--text-primary);">₹0.00</span>
+                                        <span id="port-total-investment" style="font-weight: 700; color: var(--text-primary);">₹0.00</span>
                                     </div>
                                     <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 10px; border-bottom: 1px solid var(--border-glass); padding-bottom: 8px;">
                                         <span style="color: var(--text-secondary);">Current Portfolio Value:</span>
-                                        <span id="port-current-value" style="font-weight: 700; color: var(--text-primary);">₹0.00</span>
+                                        <span id="port-total-value" style="font-weight: 700; color: var(--text-primary);">₹0.00</span>
                                     </div>
                                     <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 10px; border-bottom: 1px solid var(--border-glass); padding-bottom: 8px;">
                                         <span style="color: var(--text-secondary);">Total Net Profit/Loss:</span>
                                         <span id="port-total-pl" style="font-weight: 700; color: var(--text-primary);">₹0.00</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 10px; border-bottom: 1px solid var(--border-glass); padding-bottom: 8px;">
+                                        <span style="color: var(--text-secondary);">Day's Profit/Loss:</span>
+                                        <span id="port-day-pl" style="font-weight: 700; color: var(--text-primary);">₹0.00</span>
                                     </div>
                                     <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 10px; border-bottom: 1px solid var(--border-glass); padding-bottom: 8px;">
                                         <span style="color: var(--text-primary); font-weight: 600;">Health Score:</span>
@@ -1940,6 +1935,227 @@
                             </div>
                             <div id="portfolio-prescription-content" style="font-size: 12.5px; line-height: 1.6; color: var(--text-muted); background: rgba(255,255,255,0.01); border: 1px solid var(--border-glass); padding: 20px; border-radius: 8px; max-height: 400px; overflow-y: auto;">
                                 <!-- Diagnostic text loaded here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PANEL 3: TAX & HARVESTING OPTIMIZER -->
+                <div id="port-panel-tax" class="portfolio-panel" style="display: none;">
+                    <!-- Holdings Entry & Active Tranches group -->
+                    <div class="card" style="margin-top: 15px;" id="tax-holdings-container">
+                        <div id="tax-holdings-toggle" class="collapsible-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-glass); padding-bottom: 8px;">
+                            <h3 style="display: flex; align-items: center; gap: 8px; margin: 0; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-primary);">
+                                <span>📁 Portfolio Holdings & Tranches Entry</span>
+                            </h3>
+                            <span id="tax-holdings-arrow" class="collapse-arrow">▼</span>
+                        </div>
+                        
+                        <div id="tax-holdings-content" style="margin-top: 15px;">
+                            <!-- Top section: add tranche and file upload -->
+                            <div style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 20px;">
+                                
+                                <!-- Card 1: Add Holding Tranches manually -->
+                                <div style="border: 1px solid var(--border-glass); border-radius: 8px; padding: 15px; background: rgba(255,255,255,0.01); margin: 0;">
+                                    <div class="card-header" style="border: none; padding: 0; margin-bottom: 12px;">
+                                        <h3 style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-primary); margin: 0;">➕ Add Holding Tranche Manually</h3>
+                                    </div>
+                                                                    <form id="tax-manual-add-form" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;">
+                                        <div style="flex: 1.2; min-width: 180px; position: relative;">
+                                            <label style="font-size: 10px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 5px;">Type Symbol</label>
+                                            <input type="text" id="tax-custom-stock-input" placeholder="Type stock (e.g. HAL)..." style="width: 100%; padding: 6px; border-radius: 4px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-glass); color: #fff; font-size: 11px; height: 32px; outline: none;" autocomplete="off">
+                                            <div id="tax-custom-suggestions" style="display: none;"></div>
+                                        </div>
+                                        <div style="flex: 1.2; min-width: 140px;">
+                                            <label style="font-size: 10px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 5px;">or Choose Stock</label>
+                                            <select id="tax-watchlist-stock-select" style="width: 100%; padding: 6px; border-radius: 4px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-glass); color: #fff; font-size: 11px; height: 32px;">
+                                                <option value="" disabled selected>Choose Stock</option>
+                                            </select>
+                                        </div>
+                                        <div style="flex: 0.8; min-width: 80px;">
+                                            <label style="font-size: 10px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 5px;">Action</label>
+                                            <select id="tax-add-type" style="width: 100%; padding: 6px; border-radius: 4px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-glass); color: #fff; font-size: 11px; height: 32px; cursor: pointer;">
+                                                <option value="buy">BUY</option>
+                                                <option value="sell">SELL</option>
+                                            </select>
+                                        </div>
+                                        <div style="flex: 0.8; min-width: 80px;">
+                                            <label style="font-size: 10px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 5px;">Quantity</label>
+                                            <input type="number" id="tax-add-qty" value="10" min="0.001" step="any" style="width: 100%; padding: 6px; border-radius: 4px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-glass); color: #fff; font-size: 11px; height: 32px;" required>
+                                        </div>
+                                        <div style="flex: 1; min-width: 90px;">
+                                            <label style="font-size: 10px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 5px;">Price (₹)</label>
+                                            <input type="number" id="tax-add-price" value="100" min="0.01" step="any" style="width: 100%; padding: 6px; border-radius: 4px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-glass); color: #fff; font-size: 11px; height: 32px;" required>
+                                        </div>
+                                        <div style="flex: 1.2; min-width: 120px;">
+                                            <label style="font-size: 10px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 5px;">Trade Date</label>
+                                            <input type="date" id="tax-add-date" value="2026-06-05" max="2026-06-05" style="width: 100%; padding: 6px; border-radius: 4px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-glass); color: #fff; font-size: 11px; height: 32px;" required>
+                                        </div>
+                                        <button type="submit" class="btn-primary" style="height: 32px; padding: 0 15px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; background: var(--color-primary); color: #fff; border-radius: 4px; border: none; cursor: pointer;">Add Transaction</button>
+                                    </form>
+                                </div>
+                                
+                                <!-- Card 2: Excel / CSV Import -->
+                                <div style="border: 1px solid var(--border-glass); border-radius: 8px; padding: 15px; background: rgba(255,255,255,0.01); margin: 0; display: flex; flex-direction: column; justify-content: center;">
+                                    <div class="card-header" style="border: none; padding: 0; margin-bottom: 8px;">
+                                        <h3 style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-primary); margin: 0;">📤 Import from Broker (Zerodha/CSV)</h3>
+                                    </div>
+                                    <div id="tax-excel-dropzone" style="border: 2px dashed var(--border-glass); border-radius: 8px; padding: 15px; text-align: center; cursor: pointer; transition: all 0.2s; background: rgba(255,255,255,0.01);">
+                                        <span style="font-size: 24px; display: block; margin-bottom: 5px;">📁</span>
+                                        <span style="font-size: 11px; color: var(--text-secondary); font-weight: 600;">Drag & drop broker Excel/CSV here or <span style="color: var(--color-primary); text-decoration: underline;">browse</span></span>
+                                        <input type="file" id="tax-excel-file-input" accept=".xlsx,.xls,.csv" style="display: none;">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Middle section: Active Holdings Tranches Ledger Table -->
+                            <div style="border: 1px solid var(--border-glass); border-radius: 8px; padding: 15px; background: rgba(255,255,255,0.01); margin-top: 20px;">
+                                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; border: none; padding: 0; margin-bottom: 12px;">
+                                    <h3 style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-primary); margin: 0;">📋 Active Holdings Tranches</h3>
+                                    <button class="btn-secondary" id="tax-clear-all-btn" style="font-size: 10px; padding: 4px 8px; font-weight: 600; color: var(--color-crimson); border-color: rgba(239,68,68,0.25);">Clear Ledger 🗑️</button>
+                                </div>
+                                <div class="table-container" style="max-height: 250px; overflow-y: auto;">
+                                    <table class="data-table small-table">
+                                        <thead>
+                                            <tr>
+                                                <th>📁 Stock</th>
+                                                <th>📊 Tranche Size</th>
+                                                <th>💰 Avg Buy Price</th>
+                                                <th>📅 Purchase Date</th>
+                                                <th>⏳ Age (Days)</th>
+                                                <th>🛡️ Status</th>
+                                                <th>⚙️ Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="tax-ledger-body">
+                                            <!-- Loaded dynamically -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Complete Transaction History Ledger Table -->
+                            <div style="border: 1px solid var(--border-glass); border-radius: 8px; padding: 15px; background: rgba(255,255,255,0.01); margin-top: 20px;">
+                                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; border: none; padding: 0; margin-bottom: 12px; cursor: pointer; user-select: none;" id="tax-raw-ledger-toggle">
+                                    <h3 style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 6px;">
+                                        <span id="tax-raw-ledger-arrow" style="font-size: 8px; transition: transform 0.2s; display: inline-block;">▶</span> 📜 Complete Transaction History (Buys & Sells)
+                                    </h3>
+                                    <span style="font-size: 10.5px; color: var(--text-muted);">View/Delete raw transaction logs</span>
+                                </div>
+                                <div id="tax-raw-ledger-content" style="display: none; border-top: 1px dashed var(--border-glass); padding-top: 15px; margin-top: 10px;">
+                                    <div class="table-container" style="max-height: 250px; overflow-y: auto;">
+                                        <table class="data-table small-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>📁 Stock</th>
+                                                    <th>💡 Type</th>
+                                                    <th>📊 Quantity</th>
+                                                    <th>💰 Execution Price</th>
+                                                    <th>📅 Execution Date</th>
+                                                    <th>⚙️ Action</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="tax-raw-ledger-body">
+                                                <!-- Loaded dynamically -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bottom section: Tax report diagnostics and Harvesting suggestions -->
+                    <div id="tax-report-container" style="display: none; margin-top: 20px;">
+                        <h4 style="font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-primary); margin-bottom: 15px; border-left: 3px solid var(--color-primary); padding-left: 10px;">📊 AI Tax Diagnostics & Optimization Report</h4>
+                        
+                        <!-- Tax Summary Metrics Cards -->
+                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px;">
+                            <div class="card" style="margin: 0; padding: 15px; text-align: center; background: rgba(255,255,255,0.02); border: 1px solid var(--border-glass);">
+                                <span style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); display: block; margin-bottom: 5px;">Estimated Tax Liability</span>
+                                <span id="tax-metric-liability" style="font-size: 20px; font-weight: 700; color: var(--neon-red);">₹0</span>
+                            </div>
+                            <div class="card" style="margin: 0; padding: 15px; text-align: center; background: rgba(255,255,255,0.02); border: 1px solid var(--border-glass);">
+                                <span style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); display: block; margin-bottom: 5px;">Harvesting Tax Savings</span>
+                                <span id="tax-metric-harvest-savings" style="font-size: 20px; font-weight: 700; color: var(--neon-green);">₹0</span>
+                            </div>
+                            <div class="card" style="margin: 0; padding: 15px; text-align: center; background: rgba(255,255,255,0.02); border: 1px solid var(--border-glass);">
+                                <span style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); display: block; margin-bottom: 5px;">Total Net Unrealized P&L</span>
+                                <span id="tax-metric-net-pl" style="font-size: 20px; font-weight: 700; color: #fff;">₹0</span>
+                            </div>
+                            <div class="card" style="margin: 0; padding: 15px; text-align: center; background: rgba(255,255,255,0.02); border: 1px solid var(--border-glass);">
+                                <span style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); display: block; margin-bottom: 5px;">Harvestable Losses</span>
+                                <span id="tax-metric-harvest-losses" style="font-size: 20px; font-weight: 700; color: var(--color-crimson);">₹0</span>
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <!-- Column 1: STCG vs LTCG breakdown cards -->
+                            <div>
+                                <div class="card" style="margin: 0; padding: 20px;">
+                                    <h5 style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-primary); margin: 0 0 15px 0;">⏳ Short-Term Holdings (STCG)</h5>
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 11.5px;">
+                                        <span style="color: var(--text-secondary);">Total STCG Value:</span>
+                                        <strong id="tax-stcg-value">₹0</strong>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 11.5px;">
+                                        <span style="color: var(--text-secondary);">Total STCG Cost:</span>
+                                        <strong id="tax-stcg-cost">₹0</strong>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 11.5px;">
+                                        <span style="color: var(--text-secondary);">Unrealized STCG P&L:</span>
+                                        <strong id="tax-stcg-pl">₹0</strong>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 11.5px; border-top: 1px dashed var(--border-glass); padding-top: 10px;">
+                                        <span style="color: var(--text-secondary);">Est. Tax Liability (20%):</span>
+                                        <strong id="tax-stcg-liability" style="color: var(--neon-red);">₹0</strong>
+                                    </div>
+                                </div>
+
+                                <div class="card" style="margin: 15px 0 0 0; padding: 20px;">
+                                    <h5 style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-primary); margin: 0 0 15px 0;">🌳 Long-Term Holdings (LTCG)</h5>
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 11.5px;">
+                                        <span style="color: var(--text-secondary);">Total LTCG Value:</span>
+                                        <strong id="tax-ltcg-value">₹0</strong>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 11.5px;">
+                                        <span style="color: var(--text-secondary);">Total LTCG Cost:</span>
+                                        <strong id="tax-ltcg-cost">₹0</strong>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 11.5px;">
+                                        <span style="color: var(--text-secondary);">Unrealized LTCG P&L:</span>
+                                        <strong id="tax-ltcg-pl">₹0</strong>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 11.5px; border-top: 1px dashed var(--border-glass); padding-top: 10px;">
+                                        <span style="color: var(--text-secondary);">Est. Tax Liability (12.5%):</span>
+                                        <strong id="tax-ltcg-liability" style="color: var(--neon-red);">₹0</strong>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Column 2: Tax Loss Harvesting Opportunities Board -->
+                            <div class="card" style="margin: 0; padding: 20px; display: flex; flex-direction: column;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                    <h5 style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-primary); margin: 0;">💡 Tax-Loss Harvesting Candidates</h5>
+                                    <span class="badge-rec" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); font-size: 9px; padding: 2px 6px;">Optimize Now</span>
+                                </div>
+                                <div id="tax-harvesting-empty-state" style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; border: 1px dashed var(--border-glass); border-radius: 8px; padding: 20px; text-align: center; color: var(--text-secondary); background: rgba(255,255,255,0.01);">
+                                    <span style="font-size: 24px; display: block; margin-bottom: 8px;">🎉</span>
+                                    No harvesting candidates detected. All your holding tranches are currently in profit or no holdings are loaded.
+                                </div>
+                                <div id="tax-harvesting-list" style="display: none; flex: 1; overflow-y: auto; max-height: 320px; gap: 10px;">
+                                    <!-- Loaded dynamically -->
+                                </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Detailed AI Summary Box -->
+                        <div id="tax-prescription-box" style="display: none; margin-top: 25px; border-top: 1px dashed var(--border-glass); padding-top: 20px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                <h4 style="font-size: 13px; color: var(--neon-green); border-left: 3px solid var(--neon-green); padding-left: 10px; text-transform: uppercase; letter-spacing: 0.05em; margin: 0;">📋 Detailed AI Capital Gains Diagnostic Prescription</h4>
+                            </div>
+                            <div id="tax-prescription-content" class="prescription-markdown" style="font-size: 12.5px; line-height: 1.6; color: var(--text-muted); background: rgba(255,255,255,0.01); border: 1px solid var(--border-glass); padding: 20px; border-radius: 8px; max-height: 400px; overflow-y: auto;">
+                                <!-- AI Prescription text loaded here -->
                             </div>
                         </div>
                     </div>
@@ -2168,3 +2384,4 @@
     <script src="app.js?v=1.0.7"></script>
 </body>
 </html>
+

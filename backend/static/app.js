@@ -83,6 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupReturnCalculator(); // New Return Calculator
     setupPortfolioDoctor(); // New Portfolio Doctor
     setupPortfolioBacktester(); // Historical Backtester
+    setupTaxHarvestingPanel(); // Initialize Tax & Harvesting Panel
     loadRebalancerStatus(); // Fix #4: load universe status on startup
     setupRebalanceButton(); // Fix #4: wire Sync button
     setupGlobalProfileListeners(); // Dynamic reactive profile switcher!
@@ -92,6 +93,13 @@ document.addEventListener('DOMContentLoaded', () => {
     setupAuditSummary(); // Initialize Strategy Audit AI matrix summary
     setupWatchlistSummary(); // Initialize Watchlist AI Summary & Print Exporter
     setupBrandReset(); // Wire click to reset workspace
+
+    // Restore persisted tab on reload
+    const savedTab = localStorage.getItem('active-tab') || 'analyzer';
+    switchTab(savedTab);
+    if (savedTab === 'portfolio') {
+        setTimeout(() => loadPortfolioDoctorLedger(true), 150);
+    }
 });
 
 // Collapsible Sidebar Workstation Manager
@@ -270,6 +278,7 @@ function setupTabNavigation() {
 
 function switchTab(tabKey) {
     activeTab = tabKey;
+    localStorage.setItem('active-tab', tabKey);
     Object.keys(tabs).forEach(k => {
         const el = tabs[k] || document.getElementById('tab-' + k);
         const btn = tabBtns[k] || document.getElementById('tab-' + k + '-btn');
@@ -5051,9 +5060,10 @@ async function sendUserChatMessage() {
         if (!response.ok) throw new Error("Chat transmission failed.");
         const data = await response.json();
         
+        const chatReplyText = data.response || "No response received from Equities Advisor.";
         document.getElementById(typingId).remove();
-        appendChatMessage('assistant', data.response);
-        chatHistory.push({ role: 'assistant', content: data.response });
+        appendChatMessage('assistant', chatReplyText);
+        chatHistory.push({ role: 'assistant', content: chatReplyText });
     } catch (e) {
         document.getElementById(typingId).remove();
         appendChatMessage('assistant', "I encountered a connection error. Please verify your API key configurations.");
@@ -8512,6 +8522,22 @@ function setupAnalyzerSubtabs() {
 
 // 8. AI Portfolio Doctor Controller
 function setupPortfolioDoctor() {
+    // Acquisition Ledger collapsible toggle
+    const ledgerToggle = document.getElementById('portfolio-ledger-toggle');
+    const ledgerContent = document.getElementById('portfolio-ledger-content');
+    if (ledgerToggle && ledgerContent) {
+        ledgerToggle.addEventListener('click', () => {
+            const isCollapsed = ledgerContent.style.display === 'none';
+            if (isCollapsed) {
+                ledgerContent.style.display = 'block';
+                ledgerToggle.classList.remove('collapsed');
+            } else {
+                ledgerContent.style.display = 'none';
+                ledgerToggle.classList.add('collapsed');
+            }
+        });
+    }
+
     const runBtn = document.getElementById('run-portfolio-doctor-btn');
     if (runBtn) {
         runBtn.addEventListener('click', () => {
@@ -8523,80 +8549,11 @@ function setupPortfolioDoctor() {
     const portfolioBtn = document.getElementById('tab-portfolio-btn');
     if (portfolioBtn) {
         portfolioBtn.addEventListener('click', () => {
-            setTimeout(loadPortfolioDoctorLedger, 100);
+            setTimeout(() => loadPortfolioDoctorLedger(true), 100);
         });
     }
 
-    // Add portfolio controls bindings
-    const addFromWatchlistBtn = document.getElementById('portfolio-add-from-watchlist-btn');
-    if (addFromWatchlistBtn) {
-        addFromWatchlistBtn.addEventListener('click', addStockFromWatchlistToPortfolio);
-    }
 
-    const addCustomBtn = document.getElementById('portfolio-add-custom-btn');
-    if (addCustomBtn) {
-        addCustomBtn.addEventListener('click', addCustomStockToPortfolio);
-    }
-
-    const customInput = document.getElementById('portfolio-custom-stock-input');
-    const suggestionsDiv = document.getElementById('portfolio-custom-suggestions');
-    
-    if (customInput) {
-        customInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                addCustomStockToPortfolio();
-            }
-        });
-        
-        // Add Autocomplete suggestions online matching
-        if (suggestionsDiv) {
-            suggestionsDiv.className = 'watchlist-autocomplete-box';
-            suggestionsDiv.removeAttribute('style'); // Remove inline styles to let CSS take over
-        }
-        
-        customInput.addEventListener('input', async () => {
-            const query = customInput.value.trim();
-            if (!suggestionsDiv) return;
-            
-            if (query.length < 2) {
-                suggestionsDiv.style.display = 'none';
-                return;
-            }
-            
-            try {
-                const res = await fetch(`/api/search/suggestions?q=${encodeURIComponent(query)}`);
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.length > 0) {
-                        suggestionsDiv.innerHTML = '';
-                        data.forEach(item => {
-                            const div = document.createElement('div');
-                            div.className = 'watchlist-autocomplete-item';
-                            div.innerHTML = `<div><span class="ticker-pill">${item.base_symbol}</span><span style="color:var(--text-secondary); margin-left: 6px; font-size:11px;">- ${item.name}</span></div><span class="sector-pill">${item.sector}</span>`;
-                            
-                            div.addEventListener('click', () => {
-                                customInput.value = item.base_symbol;
-                                suggestionsDiv.style.display = 'none';
-                            });
-                            suggestionsDiv.appendChild(div);
-                        });
-                        suggestionsDiv.style.display = 'block';
-                    } else {
-                        suggestionsDiv.style.display = 'none';
-                    }
-                }
-            } catch (err) {
-                console.error("Suggestions error:", err);
-            }
-        });
-        
-        // Close autocomplete list when clicking outside
-        document.addEventListener('click', (e) => {
-            if (suggestionsDiv && e.target !== customInput && e.target !== suggestionsDiv) {
-                suggestionsDiv.style.display = 'none';
-            }
-        });
-    }
 
     // Implement Premium Print Portfolio Diagnostics Report PDF Exporter
     const printPortfolioBtn = document.getElementById('print-portfolio-report-btn');
@@ -9020,78 +8977,9 @@ function setupPortfolioDoctor() {
     }
 }
 
-async function addStockFromWatchlistToPortfolio() {
-    const select = document.getElementById('portfolio-watchlist-stock-select');
-    if (!select) return;
-    
-    const symbol = select.value;
-    if (!symbol) {
-        showToast("Please choose a stock from the watchlist dropdown select list.", "warning");
-        return;
-    }
-    
-    const btn = document.getElementById('portfolio-add-from-watchlist-btn');
-    if (btn) btn.disabled = true;
-    
-    try {
-        const response = await fetch('/api/portfolio', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ symbol: symbol })
-        });
-        
-        if (!response.ok) throw new Error("Failed to add select stock to portfolio ledger.");
-        
-        showToast(`Added ${symbol} to your active diagnostics portfolio.`, "success");
-        await loadPortfolioDoctorLedger();
-    } catch (e) {
-        showToast("Error: " + e.message, "error");
-    } finally {
-        if (btn) btn.disabled = false;
-    }
-}
 
-async function addCustomStockToPortfolio() {
-    const input = document.getElementById('portfolio-custom-stock-input');
-    const btn = document.getElementById('portfolio-add-custom-btn');
-    if (!input) return;
-    
-    const val = input.value.trim();
-    if (!val) {
-        showToast("Please enter a stock symbol or name to add directly.", "warning");
-        return;
-    }
-    
-    if (btn) btn.disabled = true;
-    input.disabled = true;
-    
-    try {
-        const response = await fetch('/api/portfolio', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ symbol: val })
-        });
-        
-        if (!response.ok) {
-            const err = await response.json();
-            throw new Error(err.detail || "Failed to add stock to portfolio doctor.");
-        }
-        
-        const added = await response.json();
-        showToast(`Successfully added ${added.name || added.symbol} to your portfolio diagnostics.`, "success");
-        input.value = '';
-        await loadPortfolioDoctorLedger();
-    } catch (e) {
-        console.error(e);
-        showToast("Error: " + e.message, "error");
-    } finally {
-        if (btn) btn.disabled = false;
-        input.disabled = false;
-        input.focus();
-    }
-}
 
-async function loadPortfolioDoctorLedger() {
+async function loadPortfolioDoctorLedger(forceRefresh = false) {
     const ledgerBody = document.getElementById('portfolio-ledger-body');
     const emptyState = document.getElementById('portfolio-doctor-empty-state');
     const inputsGrid = document.getElementById('portfolio-inputs-grid');
@@ -9103,9 +8991,38 @@ async function loadPortfolioDoctorLedger() {
     
     if (prescriptionBox) prescriptionBox.style.display = 'none';
     
+    // Set UI to loading/syncing state
+    if (inputsGrid) inputsGrid.style.display = 'grid';
+    if (emptyState) emptyState.style.display = 'none';
+    if (runBtn) runBtn.style.display = 'none';
+    
+    ledgerBody.innerHTML = `
+        <tr>
+            <td colspan="14" class="center-text" style="padding: 50px; text-align: center; color: var(--text-secondary);">
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;">
+                    <span style="font-size: 26px; animation: spin 2s linear infinite; display: inline-block; color: var(--neon-blue);">🔄</span>
+                    <span style="font-weight: 600; letter-spacing: 0.02em;">Syncing Portfolio Tranches & Market Prices...</span>
+                    <span style="font-size: 10.5px; color: var(--text-muted); max-width: 380px;">Querying yfinance feeds, refreshing technical trends, and calculating real-time margins of safety.</span>
+                </div>
+            </td>
+        </tr>
+    `;
+    
+    const setDiagLoading = (id, text = 'Loading...') => {
+        const el = document.getElementById(id);
+        if (el) el.innerText = text;
+    };
+    setDiagLoading('port-total-investment');
+    setDiagLoading('port-total-value');
+    setDiagLoading('port-total-pl');
+    setDiagLoading('port-day-pl');
+    setDiagLoading('port-health-score', '--/100');
+    setDiagLoading('port-concentration-label', 'Calculating...');
+    
     try {
-        // 1. Fetch portfolio items
-        const response = await fetch('/api/portfolio');
+        // 1. Fetch portfolio items (optionally forcing yfinance refresh)
+        const url = forceRefresh ? '/api/portfolio?refresh=true' : '/api/portfolio';
+        const response = await fetch(url);
         if (!response.ok) throw new Error("Failed to load portfolio.");
         const portfolioItems = await response.json();
         
@@ -9144,125 +9061,217 @@ async function loadPortfolioDoctorLedger() {
         
         if (portfolioItems.length === 0) {
             if (runBtn) runBtn.style.display = 'none';
-            ledgerBody.innerHTML = '<tr><td colspan="5" class="center-text text-muted" style="padding: 30px;">No stocks in your portfolio diagnostics ledger. Add them from watchlists or type custom symbols above.</td></tr>';
+            
+            // Reset portfolio diagnostics summary to 0 on empty
+            document.getElementById('port-total-investment').innerText = '₹0.00';
+            document.getElementById('port-total-value').innerText = '₹0.00';
+            const plTextEl = document.getElementById('port-total-pl');
+            if (plTextEl) {
+                plTextEl.innerText = '₹0.00';
+                plTextEl.style.color = 'var(--text-primary)';
+            }
+            const dayPLTextEl = document.getElementById('port-day-pl');
+            if (dayPLTextEl) {
+                dayPLTextEl.innerText = '₹0.00';
+                dayPLTextEl.style.color = 'var(--text-primary)';
+            }
+            const healthEl = document.getElementById('port-health-score');
+            if (healthEl) {
+                healthEl.innerText = '--/100';
+                healthEl.style.color = 'var(--text-secondary)';
+            }
+            const concEl = document.getElementById('port-concentration-label');
+            if (concEl) {
+                concEl.innerText = 'N/A';
+                concEl.style.color = 'var(--text-secondary)';
+            }
+            
+            ledgerBody.innerHTML = '<tr><td colspan="14" class="center-text text-muted" style="padding: 30px;">No stocks in your portfolio diagnostics ledger. Add them from watchlists or type custom symbols above.</td></tr>';
             return;
         }
         
         if (runBtn) runBtn.style.display = 'block';
         
+        let totalInvestment = 0.0;
+        let totalValue = 0.0;
+        let totalDayPL = 0.0;
+        
         portfolioItems.forEach(item => {
+            const qty = item.quantity || 0;
+            const avgPrice = item.purchase_price || 0;
+            const currentPrice = item.current_price || avgPrice || 0;
+            const dayChangePct = item.day_change_pct || 0.0;
+            
+            const investedVal = qty * avgPrice;
+            const currentVal = qty * currentPrice;
+            const dayPL = qty * (currentPrice - (currentPrice / (1 + dayChangePct / 100)));
+            
+            totalInvestment += investedVal;
+            totalValue += currentVal;
+            totalDayPL += dayPL;
+        });
+
+        // Group tranches by symbol for rendering in Standalone Acquisition Ledger
+        const aggregatedItemsMap = {};
+        portfolioItems.forEach(item => {
+            const sym = item.symbol;
+            if (!aggregatedItemsMap[sym]) {
+                aggregatedItemsMap[sym] = {
+                    ...item,
+                    quantity: 0,
+                    total_invested_cost: 0,
+                    tranche_ids: []
+                };
+            }
+            const agg = aggregatedItemsMap[sym];
+            agg.quantity += item.quantity || 0;
+            agg.total_invested_cost += (item.quantity || 0) * (item.purchase_price || 0);
+            agg.tranche_ids.push(item.id);
+        });
+
+        const aggregatedItems = Object.values(aggregatedItemsMap).map(agg => {
+            if (agg.quantity > 0) {
+                agg.purchase_price = agg.total_invested_cost / agg.quantity;
+            } else {
+                agg.purchase_price = 0;
+            }
+            return agg;
+        });
+        
+        aggregatedItems.forEach(item => {
             const tr = document.createElement('tr');
             tr.style.borderBottom = '1px solid var(--border-glass)';
             
-            // Generate targets row ID
-            const safeSymbolId = item.symbol.replace(/[^a-zA-Z0-9]/g, '');
-            const detailRowId = `targets-row-${safeSymbolId}`;
+            const isMultiTranche = item.tranche_ids.length > 1;
             
-            // Build potential ROI string
-            let upsideHTML = '';
-            if (item.target_12m && item.purchase_price) {
-                const pct = ((item.target_12m - item.purchase_price) / item.purchase_price) * 100;
-                const color = pct >= 0 ? 'var(--neon-green)' : 'var(--neon-red)';
-                const sign = pct >= 0 ? '+' : '';
-                upsideHTML = `<span class="upside-percentage-badge" style="font-size: 10px; color: ${color}; font-weight: 700; margin-left: 4px;">(${sign}${pct.toFixed(1)}% vs Avg Buy)</span>`;
+            // Dynamic value calculations
+            const qty = item.quantity || 0;
+            const avgPrice = item.purchase_price || 0;
+            const currentPrice = item.current_price || avgPrice || 0;
+            const dayChangePct = item.day_change_pct || 0.0;
+            
+            const investedVal = qty * avgPrice;
+            const currentVal = qty * currentPrice;
+            const plVal = currentVal - investedVal;
+            const plPct = investedVal > 0 ? (plVal / investedVal) * 100 : 0.0;
+            
+            const plColor = plVal >= 0 ? 'var(--neon-green)' : 'var(--neon-red)';
+            const plSign = plVal >= 0 ? '+' : '';
+            
+            const netChgPct = plPct;
+            const netChgColor = netChgPct >= 0 ? 'var(--neon-green)' : 'var(--neon-red)';
+            const netChgSign = netChgPct >= 0 ? '+' : '';
+            
+            const dayChgColor = dayChangePct >= 0 ? 'var(--neon-green)' : 'var(--neon-red)';
+            const dayChgSign = dayChangePct >= 0 ? '+' : '';
+            
+            const target12M = item.target_12m ? safeFormatRupees(item.target_12m, 0) : 'Rs. --';
+            const stopLoss12M = item.stop_loss_12m ? safeFormatRupees(item.stop_loss_12m, 0) : 'Rs. --';
+            
+            let qtyHTML = '';
+            let priceHTML = '';
+            if (isMultiTranche) {
+                qtyHTML = `<span style="font-weight: 600; color: var(--text-secondary);" title="Aggregated from multiple tranches (Edit in Tax tab)">${safeFormatNumber(qty, 3)} 🔗</span>`;
+                priceHTML = `<span style="font-weight: 600; color: var(--text-secondary);" title="Weighted Average Price">${safeFormatRupees(avgPrice, 2)}</span>`;
+            } else {
+                qtyHTML = `<input type="number" class="portfolio-qty-input" data-id="${item.id}" data-symbol="${item.symbol}" value="${qty}" style="width: 70px; padding: 4px; border-radius:4px; background:rgba(0,0,0,0.3); border:1px solid var(--border-glass); color:#fff; font-size:11px; text-align: right;">`;
+                priceHTML = `<input type="number" class="portfolio-price-input" data-id="${item.id}" data-symbol="${item.symbol}" value="${avgPrice}" style="width: 90px; padding: 4px; border-radius:4px; background:rgba(0,0,0,0.3); border:1px solid var(--border-glass); color:#fff; font-size:11px; text-align: right;">`;
             }
             
             tr.innerHTML = `
                 <td style="padding: 10px;">
-                    <strong>${item.symbol}</strong><br>
+                    <a href="#" class="ledger-stock-analyze-link" data-symbol="${item.symbol}" style="font-weight: 700; color: var(--color-primary); text-decoration: underline; cursor: pointer;" title="Open in Equity Research Terminal">${item.symbol}</a><br>
                     <span style="font-size:10px; color:var(--text-muted);">${item.name}</span><br>
-                    <a href="#" class="btn-secondary toggle-targets-btn" data-symbol="${item.symbol}" style="font-size: 9px; padding: 4px 8px; margin-top: 8px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; font-weight: 600; border-color: rgba(59,130,246,0.25); color: var(--color-primary); background: rgba(59,130,246,0.03); border-radius: 4px; cursor: pointer; transition: all 0.2s;">👁️ View Targets & Research</a>
+                    <span style="font-size:9.5px; color:var(--color-primary); font-weight:600;">${item.sector || 'Other'}</span>
                 </td>
-                <td style="padding: 10px; color: var(--text-secondary);">${item.sector || 'Other'}</td>
-                <td style="padding: 10px;"><input type="number" class="portfolio-qty-input" data-symbol="${item.symbol}" value="${item.quantity !== undefined && item.quantity !== null ? item.quantity : 10}" style="width: 70px; padding: 4px; border-radius:4px; background:rgba(0,0,0,0.3); border:1px solid var(--border-glass); color:#fff; font-size:11px;"></td>
-                <td style="padding: 10px;"><input type="number" class="portfolio-price-input" data-symbol="${item.symbol}" value="${item.purchase_price !== undefined && item.purchase_price !== null ? item.purchase_price : 100}" style="width: 100px; padding: 4px; border-radius:4px; background:rgba(0,0,0,0.3); border:1px solid var(--border-glass); color:#fff; font-size:11px;"></td>
-                <td style="padding: 10px;"><button class="btn-secondary remove-portfolio-ledger-item-btn" data-symbol="${item.symbol}" style="font-size: 11px; padding: 4px 8px; border-color: rgba(239,68,68,0.25); color: var(--color-crimson); background: rgba(239,68,68,0.03); cursor:pointer; font-weight: 600; border-radius: 4px; transition: all 0.2s;">Remove 🗑️</button></td>
-            `;
-            
-            // Collapsible Detail Row
-            const detailTr = document.createElement('tr');
-            detailTr.id = detailRowId;
-            detailTr.style.display = 'none';
-            detailTr.style.background = 'rgba(255, 255, 255, 0.01)';
-            detailTr.style.borderBottom = '1px solid var(--border-glass)';
-            
-            const targetBuy = item.suggested_buy_price_range || 'N/A';
-            const targetSell = item.suggested_sell_price_range || 'N/A';
-            const target12MStr = item.target_12m ? safeFormatRupees(item.target_12m, 0) : 'Rs. --';
-            const stopLossStr = item.stop_loss_12m ? safeFormatRupees(item.stop_loss_12m, 0) : 'Rs. --';
-            const currentPriceStr = item.current_price ? safeFormatRupees(item.current_price, 2) : 'Rs. --';
-            
-            detailTr.innerHTML = `
-                <td colspan="5" style="padding: 12px 15px;">
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; background: rgba(0,0,0,0.35); padding: 12px; border-radius: 6px; border: 1px solid var(--border-glass);">
-                        <div style="padding: 6px 10px; border-left: 3px solid var(--neon-green); background: rgba(0, 200, 115, 0.03); border-radius: 4px;">
-                            <span style="font-size: 8px; color: var(--text-secondary); display:block; text-transform:uppercase; margin-bottom: 2px;">Suggested Buy Range</span>
-                            <strong style="font-size: 11px; color: var(--text-primary);">${targetBuy}</strong>
-                        </div>
-                        <div style="padding: 6px 10px; border-left: 3px solid var(--neon-red); background: rgba(255, 75, 75, 0.03); border-radius: 4px;">
-                            <span style="font-size: 8px; color: var(--text-secondary); display:block; text-transform:uppercase; margin-bottom: 2px;">Suggested Sell Range</span>
-                            <strong style="font-size: 11px; color: var(--text-primary);">${targetSell}</strong>
-                        </div>
-                        <div style="padding: 6px 10px; border-left: 3px solid var(--neon-green); background: rgba(0, 200, 115, 0.03); border-radius: 4px;">
-                            <span style="font-size: 8px; color: var(--text-secondary); display:block; text-transform:uppercase; margin-bottom: 2px;">12M Target Price</span>
-                            <strong style="font-size: 12px; color: var(--neon-green);">${target12MStr}</strong>
-                            ${upsideHTML}
-                        </div>
-                        <div style="padding: 6px 10px; border-left: 3px solid var(--neon-red); background: rgba(255, 75, 75, 0.03); border-radius: 4px;">
-                            <span style="font-size: 8px; color: var(--text-secondary); display:block; text-transform:uppercase; margin-bottom: 2px;">12M Protection Stop Loss</span>
-                            <strong style="font-size: 12px; color: var(--neon-red);">${stopLossStr}</strong>
-                        </div>
-                        <div style="display: flex; flex-direction: column; justify-content: center; gap: 4px; padding: 4px;">
-                            <div style="font-size: 10px; text-align: center; color: var(--text-secondary); margin-bottom: 2px;">
-                                Current Price: <strong style="color: var(--text-primary);">${currentPriceStr}</strong>
-                            </div>
-                            <button class="btn-primary load-research-from-portfolio-btn" data-symbol="${item.symbol}" style="font-size: 11px; padding: 6px 10px; display: flex; align-items: center; justify-content: center; gap: 4px; height: auto; cursor: pointer;">
-                                🔬 ${item.has_analysis ? 'Research Workspace' : 'Run AI Audit'}
-                            </button>
-                        </div>
-                    </div>
+                <td style="padding: 10px; text-align: right;">
+                    ${qtyHTML}
+                </td>
+                <td style="padding: 10px; text-align: right;">
+                    ${priceHTML}
+                </td>
+                <td style="padding: 10px; text-align: right; font-weight: 600; color: var(--text-primary);">
+                    ${safeFormatRupees(currentPrice, 2)}
+                </td>
+                <td style="padding: 10px; text-align: right; font-weight: 700; color: ${netChgColor};">
+                    ${netChgSign}${netChgPct.toFixed(2)}%
+                </td>
+                <td style="padding: 10px; text-align: right; font-weight: 700; color: ${dayChgColor};">
+                    ${dayChgSign}${dayChangePct.toFixed(2)}%
+                </td>
+                <td style="padding: 10px; text-align: right; color: var(--text-secondary);">
+                    ${safeFormatRupees(investedVal, 2)}
+                </td>
+                <td style="padding: 10px; text-align: right; font-weight: 600; color: var(--text-primary);">
+                    ${safeFormatRupees(currentVal, 2)}
+                </td>
+                <td style="padding: 10px; text-align: right; font-weight: 700; color: ${plColor};">
+                    ${plSign}${safeFormatRupees(plVal, 2)}<br>
+                    <span style="font-size: 10px; color: ${plColor};">${plSign}${plPct.toFixed(2)}%</span>
+                </td>
+                <td style="padding: 10px; text-align: right; color: var(--neon-green); font-weight: 600;">
+                    ${item.suggested_buy_price_range || 'N/A'}
+                </td>
+                <td style="padding: 10px; text-align: right; color: var(--neon-red); font-weight: 600;">
+                    ${item.suggested_sell_price_range || 'N/A'}
+                </td>
+                <td style="padding: 10px; text-align: right; color: var(--neon-green); font-weight: 600;">
+                    ${target12M}
+                </td>
+                <td style="padding: 10px; text-align: right; color: var(--neon-red); font-weight: 600;">
+                    ${stopLoss12M}
+                </td>
+                <td class="no-print" style="padding: 10px; text-align: center;">
+                    <button class="btn-secondary remove-portfolio-ledger-item-btn" data-id="${item.id}" data-symbol="${item.symbol}" style="font-size: 11px; padding: 4px 8px; border-color: rgba(239,68,68,0.25); color: var(--color-crimson); background: rgba(239,68,68,0.03); cursor:pointer; font-weight: 600; border-radius: 4px; transition: all 0.2s;">Remove 🗑️</button>
                 </td>
             `;
             
-            const qtyInput = tr.querySelector('.portfolio-qty-input');
-            const priceInput = tr.querySelector('.portfolio-price-input');
+            // Wire Research Link
+            tr.querySelector('.ledger-stock-analyze-link').addEventListener('click', (e) => {
+                e.preventDefault();
+                const sym = e.currentTarget.getAttribute('data-symbol');
+                const searchInput = document.getElementById('analyzer-search-input');
+                if (searchInput) {
+                    searchInput.value = sym;
+                }
+                switchTab('analyzer');
+                loadStockAnalyzer(sym);
+            });
             
-            const saveHoldings = async () => {
-                const qtyVal = parseFloat(qtyInput.value) || 0.0;
-                const priceVal = parseFloat(priceInput.value) || 0.0;
+            // Wire edit listeners if NOT multi-tranche
+            if (!isMultiTranche) {
+                const qtyInput = tr.querySelector('.portfolio-qty-input');
+                const priceInput = tr.querySelector('.portfolio-price-input');
                 
-                // Update dynamic ROI badge in UI in real-time!
-                const upsideBadge = detailTr.querySelector('.upside-percentage-badge');
-                if (upsideBadge) {
-                    if (item.target_12m && priceVal > 0) {
-                        const pct = ((item.target_12m - priceVal) / priceVal) * 100;
-                        const color = pct >= 0 ? 'var(--neon-green)' : 'var(--neon-red)';
-                        const sign = pct >= 0 ? '+' : '';
-                        upsideBadge.style.color = color;
-                        upsideBadge.innerText = `(${sign}${pct.toFixed(1)}% vs Avg Buy)`;
-                    } else {
-                        upsideBadge.innerText = '';
+                const saveHoldings = async () => {
+                    const qtyVal = parseFloat(qtyInput.value) || 0.0;
+                    const priceVal = parseFloat(priceInput.value) || 0.0;
+                    
+                    try {
+                        await fetch(`/api/portfolio/${item.id}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ quantity: qtyVal, purchase_price: priceVal })
+                        });
+                        await loadTaxHarvestingPanel();
+                        await loadPortfolioDoctorLedger(false);
+                    } catch (err) {
+                        console.error("Error saving portfolio holdings:", err);
                     }
-                }
+                };
                 
-                try {
-                    await fetch(`/api/portfolio/${item.symbol}`, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ quantity: qtyVal, purchase_price: priceVal })
-                    });
-                } catch (err) {
-                    console.error("Error saving portfolio holdings:", err);
-                }
-            };
+                qtyInput.addEventListener('change', saveHoldings);
+                qtyInput.addEventListener('blur', saveHoldings);
+                priceInput.addEventListener('change', saveHoldings);
+                priceInput.addEventListener('blur', saveHoldings);
+            }
             
-            qtyInput.addEventListener('change', saveHoldings);
-            qtyInput.addEventListener('blur', saveHoldings);
-            priceInput.addEventListener('change', saveHoldings);
-            priceInput.addEventListener('blur', saveHoldings);
-            
+            // Wire remove button to delete by symbol
             tr.querySelector('.remove-portfolio-ledger-item-btn').addEventListener('click', async () => {
-                if (!confirm(`Remove ${item.symbol} from your active diagnostics portfolio?`)) return;
+                const confirmMsg = isMultiTranche 
+                    ? `Remove all tranches of ${item.symbol} from your active diagnostics portfolio?`
+                    : `Remove ${item.symbol} from your active portfolio diagnostics ledger?`;
+                if (!confirm(confirmMsg)) return;
                 if (!confirm(`CONFIRM REMOVAL: Are you absolutely sure?`)) return;
                 
                 try {
@@ -9270,30 +9279,95 @@ async function loadPortfolioDoctorLedger() {
                         method: 'DELETE'
                     });
                     showToast(`Removed ${item.symbol} from your portfolio diagnostics ledger.`, "success");
-                    await loadPortfolioDoctorLedger();
+                    await loadPortfolioDoctorLedger(false);
+                    await loadTaxHarvestingPanel();
                 } catch (err) {
                     console.error("Error removing stock from ledger:", err);
                 }
             });
             
-            // Wire Details Toggle Event Listener
-            tr.querySelector('.toggle-targets-btn').addEventListener('click', (e) => {
-                e.preventDefault();
-                const btn = e.currentTarget;
-                const isHidden = detailTr.style.display === 'none';
-                detailTr.style.display = isHidden ? 'table-row' : 'none';
-                btn.innerHTML = isHidden ? '👁️ Hide Targets & Research' : '👁️ View Targets & Research';
-            });
-            
-            // Wire Load Research Event Listener
-            detailTr.querySelector('.load-research-from-portfolio-btn').addEventListener('click', (e) => {
-                const symbol = e.currentTarget.getAttribute('data-symbol');
-                loadStockAnalyzer(symbol);
-            });
-            
             ledgerBody.appendChild(tr);
-            ledgerBody.appendChild(detailTr);
         });
+        
+        // 6. Update Vital Diagnostics summary cards with precalculated totals
+        document.getElementById('port-total-investment').innerText = `₹${totalInvestment.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits:2})}`;
+        document.getElementById('port-total-value').innerText = `₹${totalValue.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits:2})}`;
+        
+        const netPL = totalValue - totalInvestment;
+        const netPLPct = totalInvestment > 0 ? (netPL / totalInvestment) * 100 : 0.0;
+        const netPLColor = netPL >= 0 ? 'var(--neon-green)' : 'var(--neon-red)';
+        const netPLSign = netPL >= 0 ? '+' : '';
+        const plTextEl = document.getElementById('port-total-pl');
+        if (plTextEl) {
+            plTextEl.innerText = `₹${netPL.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits:2})} (${netPLSign}${netPLPct.toFixed(2)}%)`;
+            plTextEl.style.color = netPLColor;
+        }
+        
+        const dayPLPct = (totalValue - totalDayPL) > 0 ? (totalDayPL / (totalValue - totalDayPL)) * 100 : 0.0;
+        const dayPLSign = totalDayPL >= 0 ? '+' : '';
+        const dayPLColor = totalDayPL >= 0 ? 'var(--neon-green)' : 'var(--neon-red)';
+        const dayPLTextEl = document.getElementById('port-day-pl');
+        if (dayPLTextEl) {
+            dayPLTextEl.innerText = `₹${totalDayPL.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits:2})} (${dayPLSign}${dayPLPct.toFixed(2)}%)`;
+            dayPLTextEl.style.color = dayPLColor;
+        }
+
+        // Instant local calculations for Vital Diagnostics (Health Score & Concentration)
+        let localWeightedScoreSum = 0.0;
+        let localSectorExposure = {};
+        portfolioItems.forEach(item => {
+            const qty = item.quantity || 0;
+            const currentPrice = item.current_price || item.purchase_price || 0;
+            const score = item.score !== undefined ? item.score : 50;
+            const sector = item.sector || 'Other';
+            const currentVal = qty * currentPrice;
+            
+            localWeightedScoreSum += score * currentVal;
+            localSectorExposure[sector] = (localSectorExposure[sector] || 0.0) + currentVal;
+        });
+
+        let localPortfolioScore = 50;
+        let localHhi = 0.0;
+        if (totalValue > 0) {
+            localPortfolioScore = Math.round(localWeightedScoreSum / totalValue);
+            for (const sector in localSectorExposure) {
+                const pct = (localSectorExposure[sector] / totalValue) * 100.0;
+                localHhi += Math.pow(pct / 100.0, 2);
+            }
+        }
+
+        let localDivBonus = 5;
+        let localConcentrationLabel = "Well Diversified";
+        if (localHhi > 0.4) {
+            localConcentrationLabel = "Highly Concentrated (Undiversified)";
+            localDivBonus = -15;
+        } else if (localHhi > 0.25) {
+            localConcentrationLabel = "Moderately Concentrated";
+            localDivBonus = -5;
+        }
+        const localHealthScore = Math.max(10, Math.min(100, localPortfolioScore + localDivBonus));
+
+        const healthEl = document.getElementById('port-health-score');
+        if (healthEl) {
+            healthEl.innerText = `${localHealthScore}/100`;
+            if (localHealthScore >= 70) healthEl.style.color = 'var(--neon-green)';
+            else if (localHealthScore >= 45) healthEl.style.color = 'var(--color-amber)';
+            else healthEl.style.color = 'var(--neon-red)';
+        }
+
+        const concEl = document.getElementById('port-concentration-label');
+        if (concEl) {
+            concEl.innerText = localConcentrationLabel;
+            if (localConcentrationLabel.toLowerCase().includes('well')) {
+                concEl.style.color = 'var(--color-emerald)';
+            } else if (localConcentrationLabel.toLowerCase().includes('highly') || localConcentrationLabel.toLowerCase().includes('poor')) {
+                concEl.style.color = 'var(--neon-red)';
+            } else {
+                concEl.style.color = 'var(--color-amber)';
+            }
+            concEl.style.fontWeight = '700';
+        }
+
     } catch (e) {
         console.warn("Could not load portfolio ledger: ", e);
         if (emptyState) emptyState.style.display = 'block';
@@ -9482,7 +9556,8 @@ Keep the response professional, mathematically grounded, and extremely concise. 
                 if (!response.ok) throw new Error("Synthesis failed.");
                 const data = await response.json();
 
-                let html = data.response
+                const responseText = data.response || '';
+                let html = responseText
                     .replace(/\*\*(.*?)\*\*/g, '<strong style="color:var(--text-primary);">$1</strong>')
                     .replace(/\*(.*?)\*/g, '<em>$1</em>')
                     .replace(/\n/g, '<br>');
@@ -9620,7 +9695,8 @@ Keep the response professional, mathematically grounded, and extremely concise. 
                     `;
                 }
                 
-                let html = cockpitHTML + chatRes.response
+                const responseText = chatRes.response || '';
+                let html = cockpitHTML + responseText
                     .replace(/\*\*(.*?)\*\*/g, '<strong style="color:var(--text-primary);">$1</strong>')
                     .replace(/\*(.*?)\*/g, '<em>$1</em>')
                     .replace(/\n/g, '<br>');
@@ -9866,10 +9942,651 @@ let backtestSandboxStocks = [];
 let backtestChartInstance = null;
 let activeBacktestLightweightChart = null;
 
+
+    
+// ==================== TAX & HARVESTING PANEL ====================
+
+async function setupTaxHarvestingPanel() {
+    // Tax holdings entry panel collapsible toggle
+    const taxToggle = document.getElementById('tax-holdings-toggle');
+    const taxContent = document.getElementById('tax-holdings-content');
+    if (taxToggle && taxContent) {
+        taxToggle.addEventListener('click', () => {
+            const isCollapsed = taxContent.style.display === 'none';
+            if (isCollapsed) {
+                taxContent.style.display = 'block';
+                taxToggle.classList.remove('collapsed');
+            } else {
+                taxContent.style.display = 'none';
+                taxToggle.classList.add('collapsed');
+            }
+        });
+    }
+
+    const manualForm = document.getElementById('tax-manual-add-form');
+    
+    // Add Autocomplete suggestions logic for Tax tab custom stock search input
+    const taxCustomInput = document.getElementById('tax-custom-stock-input');
+    const taxSuggestionsDiv = document.getElementById('tax-custom-suggestions');
+    if (taxCustomInput) {
+        if (taxSuggestionsDiv) {
+            taxSuggestionsDiv.className = 'watchlist-autocomplete-box';
+            taxSuggestionsDiv.removeAttribute('style'); // Remove inline styles
+        }
+        
+        taxCustomInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault(); // Don't trigger standard form submission immediately if suggestions are open
+            }
+        });
+        
+        taxCustomInput.addEventListener('input', async () => {
+            const query = taxCustomInput.value.trim();
+            if (!taxSuggestionsDiv) return;
+            
+            if (query.length < 2) {
+                taxSuggestionsDiv.style.display = 'none';
+                return;
+            }
+            
+            try {
+                const res = await fetch(`/api/search/suggestions?q=${encodeURIComponent(query)}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.length > 0) {
+                        taxSuggestionsDiv.innerHTML = '';
+                        data.forEach(item => {
+                            const div = document.createElement('div');
+                            div.className = 'watchlist-autocomplete-item';
+                            div.innerHTML = `<div><span class="ticker-pill">${item.base_symbol}</span><span style="color:var(--text-secondary); margin-left: 6px; font-size:11px;">- ${item.name}</span></div><span class="sector-pill">${item.sector}</span>`;
+                            
+                            div.addEventListener('click', () => {
+                                taxCustomInput.value = item.base_symbol;
+                                taxSuggestionsDiv.style.display = 'none';
+                            });
+                            taxSuggestionsDiv.appendChild(div);
+                        });
+                        taxSuggestionsDiv.style.display = 'block';
+                    } else {
+                        taxSuggestionsDiv.style.display = 'none';
+                    }
+                }
+            } catch (err) {
+                console.error("Tax suggestions error:", err);
+            }
+        });
+        
+        // Close autocomplete list when clicking outside
+        document.addEventListener('click', (e) => {
+            if (taxSuggestionsDiv && e.target !== taxCustomInput && e.target !== taxSuggestionsDiv) {
+                taxSuggestionsDiv.style.display = 'none';
+            }
+        });
+    }
+
+    if (manualForm) {
+        manualForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const symbolSelect = document.getElementById('tax-watchlist-stock-select');
+            const customInput = document.getElementById('tax-custom-stock-input');
+            const qtyInput = document.getElementById('tax-add-qty');
+            const priceInput = document.getElementById('tax-add-price');
+            const dateInput = document.getElementById('tax-add-date');
+            const typeSelect = document.getElementById('tax-add-type');
+            
+            if (!qtyInput || !priceInput || !dateInput) return;
+            
+            let symbol = "";
+            if (customInput && customInput.value.trim()) {
+                symbol = customInput.value.trim().toUpperCase();
+            } else if (symbolSelect && symbolSelect.value) {
+                symbol = symbolSelect.value;
+            }
+            
+            const qty = parseFloat(qtyInput.value) || 0;
+            const price = parseFloat(priceInput.value) || 0;
+            const date = dateInput.value;
+            const type = typeSelect ? typeSelect.value : "buy";
+            
+            if (!symbol) {
+                showToast("Please search/type a stock symbol or choose from watchlist.", "warning");
+                return;
+            }
+            if (qty <= 0) {
+                showToast("Quantity must be greater than zero.", "warning");
+                return;
+            }
+            if (price <= 0) {
+                showToast("Price must be greater than zero.", "warning");
+                return;
+            }
+            if (date > "2026-06-05") {
+                showToast("Trade date cannot be in the future.", "warning");
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/portfolio', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        symbol: symbol,
+                        quantity: qty,
+                        purchase_price: price,
+                        purchase_date: date,
+                        transaction_type: type
+                    })
+                });
+                
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.detail || "Failed to add tranche.");
+                }
+                
+                showToast(`Successfully added ${symbol} tranche.`, "success");
+                
+                if (customInput) customInput.value = "";
+                if (symbolSelect) symbolSelect.value = "";
+                qtyInput.value = "10";
+                priceInput.value = "100";
+                
+                await loadTaxHarvestingPanel();
+                await loadPortfolioDoctorLedger();
+            } catch (err) {
+                showToast("Error: " + err.message, "error");
+            }
+        });
+    }
+    
+    // Set default date to 2026-06-05
+    const taxAddDateInput = document.getElementById('tax-add-date');
+    if (taxAddDateInput) {
+        taxAddDateInput.value = "2026-06-05";
+        taxAddDateInput.max = "2026-06-05";
+    }
+    
+    // Clear ledger button
+    const clearLedgerBtn = document.getElementById('tax-clear-all-btn');
+    if (clearLedgerBtn) {
+        clearLedgerBtn.addEventListener('click', async () => {
+            if (!confirm("Are you sure you want to clear your entire holdings ledger? This cannot be undone.")) return;
+            if (!confirm("CONFIRM CLEAR: Are you absolutely sure?")) return;
+            
+            try {
+                const response = await fetch('/api/portfolio/transactions');
+                if (!response.ok) throw new Error("Failed to fetch current transactions.");
+                const items = await response.json();
+                
+                for (const item of items) {
+                    await fetch(`/api/portfolio/${item.id}`, { method: 'DELETE' });
+                }
+                
+                showToast("Clear ledger complete.", "success");
+                await loadTaxHarvestingPanel();
+                await loadPortfolioDoctorLedger();
+            } catch (err) {
+                showToast("Error clearing ledger: " + err.message, "error");
+            }
+        });
+    }
+
+    // Complete raw transaction history collapsible toggle
+    const rawToggle = document.getElementById('tax-raw-ledger-toggle');
+    const rawContent = document.getElementById('tax-raw-ledger-content');
+    const rawArrow = document.getElementById('tax-raw-ledger-arrow');
+    if (rawToggle && rawContent) {
+        rawToggle.addEventListener('click', () => {
+            const isCollapsed = rawContent.style.display === 'none';
+            if (isCollapsed) {
+                rawContent.style.display = 'block';
+                if (rawArrow) rawArrow.style.transform = 'rotate(90deg)';
+                loadTaxRawTransactionLedger();
+            } else {
+                rawContent.style.display = 'none';
+                if (rawArrow) rawArrow.style.transform = 'rotate(0deg)';
+            }
+        });
+    }
+    
+    // Setup Drag and Drop dropzone
+    const dropzone = document.getElementById('tax-excel-dropzone');
+    const fileInput = document.getElementById('tax-excel-file-input');
+    
+    if (dropzone && fileInput) {
+        dropzone.addEventListener('click', () => fileInput.click());
+        
+        dropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropzone.style.borderColor = 'var(--color-primary)';
+            dropzone.style.background = 'rgba(59, 130, 246, 0.05)';
+        });
+        
+        ['dragleave', 'dragend'].forEach(evt => {
+            dropzone.addEventListener(evt, () => {
+                dropzone.style.borderColor = 'var(--border-glass)';
+                dropzone.style.background = 'rgba(255,255,255,0.01)';
+            });
+        });
+        
+        dropzone.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            dropzone.style.borderColor = 'var(--border-glass)';
+            dropzone.style.background = 'rgba(255,255,255,0.01)';
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                await uploadBrokerFile(files[0]);
+            }
+        });
+        
+        fileInput.addEventListener('change', async () => {
+            if (fileInput.files.length > 0) {
+                await uploadBrokerFile(fileInput.files[0]);
+                fileInput.value = '';
+            }
+        });
+    }
+}
+
+async function uploadBrokerFile(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const dropzone = document.getElementById('tax-excel-dropzone');
+    if (dropzone) {
+        dropzone.innerHTML = `<span style="font-size: 20px; display: block; margin-bottom: 5px;">⏳</span><span style="font-size: 11px; color: var(--text-secondary);">Uploading and parsing spreadsheet...</span>`;
+        dropzone.style.pointerEvents = 'none';
+    }
+    
+    try {
+        const response = await fetch('/api/portfolio/upload', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.detail || "Spreadsheet upload failed.");
+        }
+        
+        const resData = await response.json();
+        showToast(`Import Success: Added ${resData.imported} tranches.`, "success");
+        if (resData.errors && resData.errors.length > 0) {
+            console.warn("Import warning errors:", resData.errors);
+            showToast(`Skipped ${resData.errors.length} invalid rows during import.`, "warning");
+        }
+        
+        await loadTaxHarvestingPanel();
+        await loadPortfolioDoctorLedger();
+    } catch (err) {
+        showToast("Import error: " + err.message, "error");
+    } finally {
+        if (dropzone) {
+            dropzone.innerHTML = `
+                <span style="font-size: 24px; display: block; margin-bottom: 5px;">📁</span>
+                <span style="font-size: 11px; color: var(--text-secondary); font-weight: 600;">Drag & drop broker Excel/CSV here or <span style="color: var(--color-primary); text-decoration: underline;">browse</span></span>
+            `;
+            dropzone.style.pointerEvents = 'auto';
+        }
+    }
+}
+
+async function populateTaxWatchlistStocks() {
+    const stockSelect = document.getElementById('tax-watchlist-stock-select');
+    if (!stockSelect) return;
+    
+    stockSelect.innerHTML = '<option value="" disabled selected>Choose Stock</option>';
+    
+    try {
+        const wlResponse = await fetch('/api/watchlists');
+        if (!wlResponse.ok) return;
+        const watchlists = await wlResponse.json();
+        
+        let allSymbols = new Set();
+        let uniqueStocks = [];
+        
+        for (const wl of watchlists) {
+            const itemsRes = await fetch(`/api/watchlists/${wl.id}`);
+            if (itemsRes.ok) {
+                const wlDetail = await itemsRes.json();
+                const items = wlDetail.items || [];
+                for (const item of items) {
+                    if (!allSymbols.has(item.symbol)) {
+                        allSymbols.add(item.symbol);
+                        uniqueStocks.push(item);
+                    }
+                }
+            }
+        }
+        
+        if (uniqueStocks.length === 0) {
+            stockSelect.innerHTML += '<option value="" disabled>No stocks in watchlists</option>';
+        } else {
+            uniqueStocks.forEach(item => {
+                stockSelect.innerHTML += `<option value="${item.symbol}">${item.symbol} - ${item.name || ''}</option>`;
+            });
+        }
+    } catch (e) {
+        console.error("Error populating watchlist select for tax:", e);
+    }
+}
+
+async function loadTaxHarvestingPanel() {
+    await populateTaxWatchlistStocks();
+    await loadTaxHarvestingLedger();
+}
+
+async function loadTaxHarvestingLedger() {
+    const ledgerBody = document.getElementById('tax-ledger-body');
+    if (!ledgerBody) return;
+    
+    try {
+        const response = await fetch('/api/portfolio');
+        if (!response.ok) throw new Error("Failed to load portfolio tranches.");
+        const items = await response.json();
+        
+        ledgerBody.innerHTML = '';
+        
+        if (items.length === 0) {
+            ledgerBody.innerHTML = '<tr><td colspan="7" class="center-text text-muted" style="padding: 30px;">No holdings in your tax ledger. Add tranches manually above or upload your broker holdings sheet.</td></tr>';
+            const reportContainer = document.getElementById('tax-report-container');
+            if (reportContainer) reportContainer.style.display = 'none';
+            return;
+        }
+        
+        items.forEach(item => {
+            const tr = document.createElement('tr');
+            tr.style.borderBottom = '1px solid var(--border-glass)';
+            
+            let days = 0;
+            try {
+                const today = new Date('2026-06-05');
+                const pDate = new Date(item.purchase_date);
+                const diffTime = Math.abs(today - pDate);
+                days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                if (today < pDate) days = 0;
+            } catch (dErr) {
+                days = 0;
+            }
+            
+            const isLtcg = days > 365;
+            const statusHTML = isLtcg 
+                ? `<span class="badge-rec" style="background: rgba(16, 185, 129, 0.1); color: var(--neon-green); border-color: rgba(16, 185, 129, 0.2); font-size: 10px; padding: 2px 6px;">🌳 LTCG</span>`
+                : `<span class="badge-rec" style="background: rgba(239, 68, 68, 0.1); color: var(--neon-red); border-color: rgba(239, 68, 68, 0.2); font-size: 10px; padding: 2px 6px;">⏳ STCG</span>`;
+            
+            tr.innerHTML = `
+                <td style="padding: 8px;">
+                    <strong>${item.symbol}</strong><br>
+                    <span style="font-size: 9.5px; color: var(--text-muted);">${item.name || ''}</span>
+                </td>
+                <td style="padding: 8px;"><input type="number" class="tax-qty-input" data-id="${item.id}" value="${item.quantity}" style="width: 70px; padding: 4px; border-radius:4px; background:rgba(0,0,0,0.3); border:1px solid var(--border-glass); color:#fff; font-size:11px;"></td>
+                <td style="padding: 8px;"><input type="number" class="tax-price-input" data-id="${item.id}" value="${item.purchase_price}" style="width: 80px; padding: 4px; border-radius:4px; background:rgba(0,0,0,0.3); border:1px solid var(--border-glass); color:#fff; font-size:11px;"></td>
+                <td style="padding: 8px;"><input type="date" class="tax-date-input" data-id="${item.id}" value="${item.purchase_date}" max="2026-06-05" style="width: 110px; padding: 4px; border-radius:4px; background:rgba(0,0,0,0.3); border:1px solid var(--border-glass); color:#fff; font-size:11px;"></td>
+                <td style="padding: 8px; color: var(--text-secondary); font-size: 11.5px;">${days} days</td>
+                <td style="padding: 8px;">${statusHTML}</td>
+                <td style="padding: 8px;"><button class="btn-secondary tax-remove-btn" data-id="${item.id}" style="font-size: 10px; padding: 4px 8px; border-color: rgba(239,68,68,0.25); color: var(--color-crimson); background: rgba(239,68,68,0.03); cursor:pointer; font-weight: 600; border-radius: 4px;">Remove 🗑️</button></td>
+            `;
+            
+            const qtyInput = tr.querySelector('.tax-qty-input');
+            const priceInput = tr.querySelector('.tax-price-input');
+            const dateInput = tr.querySelector('.tax-date-input');
+            const removeBtn = tr.querySelector('.tax-remove-btn');
+            
+            const updateTranche = async () => {
+                const qVal = parseFloat(qtyInput.value) || 0;
+                const pVal = parseFloat(priceInput.value) || 0;
+                const dVal = dateInput.value;
+                
+                if (dVal > "2026-06-05") {
+                    showToast("Purchase date cannot be in the future.", "warning");
+                    dateInput.value = item.purchase_date;
+                    return;
+                }
+                
+                try {
+                    const response = await fetch(`/api/portfolio/${item.id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ quantity: qVal, purchase_price: pVal, purchase_date: dVal })
+                    });
+                    if (!response.ok) {
+                        const err = await response.json();
+                        throw new Error(err.detail || "Failed to update tranche.");
+                    }
+                    await loadTaxHarvestingReport();
+                    await loadPortfolioDoctorLedger();
+                } catch (err) {
+                    console.error("Error updating tranche:", err);
+                    showToast("Error updating tranche: " + err.message, "error");
+                }
+            };
+            
+            qtyInput.addEventListener('change', updateTranche);
+            priceInput.addEventListener('change', updateTranche);
+            dateInput.addEventListener('change', async () => {
+                await updateTranche();
+                await loadTaxHarvestingLedger();
+            });
+            
+            removeBtn.addEventListener('click', async () => {
+                if (!confirm(`Remove ${item.symbol} tranche purchased on ${item.purchase_date}?`)) return;
+                try {
+                    const res = await fetch(`/api/portfolio/${item.id}`, { method: 'DELETE' });
+                    if (res.ok) {
+                        showToast(`Removed tranche successfully.`, "success");
+                        await loadTaxHarvestingPanel();
+                        await loadPortfolioDoctorLedger();
+                    }
+                } catch (err) {
+                    console.error("Error removing tranche:", err);
+                }
+            });
+            
+            ledgerBody.appendChild(tr);
+        });
+        
+        // Refresh Complete Transaction History if visible
+        const rawContent = document.getElementById('tax-raw-ledger-content');
+        if (rawContent && rawContent.style.display === 'block') {
+            loadTaxRawTransactionLedger();
+        }
+        
+        await loadTaxHarvestingReport();
+    } catch (e) {
+        console.error(e);
+        showToast("Error loading tax ledger: " + e.message, "error");
+    }
+}
+
+async function loadTaxRawTransactionLedger() {
+    const rawLedgerBody = document.getElementById('tax-raw-ledger-body');
+    if (!rawLedgerBody) return;
+    
+    try {
+        const response = await fetch('/api/portfolio/transactions');
+        if (!response.ok) throw new Error("Failed to load raw transactions.");
+        const txs = await response.json();
+        
+        rawLedgerBody.innerHTML = '';
+        
+        if (txs.length === 0) {
+            rawLedgerBody.innerHTML = '<tr><td colspan="6" class="center-text text-muted" style="padding: 20px;">No transaction history found.</td></tr>';
+            return;
+        }
+        
+        txs.forEach(tx => {
+            const tr = document.createElement('tr');
+            tr.style.borderBottom = '1px solid var(--border-glass)';
+            
+            const isBuy = (tx.transaction_type || 'buy').toLowerCase() === 'buy';
+            const typeBadge = isBuy
+                ? `<span class="badge-rec" style="background: rgba(16, 185, 129, 0.15); color: var(--neon-green); border-color: rgba(16, 185, 129, 0.3); font-size: 9px; padding: 1px 4px;">BUY</span>`
+                : `<span class="badge-rec" style="background: rgba(239, 68, 68, 0.15); color: var(--neon-red); border-color: rgba(239, 68, 68, 0.3); font-size: 9px; padding: 1px 4px;">SELL</span>`;
+                
+            tr.innerHTML = `
+                <td style="padding: 8px;">
+                    <strong>${tx.symbol}</strong><br>
+                    <span style="font-size: 9px; color: var(--text-muted);">${tx.name || ''}</span>
+                </td>
+                <td style="padding: 8px;">${typeBadge}</td>
+                <td style="padding: 8px; font-size: 11.5px; color: var(--text-primary);">${tx.quantity}</td>
+                <td style="padding: 8px; font-size: 11.5px; color: var(--text-secondary);">₹${tx.purchase_price}</td>
+                <td style="padding: 8px; font-size: 11.5px; color: var(--text-muted);">${tx.purchase_date}</td>
+                <td style="padding: 8px;"><button class="btn-secondary tax-tx-remove-btn" data-id="${tx.id}" style="font-size: 9px; padding: 2px 6px; border-color: rgba(239,68,68,0.25); color: var(--color-crimson); background: rgba(239,68,68,0.03); cursor:pointer; font-weight: 600; border-radius: 4px;">Delete 🗑️</button></td>
+            `;
+            
+            const removeBtn = tr.querySelector('.tax-tx-remove-btn');
+            removeBtn.addEventListener('click', async () => {
+                const actionLabel = isBuy ? "BUY" : "SELL";
+                if (!confirm(`Delete raw transaction: ${actionLabel} ${tx.quantity} shares of ${tx.symbol} executed on ${tx.purchase_date}?`)) return;
+                
+                try {
+                    const res = await fetch(`/api/portfolio/${tx.id}`, { method: 'DELETE' });
+                    if (res.ok) {
+                        showToast("Deleted raw transaction successfully.", "success");
+                        await loadTaxRawTransactionLedger();
+                        await loadTaxHarvestingPanel();
+                        await loadPortfolioDoctorLedger();
+                    }
+                } catch (err) {
+                    console.error("Error deleting raw transaction:", err);
+                    showToast("Error deleting raw transaction: " + err.message, "error");
+                }
+            });
+            
+            rawLedgerBody.appendChild(tr);
+        });
+    } catch (e) {
+        console.error("Error loading raw transactions:", e);
+        rawLedgerBody.innerHTML = `<tr><td colspan="6" class="center-text text-muted" style="padding: 20px; color: var(--neon-red);">Error: ${e.message}</td></tr>`;
+    }
+}
+
+async function loadTaxHarvestingReport() {
+    const reportContainer = document.getElementById('tax-report-container');
+    if (!reportContainer) return;
+    
+    try {
+        const response = await fetch('/api/portfolio/tax-report');
+        if (!response.ok) throw new Error("Failed to load tax report.");
+        const report = await response.json();
+        
+        reportContainer.style.display = 'block';
+        
+        const sum = report.summary;
+        
+        document.getElementById('tax-metric-liability').innerText = `₹${sum.total_tax_liability.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+        document.getElementById('tax-metric-harvest-savings').innerText = `₹${sum.total_harvest_savings.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+        
+        const netPLText = document.getElementById('tax-metric-net-pl');
+        netPLText.innerText = `₹${sum.total_unrealized_pl.toLocaleString('en-IN', { maximumFractionDigits: 0 })} (${sum.total_unrealized_pl_pct > 0 ? '+' : ''}${sum.total_unrealized_pl_pct.toFixed(2)}%)`;
+        netPLText.style.color = sum.total_unrealized_pl >= 0 ? 'var(--neon-green)' : 'var(--neon-red)';
+        
+        document.getElementById('tax-metric-harvest-losses').innerText = `₹${sum.total_harvestable_loss.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+        
+        document.getElementById('tax-stcg-value').innerText = `₹${sum.stcg_value.toLocaleString('en-IN')}`;
+        document.getElementById('tax-stcg-cost').innerText = `₹${sum.stcg_cost.toLocaleString('en-IN')}`;
+        const stcgPl = document.getElementById('tax-stcg-pl');
+        stcgPl.innerText = `₹${sum.stcg_unrealized_pl.toLocaleString('en-IN')}`;
+        stcgPl.style.color = sum.stcg_unrealized_pl >= 0 ? 'var(--neon-green)' : 'var(--neon-red)';
+        document.getElementById('tax-stcg-liability').innerText = `₹${sum.stcg_tax.toLocaleString('en-IN')}`;
+        
+        document.getElementById('tax-ltcg-value').innerText = `₹${sum.ltcg_value.toLocaleString('en-IN')}`;
+        document.getElementById('tax-ltcg-cost').innerText = `₹${sum.ltcg_cost.toLocaleString('en-IN')}`;
+        const ltcgPl = document.getElementById('tax-ltcg-pl');
+        ltcgPl.innerText = `₹${sum.ltcg_unrealized_pl.toLocaleString('en-IN')}`;
+        ltcgPl.style.color = sum.ltcg_unrealized_pl >= 0 ? 'var(--neon-green)' : 'var(--neon-red)';
+        document.getElementById('tax-ltcg-liability').innerText = `₹${sum.ltcg_tax.toLocaleString('en-IN')}`;
+        
+        const emptyState = document.getElementById('tax-harvesting-empty-state');
+        const listContainer = document.getElementById('tax-harvesting-list');
+        
+        if (!emptyState || !listContainer) return;
+        
+        listContainer.innerHTML = '';
+        const candidates = report.harvesting_opportunities || [];
+        
+        if (candidates.length === 0) {
+            emptyState.style.display = 'flex';
+            listContainer.style.display = 'none';
+        } else {
+            emptyState.style.display = 'none';
+            listContainer.style.display = 'flex';
+            listContainer.style.flexDirection = 'column';
+            
+            candidates.forEach(c => {
+                const card = document.createElement('div');
+                card.style.background = 'rgba(255,255,255,0.01)';
+                card.style.border = '1px solid var(--border-glass)';
+                card.style.borderRadius = '6px';
+                card.style.padding = '12px';
+                card.style.display = 'flex';
+                card.style.justifyContent = 'space-between';
+                card.style.alignItems = 'center';
+                
+                card.innerHTML = `
+                    <div>
+                        <strong style="font-size: 12px; color: var(--text-primary);">${c.symbol}</strong>
+                        <span style="font-size: 10px; color: var(--text-muted); margin-left: 5px;">(${c.name})</span>
+                        <div style="font-size: 10.5px; color: var(--text-secondary); margin-top: 4px;">
+                            Acquired: ${c.quantity} shares @ ₹${c.purchase_price} | Current: ₹${c.current_price}
+                        </div>
+                        <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">
+                            Holding period: <strong>${c.holding_days} days</strong> (${c.classification})
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <span style="font-size: 12px; font-weight: 700; color: var(--neon-red); display: block;">Loss: -₹${Math.abs(c.unrealized_loss).toLocaleString('en-IN')}</span>
+                        <span style="font-size: 10.5px; font-weight: 700; color: var(--neon-green); display: block; margin-top: 2px;">Savings: +₹${c.potential_savings.toLocaleString('en-IN')}</span>
+                        <button class="btn-primary tax-harvest-action-btn" data-symbol="${c.symbol}" style="font-size: 9px; padding: 3px 6px; height: auto; border-radius: 4px; margin-top: 6px; font-weight: 700; border: none; background: rgba(16, 185, 129, 0.15); color: #10b981;">Harvest Loss</button>
+                    </div>
+                `;
+                
+                card.querySelector('.tax-harvest-action-btn').addEventListener('click', () => {
+                    alert(`To harvest the tax loss for ${c.symbol}:\n\n` +
+                          `1. Place a SELL order for ${c.quantity} shares of ${c.symbol} at the market price of ₹${c.current_price} to realize a capital loss of ₹${Math.abs(c.unrealized_loss).toLocaleString('en-IN')}.\n` +
+                          `2. This registered loss offsets your tax liability, saving you ₹${c.potential_savings.toLocaleString('en-IN')} in capital gains tax.\n` +
+                          `3. Re-invest the proceeds immediately into a similar sector asset (or buy back ${c.symbol} after the wash-sale boundary period if applicable) to maintain your equity market exposure.`);
+                });
+                
+                listContainer.appendChild(card);
+            });
+        }
+        
+        // Render Detailed AI Summary / Prescription
+        const prescriptionBox = document.getElementById('tax-prescription-box');
+        const prescriptionContent = document.getElementById('tax-prescription-content');
+        if (prescriptionBox && prescriptionContent) {
+            if (report.prescription) {
+                prescriptionBox.style.display = 'block';
+                let mdText = report.prescription;
+                let html = mdText
+                    .replace(/^# (.*$)/gim, '<h2 style="color:var(--neon-green); margin-top:20px; font-size:16px;">$1</h2>')
+                    .replace(/^## (.*$)/gim, '<h3 style="color:var(--text-primary); margin-top:15px; font-size:14px; border-bottom: 1px dashed var(--border-glass); padding-bottom:5px;">$1</h3>')
+                    .replace(/^### (.*$)/gim, '<h4 style="color:var(--text-secondary); margin-top:10px; font-size:12px;">$1</h4>')
+                    .replace(/^\> (.*$)/gim, '<blockquote style="border-left:3px solid var(--color-amber); padding-left:10px; margin:10px 0; color:var(--text-primary); background:rgba(245,158,11,0.05); padding:8px; border-radius:4px;">$1</blockquote>')
+                    .replace(/\*\*(.*?)\*\*/g, '<strong style="color:var(--text-primary);">$1</strong>')
+                    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                    .replace(/\n/g, '<br>');
+                prescriptionContent.innerHTML = html;
+            } else {
+                prescriptionBox.style.display = 'none';
+            }
+        }
+    } catch (err) {
+        console.error("Error loading tax report:", err);
+    }
+}
+
+// ==================== PORTFOLIO BACKTESTER ====================
+
 function setupPortfolioBacktester() {
     const portTabDiagnosticsBtn = document.getElementById('port-tab-diagnostics-btn');
+    const portTabTaxBtn = document.getElementById('port-tab-tax-btn');
     const portTabBacktesterBtn = document.getElementById('port-tab-backtester-btn');
+    
     const portPanelDiagnostics = document.getElementById('port-panel-diagnostics');
+    const portPanelTax = document.getElementById('port-panel-tax');
     const portPanelBacktester = document.getElementById('port-panel-backtester');
     
     // Collapsible Ledger Block Click Listener
@@ -9890,43 +10607,52 @@ function setupPortfolioBacktester() {
     
     if (!portTabDiagnosticsBtn || !portTabBacktesterBtn) return;
     
-    // Tab switching event listeners
-    portTabDiagnosticsBtn.addEventListener('click', () => {
-        portTabDiagnosticsBtn.classList.add('active');
-        portTabBacktesterBtn.classList.remove('active');
-        portPanelDiagnostics.style.display = 'block';
-        portPanelBacktester.style.display = 'none';
+    const switchSubTab = (activeBtn, activePanel) => {
+        [portTabDiagnosticsBtn, portTabTaxBtn, portTabBacktesterBtn].forEach(btn => {
+            if (btn) {
+                if (btn === activeBtn) {
+                    btn.classList.add('active');
+                    btn.style.borderColor = 'var(--border-glass)';
+                    btn.style.background = 'rgba(255,255,255,0.03)';
+                    btn.style.color = 'var(--text-primary)';
+                } else {
+                    btn.classList.remove('active');
+                    btn.style.borderColor = 'transparent';
+                    btn.style.background = 'transparent';
+                    btn.style.color = 'var(--text-muted)';
+                }
+            }
+        });
         
-        // Reset subtab styling
-        portTabDiagnosticsBtn.style.borderColor = 'var(--border-glass)';
-        portTabDiagnosticsBtn.style.background = 'rgba(255,255,255,0.03)';
-        portTabDiagnosticsBtn.style.color = 'var(--text-primary)';
-        portTabBacktesterBtn.style.borderColor = 'transparent';
-        portTabBacktesterBtn.style.background = 'transparent';
-        portTabBacktesterBtn.style.color = 'var(--text-muted)';
-    });
+        [portPanelDiagnostics, portPanelTax, portPanelBacktester].forEach(panel => {
+            if (panel) {
+                panel.style.display = panel === activePanel ? 'block' : 'none';
+            }
+        });
+    };
     
-    portTabBacktesterBtn.addEventListener('click', async () => {
-        portTabBacktesterBtn.classList.add('active');
-        portTabDiagnosticsBtn.classList.remove('active');
-        portPanelBacktester.style.display = 'block';
-        portPanelDiagnostics.style.display = 'none';
-        
-        // Reset subtab styling
-        portTabBacktesterBtn.style.borderColor = 'var(--border-glass)';
-        portTabBacktesterBtn.style.background = 'rgba(255,255,255,0.03)';
-        portTabBacktesterBtn.style.color = 'var(--text-primary)';
-        portTabDiagnosticsBtn.style.borderColor = 'transparent';
-        portTabDiagnosticsBtn.style.background = 'transparent';
-        portTabDiagnosticsBtn.style.color = 'var(--text-muted)';
-        
-        // Synchronize ledger items to sandbox on first load if sandbox is empty
-        if (backtestSandboxStocks.length === 0) {
-            await syncLedgerToBacktestSandbox();
-        }
-    });
+    if (portTabDiagnosticsBtn) {
+        portTabDiagnosticsBtn.addEventListener('click', async () => {
+            switchSubTab(portTabDiagnosticsBtn, portPanelDiagnostics);
+            await loadPortfolioDoctorLedger(true);
+        });
+    }
     
-    // Set default dates
+    if (portTabTaxBtn) {
+        portTabTaxBtn.addEventListener('click', async () => {
+            switchSubTab(portTabTaxBtn, portPanelTax);
+            await loadTaxHarvestingPanel();
+        });
+    }
+    
+    if (portTabBacktesterBtn) {
+        portTabBacktesterBtn.addEventListener('click', async () => {
+            switchSubTab(portTabBacktesterBtn, portPanelBacktester);
+            if (backtestSandboxStocks.length === 0) {
+                await syncLedgerToBacktestSandbox();
+            }
+        });
+    }
     const today = new Date();
     const endStr = today.toISOString().split('T')[0];
     const threeYearsAgo = new Date();
@@ -10069,18 +10795,26 @@ async function syncLedgerToBacktestSandbox() {
             return;
         }
         
-        // Calculate allocations based on current valuation: quantity * current_price
+        // Calculate allocations based on current valuation: quantity * current_price, aggregated by symbol
+        const aggregatedMap = new Map();
         let totalVal = 0;
-        const itemsWithVal = portfolioItems.map(item => {
+        portfolioItems.forEach(item => {
             const price = item.current_price || item.purchase_price || 100;
             const itemVal = item.quantity * price;
             totalVal += itemVal;
-            return {
-                symbol: item.symbol,
-                name: item.name || item.symbol,
-                current_value: itemVal
-            };
+            
+            if (aggregatedMap.has(item.symbol)) {
+                const existing = aggregatedMap.get(item.symbol);
+                existing.current_value += itemVal;
+            } else {
+                aggregatedMap.set(item.symbol, {
+                    symbol: item.symbol,
+                    name: item.name || item.symbol,
+                    current_value: itemVal
+                });
+            }
         });
+        const itemsWithVal = Array.from(aggregatedMap.values());
         
         // Populate weights (normalize to sum to 100)
         let accumulatedWeight = 0;
