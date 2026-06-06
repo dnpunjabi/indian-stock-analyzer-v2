@@ -26,6 +26,14 @@
     
     --font-heading: 'Outfit', sans-serif;
     --font-body: 'Inter', sans-serif;
+
+    /* Audit cell colors */
+    --audit-pass-bg: rgba(16, 185, 129, 0.03);
+    --audit-fail-bg: rgba(239, 68, 68, 0.02);
+    --audit-pass-bg-hover: rgba(16, 185, 129, 0.08);
+    --audit-fail-bg-hover: rgba(239, 68, 68, 0.06);
+    --audit-pass-border-hover: rgba(16, 185, 129, 0.3);
+    --audit-fail-border-hover: rgba(239, 68, 68, 0.3);
 }
 
 /* Light Theme Variables */
@@ -49,6 +57,14 @@
     --text-primary: #111827;
     --text-secondary: #4b5563;
     --text-muted: #6b7280;
+
+    /* Audit cell colors */
+    --audit-pass-bg: rgba(16, 185, 129, 0.05);
+    --audit-fail-bg: rgba(239, 68, 68, 0.04);
+    --audit-pass-bg-hover: rgba(16, 185, 129, 0.12);
+    --audit-fail-bg-hover: rgba(239, 68, 68, 0.1);
+    --audit-pass-border-hover: rgba(16, 185, 129, 0.4);
+    --audit-fail-border-hover: rgba(239, 68, 68, 0.4);
 }
 
 /* Global Reset */
@@ -5978,5 +5994,81 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
         width: 100% !important;
     }
 }
+
+/* ========================================================
+   LIGHT THEME OVERRIDES FOR AGENT STRATEGY AUDIT
+   ======================================================== */
+[data-theme="light"] #strategical-audit-card {
+    background: rgba(255, 255, 255, 0.45) !important;
+    border-color: rgba(0, 0, 0, 0.08) !important;
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.06) !important;
+}
+
+[data-theme="light"] #strategical-audit-card h3 {
+    color: var(--text-primary) !important;
+    text-shadow: none !important;
+}
+
+[data-theme="light"] .audit-strategy-column {
+    background: rgba(255, 255, 255, 0.3) !important;
+    border-color: rgba(0, 0, 0, 0.06) !important;
+}
+
+[data-theme="light"] .audit-strategy-column h4 {
+    color: var(--text-primary) !important;
+    border-bottom-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+[data-theme="light"] #audit-summary-box {
+    background: rgba(255, 255, 255, 0.4) !important;
+    border-color: rgba(0, 0, 0, 0.06) !important;
+    border-left-color: var(--color-emerald) !important;
+}
+
+[data-theme="light"] #audit-explanation-panel {
+    background: rgba(255, 255, 255, 0.35) !important;
+    border-color: rgba(0, 0, 0, 0.06) !important;
+    border-left-color: var(--color-primary) !important;
+}
+
+[data-theme="light"] #audit-explain-title {
+    color: var(--text-primary) !important;
+}
+
+[data-theme="light"] #audit-explain-desc div[style*="background"] {
+    background: rgba(0, 0, 0, 0.02) !important;
+    border-color: rgba(0, 0, 0, 0.06) !important;
+}
+
+[data-theme="light"] #audit-explain-desc div[style*="background: rgba(255,255,255,0.08)"] {
+    background: rgba(0, 0, 0, 0.06) !important;
+}
+
+[data-theme="light"] #audit-explain-desc div[style*="background: rgba(255, 255, 255, 0.01)"] {
+    background: rgba(0, 0, 0, 0.02) !important;
+    border-color: rgba(0, 0, 0, 0.06) !important;
+}
+
+
+/* ========================================================
+   HORIZONTAL SCROLLABLE SUBTABS FOR WORKSPACE
+   ======================================================== */
+.analyzer-subtabs {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important; /* Hide scrollbars for Firefox */
+}
+
+.analyzer-subtabs::-webkit-scrollbar {
+    display: none !important; /* Hide scrollbars for Chrome/Safari */
+}
+
+.subtab-btn {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+}
+
 
 

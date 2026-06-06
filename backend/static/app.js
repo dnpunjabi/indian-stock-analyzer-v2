@@ -2603,30 +2603,30 @@ async function renderStrategyAuditMatrix(ticker) {
             cell.style.cursor = 'pointer';
             cell.style.padding = '12px 14px';
             cell.style.borderRadius = '8px';
-            cell.style.border = '1px solid rgba(255, 255, 255, 0.05)';
+            cell.style.border = '1px solid var(--border-glass)';
             cell.style.display = 'flex';
             cell.style.justifyContent = 'space-between';
             cell.style.alignItems = 'center';
-            cell.style.background = combo.passed ? 'rgba(16, 185, 129, 0.03)' : 'rgba(239, 68, 68, 0.02)';
+            cell.style.background = combo.passed ? 'var(--audit-pass-bg)' : 'var(--audit-fail-bg)';
             cell.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
             
             cell.addEventListener('mouseenter', () => {
                 cell.style.transform = 'translateY(-2px) scale(1.01)';
-                cell.style.background = combo.passed ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.06)';
-                cell.style.borderColor = combo.passed ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)';
+                cell.style.background = combo.passed ? 'var(--audit-pass-bg-hover)' : 'var(--audit-fail-bg-hover)';
+                cell.style.borderColor = combo.passed ? 'var(--audit-pass-border-hover)' : 'var(--audit-fail-border-hover)';
                 cell.style.boxShadow = combo.passed ? '0 4px 15px rgba(16, 185, 129, 0.12)' : '0 4px 15px rgba(239, 68, 68, 0.1)';
             });
             cell.addEventListener('mouseleave', () => {
                 cell.style.transform = 'none';
-                cell.style.background = combo.passed ? 'rgba(16, 185, 129, 0.03)' : 'rgba(239, 68, 68, 0.02)';
-                cell.style.borderColor = 'rgba(255, 255, 255, 0.05)';
+                cell.style.background = combo.passed ? 'var(--audit-pass-bg)' : 'var(--audit-fail-bg)';
+                cell.style.borderColor = 'var(--border-glass)';
                 cell.style.boxShadow = 'none';
             });
             
             const titleSpan = document.createElement('span');
             titleSpan.style.fontSize = '11px';
             titleSpan.style.fontWeight = '600';
-            titleSpan.style.color = '#ffffff';
+            titleSpan.style.color = 'var(--text-primary)';
             titleSpan.style.fontFamily = "'Outfit', sans-serif";
             titleSpan.style.letterSpacing = '0.02em';
             titleSpan.innerText = styleNames[combo.style] || combo.style;
@@ -2687,7 +2687,7 @@ async function renderStrategyAuditMatrix(ticker) {
                     const actionBadge = combo.passed 
                         ? `<span style="background: rgba(16, 185, 129, 0.15); color: #10B981; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; border: 1px solid rgba(16,185,129,0.3); margin-left: 8px;">${combo.action}</span>` 
                         : `<span style="background: rgba(239, 68, 68, 0.15); color: #EF4444; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; border: 1px solid rgba(239,68,68,0.3); margin-left: 8px;">EXCLUDED</span>`;
-                    expTitle.innerHTML = `🔎 <span style="color:#ffffff; font-weight:700;">${stratText} Strategy + ${styleText}</span> Checklist Diagnostic ${actionBadge}`;
+                    expTitle.innerHTML = `🔎 <span style="color:var(--text-primary); font-weight:700;">${stratText} Strategy + ${styleText}</span> Checklist Diagnostic ${actionBadge}`;
                 }
                 
                 if (expDesc) {
@@ -2697,8 +2697,8 @@ async function renderStrategyAuditMatrix(ticker) {
                     html += '<div style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 15px; margin-bottom: 15px; align-items: start;">';
                     
                     // Column 1: Score progress bars
-                    html += '  <div style="background: rgba(0, 0, 0, 0.2); padding: 12px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.04);">';
-                    html += '    <div style="font-size: 10px; font-weight: 700; color: #ffffff; letter-spacing: 0.04em; margin-bottom: 8px; text-transform: uppercase;">AI Conviction Score Parameters</div>';
+                    html += '  <div style="background: rgba(255, 255, 255, 0.015); padding: 12px; border-radius: 8px; border: 1px solid var(--border-glass);">';
+                    html += '    <div style="font-size: 10px; font-weight: 700; color: var(--text-primary); letter-spacing: 0.04em; margin-bottom: 8px; text-transform: uppercase;">AI Conviction Score Parameters</div>';
                     
                     if (combo.scoring.fundamental_score !== undefined) {
                         const scores = [
@@ -2721,9 +2721,9 @@ async function renderStrategyAuditMatrix(ticker) {
                             html += `    <div style="margin-bottom: 8px;">`;
                             html += `      <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-secondary); margin-bottom: 3px;">`;
                             html += `        <span>${s.name}</span>`;
-                            html += `        <span style="font-weight: 600; color: #ffffff;">${s.score}/${s.max}</span>`;
+                            html += `        <span style="font-weight: 600; color: var(--text-primary);">${s.score}/${s.max}</span>`;
                             html += `      </div>`;
-                            html += `      <div style="height: 4px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; width: 100%;">`;
+                            html += `      <div style="height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; width: 100%;">`;
                             html += `        <div style="height: 100%; width: ${pct}%; background: ${barColor}; border-radius: 2px; transition: width 0.3s ease;"></div>`;
                             html += `      </div>`;
                             html += `    </div>`;
@@ -2732,11 +2732,11 @@ async function renderStrategyAuditMatrix(ticker) {
                     html += '  </div>';
                     
                     // Column 2: Strategy Summary Card
-                    html += '  <div style="background: rgba(0, 0, 0, 0.2); padding: 12px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.04); display: flex; flex-direction: column; justify-content: space-between; height: 100%; min-height: 165px;">';
+                    html += '  <div style="background: rgba(255, 255, 255, 0.015); padding: 12px; border-radius: 8px; border: 1px solid var(--border-glass); display: flex; flex-direction: column; justify-content: space-between; height: 100%; min-height: 165px;">';
                     html += '    <div>';
-                    html += '      <div style="font-size: 10px; font-weight: 700; color: #ffffff; letter-spacing: 0.04em; margin-bottom: 8px; text-transform: uppercase;">Allocation Audit</div>';
+                    html += '      <div style="font-size: 10px; font-weight: 700; color: var(--text-primary); letter-spacing: 0.04em; margin-bottom: 8px; text-transform: uppercase;">Allocation Audit</div>';
                     html += `      <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--text-secondary); margin-bottom:4px;">`;
-                    html += `        <span>Base Strategy score:</span> <strong style="color: #ffffff;">${combo.scoring.base_score}/100</strong>`;
+                    html += `        <span>Base Strategy score:</span> <strong style="color: var(--text-primary);">${combo.scoring.base_score}/100</strong>`;
                     html += `      </div>`;
                     
                     if (combo.scoring.adjustments && combo.scoring.adjustments.length > 0) {
@@ -2752,9 +2752,9 @@ async function renderStrategyAuditMatrix(ticker) {
                     
                     // Large Final Score Badge
                     const finalColor = combo.passed ? '#10B981' : '#EF4444';
-                    html += `    <div style="border-top: 1px dotted rgba(255,255,255,0.06); padding-top: 8px; margin-top: 8px; display: flex; justify-content: space-between; align-items: center;">`;
+                    html += `    <div style="border-top: 1px dotted rgba(255,255,255,0.1); padding-top: 8px; margin-top: 8px; display: flex; justify-content: space-between; align-items: center;">`;
                     html += `      <span style="font-size: 10px; color: var(--text-secondary);">Final Conviction:</span>`;
-                    html += `      <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 8px; padding: 4px 10px; display: flex; align-items: center; gap: 4px;">`;
+                    html += `      <div style="background: rgba(255, 255, 255, 0.01); border: 1px solid var(--border-glass); border-radius: 8px; padding: 4px 10px; display: flex; align-items: center; gap: 4px;">`;
                     html += `        <span style="font-size: 14px; font-weight: 800; color: ${finalColor};">${combo.score}</span>`;
                     html += `        <span style="font-size: 9px; color: var(--text-muted);">/100</span>`;
                     html += `      </div>`;
@@ -2787,7 +2787,7 @@ async function renderStrategyAuditMatrix(ticker) {
                     html += `</div>`;
                     
                     // Show Gate-by-Gate checks
-                    html += '<div style="font-size:10px; font-weight:700; color:#ffffff; letter-spacing:0.04em; margin-bottom:8px; text-transform:uppercase;">Gate Diagnostic Checklist</div>';
+                    html += '<div style="font-size:10px; font-weight:700; color:var(--text-primary); letter-spacing:0.04em; margin-bottom:8px; text-transform:uppercase;">Gate Diagnostic Checklist</div>';
                     html += '<div style="display:grid; grid-template-columns:1fr; gap:6px;">';
                     combo.gates.forEach(gate => {
                         const checkIcon = gate.passed ? '🟢 PASS' : '🔴 FAIL';
@@ -2797,7 +2797,7 @@ async function renderStrategyAuditMatrix(ticker) {
                         
                         html += `<div style="display:flex; justify-content:space-between; align-items:center; background:${bgTint}; border: 1px solid ${borderTint}; border-left: 3px solid ${checkColor}; padding:8px 12px; border-radius:6px; transition: background 0.2s;">`;
                         html += `  <div style="display: flex; flex-direction: column; gap: 2px;">`;
-                        html += `    <span style="font-size: 11px; font-weight: 600; color: #ffffff;">${gate.name}</span>`;
+                        html += `    <span style="font-size: 11px; font-weight: 600; color: var(--text-primary);">${gate.name}</span>`;
                         html += `    <span style="font-size: 9.5px; color: var(--text-muted);">${gate.details}</span>`;
                         html += `  </div>`;
                         html += `  <strong style="color:${checkColor}; font-size:10px; font-family:'Outfit', sans-serif; letter-spacing:0.04em;">${checkIcon}</strong>`;
