@@ -5707,4 +5707,74 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     width: 100% !important;
 }
 
+/* --- CAPM RISK ANALYTICS STYLING OVERRIDES --- */
+.risk-horizon-btn {
+    background: transparent;
+    border: none;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 3px 8px;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.risk-horizon-btn:hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.risk-horizon-btn.active {
+    background: var(--color-primary) !important;
+    color: #fff !important;
+}
+
+[data-theme="light"] .risk-horizon-btn:hover {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="light"] .risk-horizon-btn.active {
+    background: var(--color-primary) !important;
+    color: #fff !important;
+}
+
+/* Range slider customization */
+#risk-rf-slider {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 6px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.1);
+    outline: none;
+    transition: background 0.3s;
+}
+
+[data-theme="light"] #risk-rf-slider {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+#risk-rf-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--color-primary);
+    cursor: pointer;
+    box-shadow: 0 0 8px var(--color-primary-glow);
+    transition: transform 0.1s ease;
+}
+
+#risk-rf-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+}
+
+/* Media query responsiveness for risk metrics grid */
+@media (max-width: 900px) {
+    .risk-metrics-layout {
+        grid-template-columns: 1fr !important;
+    }
+}
+
 

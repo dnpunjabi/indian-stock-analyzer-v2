@@ -727,6 +727,80 @@
                             </div>
                         </div>
 
+                        <!-- CAPM Risk Analytics (Alpha & Beta) Card -->
+                        <div class="card col-span-4 card-hidden" id="tech-risk-card" data-subtab="technical">
+                            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border: none; padding: 0; width: 100%; flex-wrap: wrap; gap: 10px;">
+                                <div>
+                                    <h3 style="margin:0;">CAPM RISK ANALYTICS: ALPHA & BETA</h3>
+                                    <span style="font-size: 9.5px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-top: 2px;">Systematic volatility (Beta) & Excess Risk-Adjusted returns (Alpha)</span>
+                                </div>
+                                <div class="risk-controls" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                                    <!-- Benchmark Select -->
+                                    <select id="risk-benchmark-select" style="background: rgba(0,0,0,0.4); border: 1px solid var(--border-glass); color: var(--text-primary); border-radius: 4px; padding: 4px 8px; font-size: 11px; font-weight: 500; cursor: pointer; outline: none;">
+                                        <option value="^NSEI" selected>Nifty 50 Index</option>
+                                        <option value="^NSMID50">Nifty Midcap 50</option>
+                                        <option value="^NSEBANK">Nifty Bank Index</option>
+                                        <option value="^BSESN">BSE Sensex Index</option>
+                                    </select>
+                                    <!-- Horizon Toggle Buttons -->
+                                    <div class="risk-horizon-buttons" style="display: flex; gap: 4px; background: rgba(0,0,0,0.25); border: 1px solid var(--border-glass); border-radius: 4px; padding: 2px;">
+                                        <button class="risk-horizon-btn" data-period="6mo" style="background: transparent; border: none; font-size: 10px; font-weight: 700; color: var(--text-muted); cursor: pointer; padding: 2px 6px; border-radius: 3px; transition: all 0.2s;">6M</button>
+                                        <button class="risk-horizon-btn active" data-period="1y" style="background: var(--color-primary); border: none; font-size: 10px; font-weight: 700; color: #fff; cursor: pointer; padding: 2px 6px; border-radius: 3px; transition: all 0.2s;">1Y</button>
+                                        <button class="risk-horizon-btn" data-period="3y" style="background: transparent; border: none; font-size: 10px; font-weight: 700; color: var(--text-muted); cursor: pointer; padding: 2px 6px; border-radius: 3px; transition: all 0.2s;">3Y</button>
+                                        <button class="risk-horizon-btn" data-period="5y" style="background: transparent; border: none; font-size: 10px; font-weight: 700; color: var(--text-muted); cursor: pointer; padding: 2px 6px; border-radius: 3px; transition: all 0.2s;">5Y</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Top Section: Interactive Slider and Metrics Badges -->
+                            <div style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 15px; margin-bottom: 15px; flex-wrap: wrap; width: 100%;" class="risk-metrics-layout">
+                                <!-- Interactive Risk-Free Rate Slider -->
+                                <div style="background: rgba(255,255,255,0.015); border: 1px solid var(--border-glass); border-radius: 8px; padding: 12px 15px; display: flex; flex-direction: column; justify-content: center; box-shadow: inset 0 1px 2px rgba(0,0,0,0.25);">
+                                    <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 8px; font-family: 'Outfit', sans-serif;">
+                                        <label for="risk-rf-slider" style="color: var(--text-secondary); font-weight: 600;">INTERACTIVE RISK-FREE RATE (R_f)</label>
+                                        <span id="risk-rf-val" style="color: var(--color-primary); font-weight: 700;">7.0%</span>
+                                    </div>
+                                    <input type="range" id="risk-rf-slider" min="5.0" max="9.0" step="0.1" value="7.0" style="width: 100%; cursor: pointer;">
+                                    <span style="font-size: 8px; color: var(--text-muted); margin-top: 4px; display: block; line-height: 1.3;">Slides risk-free capital rates (e.g., 10Y G-Sec yields) to dynamically recalculate CAPM Alpha.</span>
+                                </div>
+
+                                <!-- Calculated Badges -->
+                                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                                    <div style="background: rgba(255,255,255,0.01); border: 1px solid var(--border-glass); border-radius: 8px; padding: 8px; text-align: center; display: flex; flex-direction: column; justify-content: center;">
+                                        <span style="font-size: 8px; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em;">BETA (β)</span>
+                                        <strong id="risk-beta-value" style="font-size: 15px; color: var(--text-primary); margin-top: 3px;">1.00</strong>
+                                        <span id="risk-beta-label" style="font-size: 7.5px; color: var(--text-muted); text-transform: uppercase; margin-top: 2px;">Market Equivalent</span>
+                                    </div>
+                                    <div style="background: rgba(255,255,255,0.01); border: 1px solid var(--border-glass); border-radius: 8px; padding: 8px; text-align: center; display: flex; flex-direction: column; justify-content: center;">
+                                        <span style="font-size: 8px; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em;">ALPHA (α)</span>
+                                        <strong id="risk-alpha-value" style="font-size: 15px; color: var(--color-emerald); margin-top: 3px;">0.00%</strong>
+                                        <span id="risk-alpha-label" style="font-size: 7.5px; color: var(--color-emerald); text-transform: uppercase; margin-top: 2px;">Value Neutral</span>
+                                    </div>
+                                    <div style="background: rgba(255,255,255,0.01); border: 1px solid var(--border-glass); border-radius: 8px; padding: 8px; text-align: center; display: flex; flex-direction: column; justify-content: center;">
+                                        <span style="font-size: 8px; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em;">CORRELATION</span>
+                                        <strong id="risk-corr-value" style="font-size: 15px; color: var(--text-primary); margin-top: 3px;">0.00</strong>
+                                        <span id="risk-corr-label" style="font-size: 7.5px; color: var(--text-muted); text-transform: uppercase; margin-top: 2px;">No Correlation</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Scatter Chart Canvas Container -->
+                            <div id="risk-chart-container" style="height: 250px; position: relative; width: 100%; background: rgba(0, 0, 0, 0.15); border-radius: 8px; border: 1px solid var(--border-glass); padding: 8px; box-sizing: border-box; margin-bottom: 15px;">
+                                <canvas id="risk-scatter-chart"></canvas>
+                            </div>
+
+                            <!-- Dynamic AI Risk Summary Block -->
+                            <div id="risk-summary-block" style="border-left: 3px solid var(--color-primary); border-radius: 0 6px 6px 0; padding: 12px 14px; background: rgba(59,130,246,0.03); border-top: 1px dashed rgba(255,255,255,0.05); border-right: 1px solid rgba(255,255,255,0.05); border-bottom: 1px solid rgba(255,255,255,0.05); width: 100%; box-sizing: border-box;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 8px;">
+                                    <span style="font-size: 9px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; display: block; letter-spacing: 0.05em;">📡 Dynamic AI Risk Consensus Narrative</span>
+                                    <button class="btn-primary" id="generate-risk-synthesis-btn" style="font-size: 9.5px; padding: 4px 10px; height: auto; border-radius: 4px; font-weight: 700; text-transform: uppercase;">🔬 Generate AI Risk Analysis</button>
+                                </div>
+                                <div id="risk-synthesis-text" style="font-size: 11px; color: var(--text-muted); line-height: 1.5; min-height: 20px;">
+                                    Adjust inputs and click the button to synthesize target portfolio risk exposure...
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Interactive Market Capture Diagnostics -->
                         <div class="card col-span-2 card-hidden" id="interactive-capture-card" data-subtab="technical">
                             <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border: none; padding: 0; width: 100%;">

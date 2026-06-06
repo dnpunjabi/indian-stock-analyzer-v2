@@ -2169,6 +2169,129 @@ async def get_portfolio_tax_report(generate_prescription: bool = False):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Tax Analysis Error: {str(e)}")
 
+
+@app.get("/api/analyze/risk-factors")
+async def get_risk_factors(symbol: str, benchmark: str = "^NSEI", period: str = "1y"):
+    try:
+        # Translate period
+        valid_periods = {"6mo", "1y", "3y", "5y"}
+        if period not in valid_periods:
+            period = "1y"
+            
+        # Download price data
+        loop = asyncio.get_event_loop()
+        df_stock = await loop.run_in_executor(None, lambda: yf.download(symbol, period=period, progress=False))
+        df_bench = await loop.run_in_executor(None, lambda: yf.download(benchmark, period=period, progress=False))
+        
+        if df_stock.empty or df_bench.empty:
+            raise HTTPException(status_code=400, detail=f"No price data found for {symbol} or benchmark {benchmark}")
+            
+        # Safely extract close series
+        close_stock = df_stock['Close']
+        if isinstance(close_stock, pd.DataFrame):
+            close_stock = close_stock.iloc[:, 0]
+            
+        close_bench = df_bench['Close']
+        if isinstance(close_bench, pd.DataFrame):
+            close_bench = close_bench.iloc[:, 0]
+            
+        # Align series
+        df = pd.DataFrame({'stock': close_stock, 'bench': close_bench}).dropna()
+        if df.empty:
+            raise HTTPException(status_code=400, detail="Mismatched trading dates between stock and benchmark")
+            
+        # Calculate percent daily returns
+        df['stock_ret'] = df['stock'].pct_change()
+        df['bench_ret'] = df['bench'].pct_change()
+        df = df.dropna()
+        
+        if len(df) < 5:
+            raise HTTPException(status_code=400, detail="Insufficient trading dates data for covariance analysis")
+            
+        # Covariance and Variance
+        covariance = float(df['stock_ret'].cov(df['bench_ret']))
+        bench_variance = float(df['bench_ret'].var())
+        beta = covariance / bench_variance if bench_variance != 0.0 else 1.0
+        correlation = float(df['stock_ret'].corr(df['bench_ret']))
+        
+        # Cumulative returns
+        cum_stock = float((1 + df['stock_ret']).prod() - 1)
+        cum_bench = float((1 + df['bench_ret']).prod() - 1)
+        
+        # Annualized returns based on actual trading days in aligned dataset
+        num_days = len(df)
+        annual_stock = float(((cum_stock + 1) ** (252.0 / num_days) - 1)) if num_days > 0 else 0.0
+        annual_bench = float(((cum_bench + 1) ** (252.0 / num_days) - 1)) if num_days > 0 else 0.0
+        
+        # Format daily scatter points
+        scatter_points = []
+        for date, row in df.iterrows():
+            scatter_points.append({
+                "x": float(row['bench_ret'] * 100),
+                "y": float(row['stock_ret'] * 100),
+                "date": date.strftime('%Y-%m-%d')
+            })
+            
+        return {
+            "status": "success",
+            "symbol": symbol,
+            "benchmark": benchmark,
+            "period": period,
+            "beta": beta,
+            "correlation": correlation,
+            "annual_stock_ret": annual_stock * 100,
+            "annual_bench_ret": annual_bench * 100,
+            "cum_stock_ret": cum_stock * 100,
+            "cum_bench_ret": cum_bench * 100,
+            "scatter_points": scatter_points
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"CAPM Calculation Error: {str(e)}")
+
+
+class RiskSynthesisRequest(BaseModel):
+    symbol: str
+    beta: float
+    alpha: float
+    correlation: float
+    horizon: str
+    risk_profile: str
+    investment_horizon: str
+
+
+@app.post("/api/analyze/risk-synthesis")
+async def post_risk_synthesis(data: RiskSynthesisRequest):
+    try:
+        from backend.agent import call_groq_llm
+        
+        system_prompt = (
+            "You are an institutional-grade risk analyst and portfolio manager. "
+            "Your task is to synthesize a high-fidelity risk analysis for a stock based on its CAPM metrics. "
+            "Keep the tone professional, objective, and clear. Format the response in concise HTML/Markdown paragraphs."
+        )
+        
+        user_prompt = (
+            f"Please write an investment risk synthesis for the stock {data.symbol}.\n"
+            f"Calculated CAPM Risk Metrics (vs benchmark index):\n"
+            f"- Beta: {data.beta:.3f} (Volatility relative to market benchmark)\n"
+            f"- Annualized CAPM Alpha: {data.alpha:.2f}% (Risk-adjusted excess return)\n"
+            f"- Correlation Coefficient: {data.correlation:.3f} (Linear correlation with benchmark)\n"
+            f"- Calculation Horizon: {data.horizon}\n"
+            f"\n"
+            f"Active Investor Profile:\n"
+            f"- Time Horizon: {data.investment_horizon}\n"
+            f"- Risk Tolerance: {data.risk_profile}\n"
+            f"\n"
+            f"Provide a clear 2-paragraph breakdown. Paragraph 1: What do these specific Alpha/Beta/Correlation "
+            f"numbers tell us about the stock's market sensitivity and risk-adjusted return? Paragraph 2: Does it match "
+            f"the investor's risk profile and time horizon, and what action or warning checks do you recommend?"
+        )
+        
+        synthesis = await asyncio.to_thread(call_groq_llm, system_prompt, user_prompt)
+        return {"synthesis": synthesis}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Risk Synthesis Error: {str(e)}")
+
 @app.get("/api/search/suggestions")
 async def search_suggestions(q: str):
     """Returns a list of search suggestions for autocomplete, checking both local database and online fallback."""

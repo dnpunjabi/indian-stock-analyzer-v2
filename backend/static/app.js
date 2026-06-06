@@ -30,6 +30,13 @@ let activeTab = 'analyzer';
 let activeScreenerStrategy = 'hybrid';
 let activeStockProfile = null;
 let activeChartInstance = null;
+let activeRiskChartInstance = null;
+let currentRiskData = {
+    beta: 1.0,
+    annual_stock_ret: 0.0,
+    annual_bench_ret: 0.0,
+    correlation: 0.0
+};
 let chatHistory = [];
 let watchlistsList = [];
 let activeWatchlistId = null;
@@ -93,6 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupAuditSummary(); // Initialize Strategy Audit AI matrix summary
     setupWatchlistSummary(); // Initialize Watchlist AI Summary & Print Exporter
     setupBrandReset(); // Wire click to reset workspace
+    setupRiskAnalytics(); // CAPM Risk Analytics
 
     // Restore persisted tab on reload
     const savedTab = localStorage.getItem('active-tab') || 'analyzer';
@@ -1919,6 +1927,11 @@ function renderStockDashboard(p) {
     
     // Render the new AI Strategical Audit & Gate Diagnostics Matrix
     renderStrategyAuditMatrix(p.ticker);
+
+    // Render CAPM Risk Analytics (Alpha & Beta)
+    if (window.loadRiskFactorsData) {
+        window.loadRiskFactorsData(p.ticker);
+    }
 }
 
 async function updateInteractiveCaptureCard(p, customYears) {
@@ -6629,6 +6642,9 @@ function setupThemeToggle() {
         showToast(`Switched to ${newTheme} theme`, 'success');
         if (typeof updateBacktestChartThemeColors === 'function') {
             updateBacktestChartThemeColors();
+        }
+        if (typeof updateRiskChartThemeColors === 'function') {
+            updateRiskChartThemeColors();
         }
     };
     
@@ -11453,4 +11469,397 @@ window.toggleRebalanceEventDetails = function(idx) {
         arrow.style.transform = isCollapsed ? 'rotate(90deg)' : 'rotate(0deg)';
     }
 };
+
+// ==========================================
+// CAPM Risk Analytics (Alpha & Beta)
+// ==========================================
+function setupRiskAnalytics() {
+    const benchmarkSelect = document.getElementById('risk-benchmark-select');
+    if (benchmarkSelect) {
+        benchmarkSelect.addEventListener('change', () => {
+            if (activeStockProfile && activeStockProfile.ticker) {
+                const activePeriodBtn = document.querySelector('.risk-horizon-btn.active');
+                const period = activePeriodBtn ? activePeriodBtn.getAttribute('data-period') : '1y';
+                loadRiskFactorsData(activeStockProfile.ticker, benchmarkSelect.value, period);
+            }
+        });
+    }
+
+    const horizonBtns = document.querySelectorAll('.risk-horizon-btn');
+    horizonBtns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const period = btn.getAttribute('data-period');
+            const activePeriodBtn = document.querySelector('.risk-horizon-btn.active');
+            if (activePeriodBtn === btn) return; // already active
+            
+            horizonBtns.forEach(b => {
+                if (b === btn) {
+                    b.classList.add('active');
+                    b.style.background = 'var(--color-primary)';
+                    b.style.color = '#fff';
+                } else {
+                    b.classList.remove('active');
+                    b.style.background = 'transparent';
+                    b.style.color = 'var(--text-muted)';
+                }
+            });
+            
+            if (activeStockProfile && activeStockProfile.ticker) {
+                const benchmark = benchmarkSelect ? benchmarkSelect.value : '^NSEI';
+                loadRiskFactorsData(activeStockProfile.ticker, benchmark, period);
+            }
+        });
+    });
+
+    const rfSlider = document.getElementById('risk-rf-slider');
+    if (rfSlider) {
+        rfSlider.addEventListener('input', () => {
+            recalculateAlphaClientSide();
+        });
+    }
+
+    const aiBtn = document.getElementById('generate-risk-synthesis-btn');
+    if (aiBtn) {
+        aiBtn.addEventListener('click', async () => {
+            if (!activeStockProfile || !activeStockProfile.ticker) {
+                showToast("Please load a stock first.", "error");
+                return;
+            }
+            
+            const symbol = activeStockProfile.ticker;
+            const beta = currentRiskData.beta;
+            
+            const rfVal = rfSlider ? parseFloat(rfSlider.value) : 7.0;
+            const annualStock = currentRiskData.annual_stock_ret;
+            const annualBench = currentRiskData.annual_bench_ret;
+            const alpha = annualStock - (rfVal + beta * (annualBench - rfVal));
+            const correlation = currentRiskData.correlation;
+            
+            const activePeriodBtn = document.querySelector('.risk-horizon-btn.active');
+            const periodText = activePeriodBtn ? activePeriodBtn.innerText : '1Y';
+            
+            const riskProfile = document.getElementById('profile-risk')?.value || 'Moderate';
+            const investmentHorizon = document.getElementById('profile-horizon')?.value || 'Medium Term';
+            
+            const textEl = document.getElementById('risk-synthesis-text');
+            if (textEl) {
+                textEl.innerHTML = `<span style="color:var(--text-muted);">Consulting CIO risk model for ${symbol}...</span>`;
+            }
+            
+            aiBtn.setAttribute('disabled', 'true');
+            aiBtn.innerText = 'Synthesizing...';
+            
+            try {
+                const response = await fetch('/api/analyze/risk-synthesis', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        symbol: symbol,
+                        beta: beta,
+                        alpha: alpha,
+                        correlation: correlation,
+                        horizon: periodText,
+                        risk_profile: riskProfile,
+                        investment_horizon: investmentHorizon
+                    })
+                });
+                if (!response.ok) throw new Error("Synthesis failed.");
+                const data = await response.json();
+                
+                if (textEl) {
+                    textEl.innerHTML = data.synthesis;
+                }
+            } catch (e) {
+                showToast("AI Risk Synthesis error: " + e.message, 'error');
+                if (textEl) {
+                    textEl.innerHTML = `<span style="color:#f43f5e;">Error synthesizing risk analysis: ${e.message}</span>`;
+                }
+            } finally {
+                aiBtn.removeAttribute('disabled');
+                aiBtn.innerText = '🔬 Generate AI Risk Analysis';
+            }
+        });
+    }
+}
+
+async function loadRiskFactorsData(symbol, benchmark = null, period = null) {
+    if (!symbol) return;
+    
+    const benchmarkSelect = document.getElementById('risk-benchmark-select');
+    const activeBenchmark = benchmark || (benchmarkSelect ? benchmarkSelect.value : '^NSEI');
+    
+    const activePeriodBtn = document.querySelector('.risk-horizon-btn.active');
+    const activePeriod = period || (activePeriodBtn ? activePeriodBtn.getAttribute('data-period') : '1y');
+    
+    if (benchmarkSelect && benchmarkSelect.value !== activeBenchmark) {
+        benchmarkSelect.value = activeBenchmark;
+    }
+    
+    if (activePeriod) {
+        const horizonBtns = document.querySelectorAll('.risk-horizon-btn');
+        horizonBtns.forEach(btn => {
+            if (btn.getAttribute('data-period') === activePeriod) {
+                btn.classList.add('active');
+                btn.style.background = 'var(--color-primary)';
+                btn.style.color = '#fff';
+            } else {
+                btn.classList.remove('active');
+                btn.style.background = 'transparent';
+                btn.style.color = 'var(--text-muted)';
+            }
+        });
+    }
+
+    const synthesisText = document.getElementById('risk-synthesis-text');
+    if (synthesisText) {
+        synthesisText.innerText = "Adjust inputs and click the button to synthesize target portfolio risk exposure...";
+    }
+    
+    try {
+        const response = await fetch(`/api/analyze/risk-factors?symbol=${encodeURIComponent(symbol)}&benchmark=${encodeURIComponent(activeBenchmark)}&period=${encodeURIComponent(activePeriod)}`);
+        if (!response.ok) throw new Error("Failed to fetch risk factors.");
+        
+        const data = await response.json();
+        
+        currentRiskData.beta = data.beta;
+        currentRiskData.annual_stock_ret = data.annual_stock_ret;
+        currentRiskData.annual_bench_ret = data.annual_bench_ret;
+        currentRiskData.correlation = data.correlation;
+        
+        const betaValEl = document.getElementById('risk-beta-value');
+        const betaLabelEl = document.getElementById('risk-beta-label');
+        if (betaValEl) {
+            betaValEl.innerText = data.beta.toFixed(3);
+            if (data.beta < 0.95) {
+                betaLabelEl.innerText = "Defensive";
+                betaLabelEl.style.color = 'var(--color-emerald)';
+            } else if (data.beta >= 0.95 && data.beta <= 1.05) {
+                betaLabelEl.innerText = "Market Equivalent";
+                betaLabelEl.style.color = 'var(--text-secondary)';
+            } else {
+                betaLabelEl.innerText = "High Volatility";
+                betaLabelEl.style.color = '#f59e0b';
+            }
+        }
+        
+        const corrValEl = document.getElementById('risk-corr-value');
+        const corrLabelEl = document.getElementById('risk-corr-label');
+        if (corrValEl) {
+            corrValEl.innerText = data.correlation.toFixed(3);
+            const absCorr = Math.abs(data.correlation);
+            if (absCorr >= 0.7) {
+                corrLabelEl.innerText = "Strong Market Sync";
+                corrLabelEl.style.color = '#38bdf8';
+            } else if (absCorr >= 0.4) {
+                corrLabelEl.innerText = "Moderate Sync";
+                corrLabelEl.style.color = 'var(--text-secondary)';
+            } else {
+                corrLabelEl.innerText = "De-correlated";
+                corrLabelEl.style.color = 'var(--text-muted)';
+            }
+        }
+        
+        recalculateAlphaClientSide();
+        drawRiskScatterChart(data.scatter_points, data.beta);
+        
+    } catch (e) {
+        showToast("Error loading CAPM Risk data: " + e.message, "error");
+        console.error(e);
+    }
+}
+
+function recalculateAlphaClientSide() {
+    const rfSlider = document.getElementById('risk-rf-slider');
+    const rfVal = rfSlider ? parseFloat(rfSlider.value) : 7.0;
+    
+    const rfLabel = document.getElementById('risk-rf-val');
+    if (rfLabel) {
+        rfLabel.innerText = `${rfVal.toFixed(1)}%`;
+    }
+    
+    const beta = currentRiskData.beta;
+    const annualStock = currentRiskData.annual_stock_ret;
+    const annualBench = currentRiskData.annual_bench_ret;
+    
+    const alpha = annualStock - (rfVal + beta * (annualBench - rfVal));
+    
+    const alphaValueEl = document.getElementById('risk-alpha-value');
+    const alphaLabelEl = document.getElementById('risk-alpha-label');
+    
+    if (alphaValueEl) {
+        alphaValueEl.innerText = `${alpha >= 0 ? '+' : ''}${alpha.toFixed(2)}%`;
+        if (alpha > 0) {
+            alphaValueEl.style.color = 'var(--color-emerald)';
+            if (alphaLabelEl) {
+                alphaLabelEl.innerText = 'Value Creator';
+                alphaLabelEl.style.color = 'var(--color-emerald)';
+            }
+        } else if (alpha < 0) {
+            alphaValueEl.style.color = '#f43f5e';
+            if (alphaLabelEl) {
+                alphaLabelEl.innerText = 'Value Destroyer';
+                alphaLabelEl.style.color = '#f43f5e';
+            }
+        } else {
+            alphaValueEl.style.color = 'var(--text-primary)';
+            if (alphaLabelEl) {
+                alphaLabelEl.innerText = 'Value Neutral';
+                alphaLabelEl.style.color = 'var(--text-muted)';
+            }
+        }
+    }
+}
+
+function drawRiskScatterChart(points, beta) {
+    const canvas = document.getElementById('risk-scatter-chart');
+    if (!canvas) return;
+
+    if (activeRiskChartInstance) {
+        activeRiskChartInstance.destroy();
+    }
+
+    if (points.length < 2) return;
+
+    let xMin = points[0].x;
+    let xMax = points[0].x;
+    let sumX = 0;
+    let sumY = 0;
+
+    for (let i = 0; i < points.length; i++) {
+        const pt = points[i];
+        if (pt.x < xMin) xMin = pt.x;
+        if (pt.x > xMax) xMax = pt.x;
+        sumX += pt.x;
+        sumY += pt.y;
+    }
+
+    const n = points.length;
+    const meanX = sumX / n;
+    const meanY = sumY / n;
+    const intercept = meanY - beta * meanX;
+
+    const yStart = beta * xMin + intercept;
+    const yEnd = beta * xMax + intercept;
+
+    const regressionLine = [
+        { x: xMin, y: yStart },
+        { x: xMax, y: yEnd }
+    ];
+
+    const ctx = canvas.getContext('2d');
+    const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+    const isLightTheme = currentTheme === 'light';
+
+    const textColor = isLightTheme ? '#4b5563' : '#94a3b8';
+    const gridColor = isLightTheme ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.03)';
+    const pointColor = isLightTheme ? 'rgba(59, 130, 246, 0.5)' : 'rgba(0, 229, 255, 0.5)';
+    const lineColor = isLightTheme ? '#ef4444' : '#f43f5e';
+
+    activeRiskChartInstance = new Chart(ctx, {
+        type: 'scatter',
+        data: {
+            datasets: [
+                {
+                    label: 'Daily Returns',
+                    data: points,
+                    backgroundColor: pointColor,
+                    pointRadius: 3.5,
+                    pointHoverRadius: 5.5,
+                    borderWidth: 0
+                },
+                {
+                    type: 'line',
+                    label: `Regression Trendline (Beta: ${beta.toFixed(2)})`,
+                    data: regressionLine,
+                    borderColor: lineColor,
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    fill: false,
+                    showLine: true,
+                    tension: 0
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: {
+                        color: textColor,
+                        boxWidth: 8,
+                        boxHeight: 8,
+                        padding: 8,
+                        font: { size: 9, weight: 500 }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            if (context.datasetIndex === 1) {
+                                return `Trend: Bench ${context.parsed.x.toFixed(2)}% -> Stock ${context.parsed.y.toFixed(2)}%`;
+                            }
+                            const raw = context.raw;
+                            if (raw && raw.date) {
+                                return `${raw.date} | Bench: ${raw.x.toFixed(2)}%, Stock: ${raw.y.toFixed(2)}%`;
+                            }
+                            return `Bench: ${context.parsed.x.toFixed(2)}%, Stock: ${context.parsed.y.toFixed(2)}%`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { color: gridColor },
+                    ticks: { color: textColor, font: { size: 8 } },
+                    title: {
+                        display: true,
+                        text: 'Benchmark Daily Return (%)',
+                        color: textColor,
+                        font: { size: 9, weight: 600 }
+                    }
+                },
+                y: {
+                    grid: { color: gridColor },
+                    ticks: { color: textColor, font: { size: 8 } },
+                    title: {
+                        display: true,
+                        text: 'Stock Daily Return (%)',
+                        color: textColor,
+                        font: { size: 9, weight: 600 }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function updateRiskChartThemeColors() {
+    if (!activeRiskChartInstance) return;
+    const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+    const isLightTheme = currentTheme === 'light';
+    
+    const textColor = isLightTheme ? '#4b5563' : '#94a3b8';
+    const gridColor = isLightTheme ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.03)';
+    const pointColor = isLightTheme ? 'rgba(59, 130, 246, 0.5)' : 'rgba(0, 229, 255, 0.5)';
+    const lineColor = isLightTheme ? '#ef4444' : '#f43f5e';
+    
+    activeRiskChartInstance.data.datasets[0].backgroundColor = pointColor;
+    activeRiskChartInstance.data.datasets[1].borderColor = lineColor;
+    
+    activeRiskChartInstance.options.scales.x.grid.color = gridColor;
+    activeRiskChartInstance.options.scales.x.ticks.color = textColor;
+    activeRiskChartInstance.options.scales.x.title.color = textColor;
+    
+    activeRiskChartInstance.options.scales.y.grid.color = gridColor;
+    activeRiskChartInstance.options.scales.y.ticks.color = textColor;
+    activeRiskChartInstance.options.scales.y.title.color = textColor;
+    
+    activeRiskChartInstance.options.plugins.legend.labels.color = textColor;
+    
+    activeRiskChartInstance.update();
+}
+
+window.loadRiskFactorsData = loadRiskFactorsData;
 
