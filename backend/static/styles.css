@@ -5376,6 +5376,12 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     gap: 25px;
 }
 
+.portfolio-inputs-grid > div,
+.tax-holdings-grid > div,
+.tax-breakdown-grid > div {
+    min-width: 0;
+}
+
 .tax-holdings-grid {
     display: grid;
     grid-template-columns: 1.2fr 0.8fr;
@@ -5402,7 +5408,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     gap: 15px;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
     .portfolio-inputs-grid {
         grid-template-columns: 1fr !important;
     }
