@@ -1102,9 +1102,9 @@
 
                         <!-- Relative Valuation PE Bands & Price Chart (Recommendation 2) -->
                         <div class="card col-span-4 chart-card card-hidden" id="price-trend-chart-card" data-subtab="technical">
-                            <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+                            <div class="card-header chart-card-header">
                                 <h3>HISTORICAL PRICE & TREND ANALYSIS</h3>
-                                <div class="chart-controls no-print" style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+                                <div class="chart-controls no-print">
                                     <label style="font-size: 11px; display: flex; align-items: center; gap: 4px; cursor: pointer; color: var(--text-secondary); user-select: none;">
                                         <input type="checkbox" id="toggle-sma50" checked style="cursor: pointer;"> SMA 50
                                     </label>
@@ -1143,7 +1143,7 @@
                                     </select>
                                 </div>
                             </div>
-                            <div class="chart-container" style="height: 380px;">
+                            <div class="chart-container price-chart-container">
                                 <canvas id="stock-chart"></canvas>
                             </div>
                             <div id="price-trend-summary-block" style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed var(--border-glass); width: 100%;">
@@ -1199,9 +1199,9 @@
 
                         <!-- Peer Historical Performance Comparison Overlay Chart (Full Width Upgrade) -->
                         <div class="card col-span-4 chart-card no-print card-hidden" id="peer-chart-card" data-subtab="peers">
-                            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <div class="card-header chart-card-header" style="margin-bottom: 15px;">
                                 <h3>PEER HISTORICAL PERFORMANCE COMPARISON</h3>
-                                <div style="display: flex; gap: 12px; align-items: center;">
+                                <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
                                     <span style="font-size: 9px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Normalized Base = 100.0</span>
                                     <select id="peer-chart-period" style="background: rgba(0,0,0,0.4); border: 1px solid var(--border-glass); color: var(--text-primary); border-radius: 4px; padding: 4px 8px; font-size: 11px; cursor: pointer; outline: none; font-weight: 500;">
                                         <option value="3mo">3 Months</option>
@@ -1217,7 +1217,7 @@
                             <div id="peer-chart-legend" style="display: flex; flex-wrap: wrap; gap: 10px; font-size: 11px; margin-bottom: 12px; min-height: 20px; padding: 6px 12px; border-radius: 6px; background: rgba(0, 0, 0, 0.2); border: 1px solid var(--border-glass); align-items: center;">
                                 <span class="text-muted">Hover over the chart to inspect performance...</span>
                             </div>
-                            <div style="height: 320px; position: relative;" id="peer-comparison-container">
+                            <div class="chart-container peer-chart-container" id="peer-comparison-container">
                                 <canvas id="peer-comparison-chart"></canvas>
                             </div>
                             

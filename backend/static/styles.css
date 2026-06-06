@@ -6169,5 +6169,76 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     visibility: hidden;
 }
 
+/* --- RESPONSIVE CHART CARDS AND HEADERS --- */
+.chart-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.chart-controls {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: nowrap; /* Keep inline on desktop */
+}
+
+/* Base Heights for Chart Containers */
+.price-chart-container {
+    height: 380px;
+    width: 100%;
+}
+
+.peer-chart-container {
+    height: 320px;
+    width: 100%;
+    position: relative;
+}
+
+@media (max-width: 768px) {
+    .chart-card-header {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 10px !important;
+    }
+    
+    .chart-card-header h3 {
+        text-align: left;
+        margin-bottom: 2px !important;
+    }
+
+    /* Scrollable horizontal container for checkboxes on mobile */
+    .chart-controls {
+        width: 100% !important;
+        overflow-x: auto !important;
+        white-space: nowrap !important;
+        padding-bottom: 6px !important;
+        display: flex !important;
+        gap: 10px !important;
+        -webkit-overflow-scrolling: touch !important;
+        scrollbar-width: none !important; /* Hide scrollbar in Firefox */
+    }
+    
+    .chart-controls::-webkit-scrollbar {
+        display: none !important; /* Hide scrollbar in Chrome/Safari */
+    }
+
+    .chart-controls label {
+        flex-shrink: 0 !important;
+        white-space: nowrap !important;
+    }
+
+    /* Dynamic Mobile Heights */
+    .price-chart-container {
+        height: 250px !important;
+    }
+
+    .peer-chart-container {
+        height: 220px !important;
+    }
+}
+
 
 

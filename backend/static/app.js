@@ -2211,9 +2211,10 @@ function drawPeerComparisonChart(dates, series, benchmarkSymbol) {
     const legendEl = document.getElementById('peer-chart-legend');
 
     // 1. Create Chart
+    const initialHeight = window.innerWidth <= 768 ? 220 : 320;
     const chart = LightweightCharts.createChart(container, {
-        width: container.clientWidth,
-        height: 320, // Match the index.html height of 320px!
+        width: container.clientWidth || 400,
+        height: initialHeight,
         layout: {
             background: { type: 'solid', color: 'transparent' },
             textColor: isDarkTheme ? '#94a3b8' : '#334155',
@@ -2342,7 +2343,8 @@ function drawPeerComparisonChart(dates, series, benchmarkSymbol) {
     // Resize observer alignment
     const resizeObserver = new ResizeObserver(entries => {
         for (let entry of entries) {
-            chart.resize(entry.contentRect.width, 320);
+            const newHeight = window.innerWidth <= 768 ? 220 : 320;
+            chart.resize(entry.contentRect.width, newHeight);
         }
     });
     resizeObserver.observe(container);
@@ -3020,9 +3022,10 @@ function drawStockChartCanvas(data) {
     const isDarkTheme = document.body.getAttribute('data-theme') !== 'light';
 
     // 1. Initialize TradingView Chart
+    const initialHeight = window.innerWidth <= 768 ? 250 : 380;
     const chart = LightweightCharts.createChart(container, {
-        width: container.clientWidth,
-        height: 380,
+        width: container.clientWidth || 400,
+        height: initialHeight,
         layout: {
             background: { type: 'solid', color: 'transparent' },
             textColor: isDarkTheme ? '#94a3b8' : '#334155',
@@ -3044,6 +3047,17 @@ function drawStockChartCanvas(data) {
         },
     });
     window.activeLightweightChart = chart;
+
+    // Auto-resize observer to handle device rotation, zoom, and container updates
+    const resizeObserver = new ResizeObserver(entries => {
+        if (!entries || entries.length === 0) return;
+        const width = entries[0].contentRect.width;
+        const newHeight = window.innerWidth <= 768 ? 250 : 380;
+        if (window.activeLightweightChart) {
+            window.activeLightweightChart.resize(width, newHeight);
+        }
+    });
+    resizeObserver.observe(container);
 
     const showSma50 = document.getElementById('toggle-sma50')?.checked ?? true;
     const showSma200 = document.getElementById('toggle-sma200')?.checked ?? true;
