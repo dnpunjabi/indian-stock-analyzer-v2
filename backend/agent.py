@@ -1028,8 +1028,8 @@ def run_conversational_chat(chat_history: list, user_message: str, profile: dict
     
     res = call_groq_llm(system_prompt, user_message, max_tokens=600, messages=formatted_messages)
     
-    # If invalid API key triggers fallback
-    if not res or "ERROR_401" in res or not groq_client:
+    # If invalid API key or error triggers fallback
+    if not res or "ERROR_401" in res or "ERROR" in res or not groq_client:
         print("Activating local chatbot simulator...")
         
         # Check if we are in batch watchlist mode
@@ -1161,6 +1161,8 @@ def run_conversational_chat(chat_history: list, user_message: str, profile: dict
                 f"Let me know if you would like me to detail specific DCF cash flows or pledge ratios."
             )
         return reply
+    
+    return res
 
 
 def generate_local_tax_prescription(summary: dict, tranches: list, harvesting: list) -> str:
