@@ -5556,4 +5556,155 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12) !important;
 }
 
+/* --- PREMIUM MOBILE RESPONSIVENESS OVERRIDES --- */
+@media (max-width: 900px) {
+    /* 1. Equity Research Terminal (Analyzer Tab) */
+    .dashboard-grid {
+        grid-template-columns: 1fr !important;
+        gap: 15px !important;
+    }
+    
+    .dashboard-grid .col-span-2, 
+    .dashboard-grid .col-span-3, 
+    .dashboard-grid .col-span-4 {
+        grid-column: span 1 !important;
+    }
+    
+    .stock-meta-banner {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 15px !important;
+        padding: 15px 20px !important;
+    }
+    
+    .stock-meta-banner .meta-right {
+        text-align: left !important;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start !important;
+        width: 100%;
+    }
+    
+    .stock-meta-banner .meta-price-wrap {
+        align-items: flex-start !important;
+        margin-bottom: 8px;
+    }
+    
+    .stock-meta-banner .conviction-pill-trigger {
+        margin-left: 0 !important;
+    }
+    
+    .tech-metrics-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+    
+    .tech-metrics-grid .tech-capsule {
+        grid-column: span 1 !important;
+    }
+    
+    .sandbox-workspace {
+        grid-template-columns: 1fr !important;
+        gap: 20px !important;
+    }
+    
+    #earnings-quality-card div[style*="grid-template-columns: 1fr 1fr"] {
+        grid-template-columns: 1fr !important;
+    }
+    
+    /* 2. WatchList Registry */
+    .watchlist-grid {
+        grid-template-columns: 1fr !important;
+        gap: 20px !important;
+    }
+    
+    /* 3. Peer Benchmarking Arena (Rival Structural Comparison) */
+    .comparison-grid {
+        grid-template-columns: 1fr !important;
+        gap: 20px !important;
+    }
+    
+    .comparison-grid .col-span-3 {
+        grid-column: span 1 !important;
+    }
+}
+
+@media (max-width: 600px) {
+    /* Main Content padding reduction on mobile */
+    .main-content {
+        padding: 15px 15px !important;
+    }
+    
+    .main-header {
+        margin: -15px -15px 15px -15px !important;
+        padding: 10px 15px !important;
+        gap: 10px !important;
+    }
+    
+    .index-ticker-container {
+        max-width: 100% !important;
+    }
+    
+    .tech-metrics-grid {
+        grid-template-columns: 1fr !important;
+    }
+    
+    .price-targets-block {
+        grid-template-columns: 1fr !important;
+        gap: 10px !important;
+    }
+    
+    .capture-grid {
+        grid-template-columns: 1fr !important;
+    }
+    
+    .compare-input-row {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 10px !important;
+    }
+    
+    .compare-input-row input {
+        width: 100% !important;
+    }
+    
+    .compare-input-row button {
+        width: 100% !important;
+    }
+    
+    #peers-card .card-header > div {
+        flex-wrap: wrap !important;
+        width: 100% !important;
+        gap: 8px !important;
+    }
+    
+    #peers-card .card-header > div input {
+        flex-grow: 1 !important;
+        width: 100% !important;
+    }
+    
+    #peers-card .card-header > div button {
+        flex-grow: 1 !important;
+    }
+    
+    .pe-bands-summary {
+        flex-direction: column !important;
+        align-items: stretch !important;
+    }
+    
+    .current-pe-callout {
+        width: 100% !important;
+        box-sizing: border-box;
+    }
+    
+    .consensus-comparison-grid {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+/* Ensure horizontal scrolling is enabled for index constituents table */
+.universe-table-wrapper {
+    overflow-x: auto !important;
+    width: 100% !important;
+}
+
 
