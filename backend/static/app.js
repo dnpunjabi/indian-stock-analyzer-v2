@@ -686,8 +686,10 @@ function renderScreenerResults(results, isSorted = false) {
         tr.innerHTML = `
             <td><strong style="${rankStyle}">${rankMedal}</strong></td>
             <td>
-                <strong style="color: var(--text-primary); font-family: 'Outfit', sans-serif;">${item.name}</strong><br>
-                <span class="text-muted" style="font-size:9.5px; letter-spacing:0.02em;">${item.symbol}</span>
+                <div class="screener-symbol-link" style="cursor: pointer;" title="Click to load research workspace">
+                    <strong style="color: var(--color-primary); font-family: 'Outfit', sans-serif; text-decoration: underline;">${item.name}</strong><br>
+                    <span class="text-muted" style="font-size:9.5px; letter-spacing:0.02em; text-decoration: underline;">${item.symbol}</span>
+                </div>
             </td>
             <td><span class="text-muted" style="font-size: 11px;">${item.sector}</span></td>
             <td><span class="text-muted" style="text-transform: uppercase; font-size: 10.5px; font-weight: 700; letter-spacing:0.02em;">${item.cap_type || 'N/A'}</span></td>
@@ -696,17 +698,14 @@ function renderScreenerResults(results, isSorted = false) {
             <td>${formatSubscore(item.valuation_score, 25)}</td>
             <td>${formatSubscore(item.technical_score, 25)}</td>
             <td><span class="badge-rec ${recClass}" style="font-size: 9.5px; padding: 3px 8px; font-weight: 700; border-radius: 5px; letter-spacing:0.04em;">${item.action}</span></td>
-            <td><button class="btn-secondary load-analyzer-btn" data-ticker="${item.symbol}" style="font-size: 10.5px; padding: 5px 12px; font-family: 'Outfit', sans-serif; font-weight: 600; border-radius: 6px; cursor: pointer; transition: all 0.2s;">Load Workspace</button></td>
         `;
         
-        tbody.appendChild(tr);
-    });
-    
-    document.querySelectorAll('.load-analyzer-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const ticker = btn.getAttribute('data-ticker');
-            loadStockAnalyzer(ticker);
+        tr.querySelector('.screener-symbol-link').addEventListener('click', () => {
+            switchTab('analyzer');
+            loadStockAnalyzer(item.symbol);
         });
+        
+        tbody.appendChild(tr);
     });
     
     // Dynamic AI Screener Analyst Summary Block Generator
@@ -1504,6 +1503,12 @@ function renderStockDashboard(p) {
             timingLaymanDesc = "The stock has entered a downward crossover (Death Cross) or is showing severe technical weakness. Think of a vehicle rolling downhill with fading brakes. It is highly advised to avoid buying and hold current positions defensively.";
         }
         timingLaymanEl.innerHTML = timingLaymanDesc;
+    }
+    
+    // Technical Timing AI Summary
+    const techAISummaryEl = document.getElementById('tech-timing-ai-summary-text');
+    if (techAISummaryEl) {
+        techAISummaryEl.innerText = p.analysis && p.analysis.technical_summary ? p.analysis.technical_summary : "AI technical timing summary not available.";
     }
     
     // Render Volatility & Momentum Indicator Labels
@@ -3728,6 +3733,11 @@ async function runDynamicSandboxAI() {
         document.getElementById('target-buy-range').innerText = updatedProfile.analysis.suggested_buy_price_range;
         document.getElementById('target-sell-range').innerText = updatedProfile.analysis.suggested_sell_price_range;
         document.getElementById('cio-investment-thesis').innerText = updatedProfile.analysis.investment_thesis;
+        
+        const techAISummaryEl = document.getElementById('tech-timing-ai-summary-text');
+        if (techAISummaryEl) {
+            techAISummaryEl.innerText = updatedProfile.analysis.technical_summary || "AI technical timing summary not available.";
+        }
         
         const dcfStatusBadge = document.getElementById('dcf-status-badge');
         dcfStatusBadge.innerText = updatedProfile.dcf_model.valuation_rating;
@@ -6480,18 +6490,28 @@ function renderWatchlistItems() {
     activeWatch.items.forEach(item => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td><strong>${item.symbol}</strong></td>
-            <td><strong>${item.name}</strong></td>
+            <td>
+                <div class="watchlist-symbol-link" style="cursor: pointer;" title="Click to load research workspace">
+                    <strong style="color: var(--color-primary); text-decoration: underline;">${item.symbol}</strong>
+                </div>
+            </td>
+            <td>
+                <div class="watchlist-symbol-link" style="cursor: pointer;" title="Click to load research workspace">
+                    <strong style="color: var(--color-primary); text-decoration: underline;">${item.name}</strong>
+                </div>
+            </td>
             <td><span class="text-muted" style="font-size:11px;">${item.sector}</span></td>
             <td>
-                <button class="btn-secondary load-watchlist-workspace-btn" data-ticker="${item.symbol}" style="font-size: 11px; padding: 4px 10px; margin-right: 8px; cursor:pointer;">Load Workspace 📊</button>
                 <button class="btn-secondary remove-watchlist-item-btn" data-ticker="${item.symbol}" style="font-size: 11px; padding: 4px 10px; cursor:pointer;">Remove 🗑️</button>
             </td>
         `;
         
         // Add click events
-        tr.querySelector('.load-watchlist-workspace-btn').addEventListener('click', () => {
-            loadStockAnalyzer(item.symbol);
+        tr.querySelectorAll('.watchlist-symbol-link').forEach(el => {
+            el.addEventListener('click', () => {
+                switchTab('analyzer');
+                loadStockAnalyzer(item.symbol);
+            });
         });
         
         tr.querySelector('.remove-watchlist-item-btn').addEventListener('click', () => {
@@ -7374,14 +7394,21 @@ function filterAndRenderUniverse() {
 
         tr.innerHTML = `
             <td style="padding: 12px 15px; color: var(--text-secondary);">${idx + 1}</td>
-            <td style="padding: 12px 15px;"><strong style="color: var(--text-primary); font-family: 'Outfit', sans-serif;">${item.symbol}</strong></td>
-            <td style="padding: 12px 15px; color: var(--text-primary); font-weight: 500;">${item.company_name}</td>
+            <td style="padding: 12px 15px;">
+                <div class="universe-symbol-link" style="cursor: pointer;" title="Click to load research workspace">
+                    <strong style="color: var(--color-primary); font-family: 'Outfit', sans-serif; text-decoration: underline;">${item.symbol}</strong>
+                </div>
+            </td>
+            <td style="padding: 12px 15px; color: var(--text-primary); font-weight: 500;">
+                <div class="universe-symbol-link" style="cursor: pointer;" title="Click to load research workspace">
+                    <strong style="color: var(--color-primary); font-family: 'Outfit', sans-serif; text-decoration: underline;">${item.company_name}</strong>
+                </div>
+            </td>
             <td style="padding: 12px 15px; color: var(--text-secondary);">${item.sector}</td>
             <td style="padding: 12px 15px;">${capBadge}</td>
             <td style="padding: 12px 15px; text-align: center;">${cacheBadge}</td>
             <td style="padding: 12px 15px; text-align: center;">
                 <div style="display: inline-flex; gap: 8px; align-items: center; justify-content: center; width: 100%;">
-                    <button class="btn-primary universe-action-analyze-btn" data-symbol="${item.symbol}" style="font-size: 10.5px; padding: 5px 12px; font-family: 'Outfit', sans-serif; font-weight: 600; border-radius: 6px; cursor: pointer; transition: all 0.2s;">Research 📊</button>
                     <select class="universe-action-select" style="padding: 5px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; outline: none; transition: all 0.2s; min-width: 130px;">
                         ${watchlistOptions}
                     </select>
@@ -7390,15 +7417,17 @@ function filterAndRenderUniverse() {
             </td>
         `;
         
-        // Add action listener
-        tr.querySelector('.universe-action-analyze-btn').addEventListener('click', () => {
-            const sym = item.symbol;
-            const searchInput = document.getElementById('analyzer-search-input');
-            if (searchInput) {
-                searchInput.value = sym;
-            }
-            switchTab('analyzer');
-            loadStockAnalyzer(sym);
+        // Add action listener to both company name and symbol links
+        tr.querySelectorAll('.universe-symbol-link').forEach(el => {
+            el.addEventListener('click', () => {
+                const sym = item.symbol;
+                const searchInput = document.getElementById('analyzer-search-input');
+                if (searchInput) {
+                    searchInput.value = sym;
+                }
+                switchTab('analyzer');
+                loadStockAnalyzer(sym);
+            });
         });
 
         // Add to watchlist listener

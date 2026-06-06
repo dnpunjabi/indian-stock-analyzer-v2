@@ -6245,5 +6245,238 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     background-color: rgba(243, 244, 246, 0.95) !important;
 }
 
+/* ========================================================
+   GRID RESPONSIVENESS AND LAYOUT DECOUPLING OVERRIDES
+   ======================================================== */
+
+/* Default Grid Layout Classes */
+.strategy-selector {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+    margin-bottom: 20px;
+    width: 100%;
+}
+
+.screener-controls-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+    width: 100%;
+}
+
+.price-targets-block {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.price-targets-block.has-border-top {
+    margin-top: 15px;
+    border-top: 1px dashed var(--border-glass);
+    padding-top: 15px;
+}
+
+.tech-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-top: 12px;
+    margin-bottom: 15px;
+}
+
+.risk-metrics-layout {
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr;
+    gap: 15px;
+    margin-bottom: 15px;
+    width: 100%;
+}
+
+.risk-badges-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+
+.capture-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.sandbox-workspace {
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr;
+    gap: 15px;
+    margin-bottom: 12px;
+}
+
+.pe-stat-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    width: 100%;
+}
+
+.pe-stat-list.has-margin-bottom {
+    margin-bottom: 12px;
+}
+
+.consensus-comparison-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+.valuation-multipliers-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 12px;
+}
+
+.volatility-charts-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+    margin-top: 15px;
+    width: 100%;
+}
+
+.audit-matrix-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+    margin-bottom: 22px;
+}
+
+.news-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-top: 15px;
+}
+
+.watchlist-grid {
+    display: grid;
+    grid-template-columns: 1fr 2.5fr;
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.backtest-results-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 20px;
+    margin-bottom: 25px;
+}
+
+/* Enforce min-width: 0 on all grid items to prevent horizontal scaling/overflow bugs */
+.comparison-grid > div,
+.watchlist-grid > div,
+.dashboard-grid > div,
+.backtest-results-grid > div,
+.news-grid > div,
+.audit-matrix-grid > div,
+.volatility-charts-grid > div,
+.consensus-comparison-grid > div,
+.risk-metrics-layout > div,
+.sandbox-workspace > div,
+.price-targets-block > div,
+.tech-metrics-grid > div,
+.screener-controls-grid > div,
+.strategy-selector > div {
+    min-width: 0 !important;
+}
+
+#generate-battleground-thesis-btn {
+    white-space: normal !important;
+    word-wrap: break-word !important;
+    max-width: 100% !important;
+    height: auto !important;
+}
+
+/* Responsive Grid Stack Overrides (Tablet and Mobile Viewports) */
+@media (max-width: 900px) {
+    .strategy-selector {
+        grid-template-columns: 1fr !important;
+    }
+    
+    .screener-controls-grid {
+        grid-template-columns: 1fr !important;
+    }
+    
+    .price-targets-block {
+        grid-template-columns: 1fr !important;
+    }
+    
+    .tech-metrics-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+    
+    .risk-metrics-layout {
+        grid-template-columns: 1fr !important;
+    }
+    
+    .risk-badges-grid {
+        grid-template-columns: repeat(3, 1fr) !important;
+    }
+    
+    .capture-grid {
+        grid-template-columns: 1fr !important;
+    }
+    
+    .sandbox-workspace {
+        grid-template-columns: 1fr !important;
+    }
+    
+    .pe-stat-list {
+        grid-template-columns: 1fr !important;
+    }
+    
+    .consensus-comparison-grid {
+        grid-template-columns: 1fr !important;
+    }
+    
+    .valuation-multipliers-grid {
+        grid-template-columns: 1fr !important;
+    }
+    
+    .volatility-charts-grid {
+        grid-template-columns: 1fr !important;
+    }
+    
+    .audit-matrix-grid {
+        grid-template-columns: 1fr !important;
+    }
+    
+    .news-grid {
+        grid-template-columns: 1fr !important;
+    }
+    
+    .watchlist-grid {
+        grid-template-columns: 1fr !important;
+    }
+    
+    .backtest-results-grid {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+@media (max-width: 600px) {
+    .tech-metrics-grid {
+        grid-template-columns: 1fr !important;
+    }
+    
+    .risk-badges-grid {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+
 
 
