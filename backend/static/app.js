@@ -35,7 +35,9 @@ let currentRiskData = {
     beta: 1.0,
     annual_stock_ret: 0.0,
     annual_bench_ret: 0.0,
-    correlation: 0.0
+    correlation: 0.0,
+    nifty50_risk: null,
+    suggested_risk: null
 };
 let chatHistory = [];
 let watchlistsList = [];
@@ -4845,6 +4847,51 @@ function setupChatDrawer() {
             page-break-after: avoid;
         }
 
+        .synthesis-header-block {
+            display: flex !important;
+            align-items: center !important;
+            margin-top: 18px !important;
+            margin-bottom: 8px !important;
+            padding: 6px 12px !important;
+            border-radius: 6px !important;
+            background: #f3f4f6 !important;
+            border-left: 3px solid #1e3a8a !important;
+            font-family: 'Outfit', sans-serif !important;
+            font-size: 11pt !important;
+            font-weight: 700 !important;
+            color: #111827 !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            page-break-after: avoid !important;
+        }
+
+        .header-badge {
+            margin-left: auto !important;
+            font-size: 8.5pt !important;
+            padding: 2px 8px !important;
+            border-radius: 99px !important;
+            font-weight: 700 !important;
+            background: #e5e7eb !important;
+            color: #374151 !important;
+            border: 1px solid #d1d5db !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+
+        .synthesis-warning-container {
+            margin-bottom: 16px !important;
+            padding: 12px !important;
+            border-radius: 8px !important;
+            background: #fef2f2 !important;
+            border: 1px solid #fecaca !important;
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 8px !important;
+            box-sizing: border-box !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+
         .prospectus-content ul {
             margin-top: 0;
             margin-bottom: 12px;
@@ -5071,8 +5118,56 @@ async function loadStockSynthesis(symbol) {
             else piotroskiEl.className = 'red-text';
         }
         
-        // Process text formatting for raw markdown headers and bolding
-        let formattedText = data.synthesis_text
+        // 1. Build Critical Warning Flags alert callouts if present
+        let warningHtml = '';
+        if (data.risk_warning_flags && data.risk_warning_flags.length > 0) {
+            warningHtml = `
+                <div class="synthesis-warning-container" style="margin-bottom: 16px; padding: 12px; border-radius: 8px; background: rgba(239, 68, 68, 0.06); border: 1px solid rgba(239, 68, 68, 0.25); display: flex; flex-direction: column; gap: 8px; width: 100%; box-sizing: border-box;">
+                    <div style="display: flex; align-items: center; gap: 6px; color: #ef4444; font-size: 11px; font-weight: 700; letter-spacing: 0.03em;">
+                        <span>⚠️ HIGH PRIORITY PORTFOLIO RISK ALERT</span>
+                    </div>
+                    <ul style="margin: 0; padding-left: 16px; font-size: 10.5px; color: var(--text-primary); line-height: 1.5; font-weight: 500;">
+                        ${data.risk_warning_flags.map(flag => `<li style="margin-bottom: 3px;">${flag}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+
+        // 2. Build Glassmorphic Header blocks dynamically by parsing synthesis text
+        let formattedText = data.synthesis_text;
+
+        const solvencyBadge = `<span class="header-badge" style="margin-left: auto; font-size: 9px; padding: 2px 8px; border-radius: 99px; font-weight: 700; background: ${data.piotroski_score >= 7 ? 'rgba(16, 185, 129, 0.12)' : 'rgba(245, 158, 11, 0.12)'}; color: ${data.piotroski_score >= 7 ? '#10b981' : '#f59e0b'}; border: 1px solid ${data.piotroski_score >= 7 ? 'rgba(16, 185, 129, 0.25)' : 'rgba(245, 158, 11, 0.25)'};">F-Score: ${data.piotroski_score}/9</span>`;
+        formattedText = formattedText.replace(/### I\. Operational Quality & Solvency Scorecard/g, 
+            `<div class="synthesis-header-block" style="display: flex; align-items: center; margin-top: 16px; margin-bottom: 8px; padding: 6px 12px; border-radius: 6px; background: var(--bg-glass); border-left: 3px solid var(--color-primary); font-size: 11.5px; font-weight: 700; color: var(--text-primary);"><span style="margin-right:8px;">I. Operational Quality</span> ${solvencyBadge}</div>`);
+
+        const mosColor = data.margin_of_safety >= 0 ? '#10b981' : '#ef4444';
+        const mosBg = data.margin_of_safety >= 0 ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)';
+        const mosBorder = data.margin_of_safety >= 0 ? 'rgba(16, 185, 129, 0.25)' : 'rgba(239, 68, 68, 0.25)';
+        const mosBadge = `<span class="header-badge" style="margin-left: auto; font-size: 9px; padding: 2px 8px; border-radius: 99px; font-weight: 700; background: ${mosBg}; color: ${mosColor}; border: 1px solid ${mosBorder};">MOS: ${data.margin_of_safety > 0 ? '+' : ''}${data.margin_of_safety.toFixed(1)}%</span>`;
+        formattedText = formattedText.replace(/### II\. Valuation & Peer Benchmarking/g, 
+            `<div class="synthesis-header-block" style="display: flex; align-items: center; margin-top: 16px; margin-bottom: 8px; padding: 6px 12px; border-radius: 6px; background: var(--bg-glass); border-left: 3px solid var(--color-primary); font-size: 11.5px; font-weight: 700; color: var(--text-primary);"><span style="margin-right:8px;">II. Valuation & Peers</span> ${mosBadge}</div>`);
+
+        const trendBadge = `<span class="header-badge" style="margin-left: auto; font-size: 9px; padding: 2px 8px; border-radius: 99px; font-weight: 700; background: rgba(168, 85, 247, 0.12); color: #a855f7; border: 1px solid rgba(168, 85, 247, 0.25);">RSI: ${data.rsi.toFixed(1)}</span>`;
+        formattedText = formattedText.replace(/### III\. Technical Timing & Fibonacci Zones/g, 
+            `<div class="synthesis-header-block" style="display: flex; align-items: center; margin-top: 16px; margin-bottom: 8px; padding: 6px 12px; border-radius: 6px; background: var(--bg-glass); border-left: 3px solid var(--color-primary); font-size: 11.5px; font-weight: 700; color: var(--text-primary);"><span style="margin-right:8px;">III. Technical Timing</span> ${trendBadge}</div>`);
+
+        const beta = data.capm_risk_nifty50 ? data.capm_risk_nifty50.beta : 1.0;
+        const betaColor = beta <= 1.0 ? '#10b981' : '#f59e0b';
+        const betaBg = beta <= 1.0 ? 'rgba(16, 185, 129, 0.12)' : 'rgba(245, 158, 11, 0.12)';
+        const betaBorder = beta <= 1.0 ? 'rgba(16, 185, 129, 0.25)' : 'rgba(245, 158, 11, 0.25)';
+        const capmBadge = `<span class="header-badge" style="margin-left: auto; font-size: 9px; padding: 2px 8px; border-radius: 99px; font-weight: 700; background: ${betaBg}; color: ${betaColor}; border: 1px solid ${betaBorder};">Beta (N50): ${beta.toFixed(2)}</span>`;
+        formattedText = formattedText.replace(/### IV\. CAPM Risk Analytics & Market Capture/g, 
+            `<div class="synthesis-header-block" style="display: flex; align-items: center; margin-top: 16px; margin-bottom: 8px; padding: 6px 12px; border-radius: 6px; background: var(--bg-glass); border-left: 3px solid var(--color-primary); font-size: 11.5px; font-weight: 700; color: var(--text-primary);"><span style="margin-right:8px;">IV. CAPM Risk & Capture</span> ${capmBadge}</div>`);
+
+        const recClean = data.recommendation.replace(/[🟡🟢🔴]/g, '').trim();
+        const recColor = recClean.includes('BUY') ? '#10b981' : (recClean.includes('HOLD') ? '#f59e0b' : '#ef4444');
+        const recBg = recClean.includes('BUY') ? 'rgba(16, 185, 129, 0.12)' : (recClean.includes('HOLD') ? 'rgba(245, 158, 11, 0.12)' : 'rgba(239, 68, 68, 0.12)');
+        const recBorder = recClean.includes('BUY') ? 'rgba(16, 185, 129, 0.25)' : (recClean.includes('HOLD') ? 'rgba(245, 158, 11, 0.25)' : 'rgba(239, 68, 68, 0.25)');
+        const recBadge = `<span class="header-badge" style="margin-left: auto; font-size: 9px; padding: 2px 8px; border-radius: 99px; font-weight: 700; background: ${recBg}; color: ${recColor}; border: 1px solid ${recBorder};">${recClean}</span>`;
+        formattedText = formattedText.replace(/### V\. CIO Investment Prospectus & Conviction Summary/g, 
+            `<div class="synthesis-header-block" style="display: flex; align-items: center; margin-top: 16px; margin-bottom: 8px; padding: 6px 12px; border-radius: 6px; background: var(--bg-glass); border-left: 3px solid var(--color-primary); font-size: 11.5px; font-weight: 700; color: var(--text-primary);"><span style="margin-right:8px;">V. CIO Conviction Summary</span> ${recBadge}</div>`);
+
+        formattedText = formattedText
             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
             .replace(/### (.*?)\n/g, '<h3>$1</h3>')
             .replace(/\* (.*?)\n/g, '<li>$1</li>')
@@ -5083,7 +5178,7 @@ async function loadStockSynthesis(symbol) {
         }
         
         if (reportTextEl) {
-            reportTextEl.innerHTML = `<p>${formattedText}</p>`;
+            reportTextEl.innerHTML = `${warningHtml}<p>${formattedText}</p>`;
         }
     } catch (e) {
         console.error("Synthesis load error:", e);
@@ -11706,6 +11801,33 @@ async function loadRiskFactorsData(symbol, benchmark = null, period = null) {
         currentRiskData.annual_stock_ret = data.annual_stock_ret;
         currentRiskData.annual_bench_ret = data.annual_bench_ret;
         currentRiskData.correlation = data.correlation;
+        currentRiskData.nifty50_risk = data.nifty50_risk;
+        currentRiskData.suggested_risk = data.suggested_risk;
+        
+        // Update comparison table values in DOM
+        if (data.nifty50_risk) {
+            const n50BetaEl = document.getElementById('n50-beta');
+            const n50CorrEl = document.getElementById('n50-corr');
+            const n50BenchRetEl = document.getElementById('n50-bench-ret');
+            
+            if (n50BetaEl) n50BetaEl.innerText = data.nifty50_risk.beta.toFixed(3);
+            if (n50CorrEl) n50CorrEl.innerText = data.nifty50_risk.correlation.toFixed(3);
+            if (n50BenchRetEl) n50BenchRetEl.innerText = `${data.nifty50_risk.annual_bench_ret.toFixed(2)}% vs ${data.nifty50_risk.annual_stock_ret.toFixed(2)}%`;
+        }
+        
+        if (data.suggested_risk) {
+            const sugIndexNameEl = document.getElementById('suggested-index-name');
+            const sugBetaEl = document.getElementById('suggested-beta');
+            const sugCorrEl = document.getElementById('suggested-corr');
+            const sugBenchRetEl = document.getElementById('suggested-bench-ret');
+            
+            if (sugIndexNameEl) {
+                sugIndexNameEl.innerText = `${data.suggested_risk.benchmark_name} Index (Suggested)`;
+            }
+            if (sugBetaEl) sugBetaEl.innerText = data.suggested_risk.beta.toFixed(3);
+            if (sugCorrEl) sugCorrEl.innerText = data.suggested_risk.correlation.toFixed(3);
+            if (sugBenchRetEl) sugBenchRetEl.innerText = `${data.suggested_risk.annual_bench_ret.toFixed(2)}% vs ${data.suggested_risk.annual_stock_ret.toFixed(2)}%`;
+        }
         
         const betaValEl = document.getElementById('risk-beta-value');
         const betaLabelEl = document.getElementById('risk-beta-label');
@@ -11787,6 +11909,34 @@ function recalculateAlphaClientSide() {
                 alphaLabelEl.innerText = 'Value Neutral';
                 alphaLabelEl.style.color = 'var(--text-muted)';
             }
+        }
+    }
+
+    // Nifty 50 Row Recalculation
+    if (currentRiskData.nifty50_risk) {
+        const n50Beta = currentRiskData.nifty50_risk.beta;
+        const n50AnnStock = currentRiskData.nifty50_risk.annual_stock_ret;
+        const n50AnnBench = currentRiskData.nifty50_risk.annual_bench_ret;
+        const n50Alpha = n50AnnStock - (rfVal + n50Beta * (n50AnnBench - rfVal));
+        
+        const n50AlphaEl = document.getElementById('n50-alpha');
+        if (n50AlphaEl) {
+            n50AlphaEl.innerText = `${n50Alpha >= 0 ? '+' : ''}${n50Alpha.toFixed(2)}%`;
+            n50AlphaEl.style.color = n50Alpha > 0 ? 'var(--color-emerald)' : (n50Alpha < 0 ? '#f43f5e' : 'var(--text-primary)');
+        }
+    }
+    
+    // Suggested Benchmark Row Recalculation
+    if (currentRiskData.suggested_risk) {
+        const sugBeta = currentRiskData.suggested_risk.beta;
+        const sugAnnStock = currentRiskData.suggested_risk.annual_stock_ret;
+        const sugAnnBench = currentRiskData.suggested_risk.annual_bench_ret;
+        const sugAlpha = sugAnnStock - (rfVal + sugBeta * (sugAnnBench - rfVal));
+        
+        const sugAlphaEl = document.getElementById('suggested-alpha');
+        if (sugAlphaEl) {
+            sugAlphaEl.innerText = `${sugAlpha >= 0 ? '+' : ''}${sugAlpha.toFixed(2)}%`;
+            sugAlphaEl.style.color = sugAlpha > 0 ? 'var(--color-emerald)' : (sugAlpha < 0 ? '#f43f5e' : 'var(--text-primary)');
         }
     }
 }

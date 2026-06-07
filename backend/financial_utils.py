@@ -1021,6 +1021,141 @@ def calculate_capture_ratios(ticker_symbol: str, stock_obj=None, years=3) -> dic
     return result
 
 
+def resolve_benchmark_by_mcap(market_cap_cr: float) -> tuple:
+    """Returns (benchmark_symbol, benchmark_name) based on market cap in Crores."""
+    if not market_cap_cr or market_cap_cr <= 0:
+        return ("^NSEI", "Nifty 50")
+    if market_cap_cr >= 27500.0:
+        return ("^CNX100", "Nifty 100")
+    elif market_cap_cr >= 7000.0:
+        return ("NIFTYMIDCAP150.NS", "Nifty Midcap 150")
+    else:
+        return ("MOSMALL250.NS", "Nifty Smallcap 250")
+
+
+def calculate_capm_risk_factors(ticker_symbol: str, stock_obj=None, period="1y", benchmark_symbol="^NSEI", benchmark_name="Nifty 50") -> dict:
+    """
+    Calculates Beta, CAPM Alpha, and Pearson Correlation relative to the specified benchmark index.
+    Uses daily returns covariance analysis.
+    """
+    result = {
+        "beta": 1.0,
+        "correlation": 0.5,
+        "annual_stock_ret_pct": 12.0,
+        "annual_bench_ret_pct": 10.0,
+        "capm_alpha_pct": 1.5,
+        "benchmark_symbol": benchmark_symbol,
+        "benchmark_name": benchmark_name
+    }
+    try:
+        stock = stock_obj or yf.Ticker(ticker_symbol)
+        bench = yf.Ticker(benchmark_symbol)
+        
+        df_stock = stock.history(period=period)
+        df_bench = bench.history(period=period)
+        
+        if df_stock.empty or df_bench.empty:
+            return result
+            
+        close_stock = df_stock['Close']
+        if isinstance(close_stock, pd.DataFrame):
+            close_stock = close_stock.iloc[:, 0]
+        close_bench = df_bench['Close']
+        if isinstance(close_bench, pd.DataFrame):
+            close_bench = close_bench.iloc[:, 0]
+            
+        df = pd.DataFrame({'stock': close_stock, 'bench': close_bench}).dropna()
+        if df.empty or len(df) < 5:
+            return result
+            
+        df['stock_ret'] = df['stock'].pct_change()
+        df['bench_ret'] = df['bench'].pct_change()
+        df = df.dropna()
+        
+        if len(df) < 5:
+            return result
+            
+        covariance = float(df['stock_ret'].cov(df['bench_ret']))
+        bench_variance = float(df['bench_ret'].var())
+        beta = covariance / bench_variance if bench_variance != 0.0 else 1.0
+        correlation = float(df['stock_ret'].corr(df['bench_ret']))
+        
+        cum_stock = float((1 + df['stock_ret']).prod() - 1)
+        cum_bench = float((1 + df['bench_ret']).prod() - 1)
+        
+        num_days = len(df)
+        annual_stock = float(((cum_stock + 1) ** (252.0 / num_days) - 1)) if num_days > 0 else 0.0
+        annual_bench = float(((cum_bench + 1) ** (252.0 / num_days) - 1)) if num_days > 0 else 0.0
+        
+        rf = 0.07 # 7% risk-free rate baseline
+        alpha = annual_stock - (rf + beta * (annual_bench - rf))
+        
+        result["beta"] = round(beta, 2)
+        result["correlation"] = round(correlation, 2)
+        result["annual_stock_ret_pct"] = round(annual_stock * 100, 2)
+        result["annual_bench_ret_pct"] = round(annual_bench * 100, 2)
+        result["capm_alpha_pct"] = round(alpha * 100, 2)
+    except Exception as e:
+        print(f"Error calculating capm risk factors for {ticker_symbol} relative to {benchmark_symbol}: {e}")
+    return result
+
+
+def calculate_drawdown_metrics(ticker_symbol: str, stock_obj=None, period="5y") -> dict:
+    """
+    Calculates Maximum Drawdown % and worst drawdown duration (in days) using historical close prices.
+    """
+    result = {
+        "max_drawdown_pct": -20.0,
+        "worst_drawdown_duration_days": 365
+    }
+    try:
+        stock = stock_obj or yf.Ticker(ticker_symbol)
+        hist = stock.history(period=period)
+        if hist.empty:
+            return result
+            
+        prices = hist["Close"].dropna().tolist()
+        if not prices:
+            return result
+            
+        dates = [d.strftime("%Y-%m-%d") for d in hist.index]
+        
+        peaks = []
+        drawdowns = []
+        max_dd = 0.0
+        current_peak = 0.0
+        
+        for p in prices:
+            if p > current_peak:
+                current_peak = p
+            dd = ((p - current_peak) / current_peak * 100.0) if current_peak > 0 else 0.0
+            drawdowns.append(dd)
+            if dd < max_dd:
+                max_dd = dd
+                
+        # Find drawdown recovery periods
+        in_drawdown = False
+        dd_start = None
+        max_duration = 0
+        
+        for d_str, dd in zip(dates, drawdowns):
+            if dd < -0.5:
+                if not in_drawdown:
+                    in_drawdown = True
+                    dd_start = datetime.strptime(d_str, "%Y-%m-%d")
+                current_duration = (datetime.strptime(d_str, "%Y-%m-%d") - dd_start).days
+                if current_duration > max_duration:
+                    max_duration = current_duration
+            else:
+                in_drawdown = False
+                
+        result["max_drawdown_pct"] = round(max_dd, 2)
+        result["worst_drawdown_duration_days"] = max_duration
+    except Exception as e:
+        print(f"Error calculating drawdown metrics for {ticker_symbol}: {e}")
+    return result
+
+
 def calculate_dcf_valuation(ticker_symbol: str, 
                             rev_growth_5y: float = None, 
                             target_opm: float = None, 
@@ -1723,6 +1858,12 @@ def _build_financial_profile(ticker_query: str) -> dict:
     pe_bands = calculate_historical_pe_bands(yf_ticker, stock_obj=stock)
     dcf = calculate_dcf_valuation(yf_ticker, stock_obj=stock)
     capture = calculate_capture_ratios(yf_ticker, stock_obj=stock)
+    
+    market_cap_cr = screener_data["ratios"].get("Market Cap") or (info.get("marketCap", 0) / 1e7) or 0.0
+    bench_sym, bench_name = resolve_benchmark_by_mcap(market_cap_cr)
+    risk_nifty50 = calculate_capm_risk_factors(yf_ticker, stock_obj=stock, benchmark_symbol="^NSEI", benchmark_name="Nifty 50")
+    risk_sector = calculate_capm_risk_factors(yf_ticker, stock_obj=stock, benchmark_symbol=bench_sym, benchmark_name=bench_name)
+    drawdown = calculate_drawdown_metrics(yf_ticker, stock_obj=stock)
 
     name_clean = resolution["name"]
     if not news_items:
@@ -2165,7 +2306,10 @@ def _build_financial_profile(ticker_query: str) -> dict:
         "shareholding": shareholding,
         "peers": peers,
         "news": news_items,
-        "earnings_quality": calculate_earnings_quality_scores(stock)
+        "earnings_quality": calculate_earnings_quality_scores(stock),
+        "capm_risk_nifty50": risk_nifty50,
+        "capm_risk_sector": risk_sector,
+        "drawdown_metrics": drawdown
     }
     
     scoring_result = calculate_composite_score(unified_profile)

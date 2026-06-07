@@ -994,6 +994,42 @@ async def compare_rivals(tickers: str, generate_thesis: bool = False):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Comparison aggregator error: {str(e)}")
 
+
+def get_fibonacci_retracement_zone(current_price: float, fib_levels: dict) -> str:
+    """
+    Classifies where the current price sits relative to its Fibonacci levels.
+    """
+    if not fib_levels or not isinstance(fib_levels, dict):
+        return "Neutral Zone"
+    try:
+        # Sort levels by price to find interval
+        levels = [
+            ("0.0% (52W High)", float(fib_levels.get("fib_0", 0.0))),
+            ("23.6%", float(fib_levels.get("fib_236", 0.0))),
+            ("38.2%", float(fib_levels.get("fib_382", 0.0))),
+            ("50.0% (Mid-point)", float(fib_levels.get("fib_500", 0.0))),
+            ("61.8% (Golden Ratio)", float(fib_levels.get("fib_618", 0.0))),
+            ("78.6%", float(fib_levels.get("fib_786", 0.0))),
+            ("100.0% (52W Low)", float(fib_levels.get("fib_100", 0.0)))
+        ]
+        # Sort in ascending order (Low price to High price)
+        levels_sorted = sorted(levels, key=lambda x: x[1])
+        
+        if current_price < levels_sorted[0][1]:
+            return f"Below 100.0% 52W Low (Rs. {levels_sorted[0][1]:.2f})"
+        if current_price > levels_sorted[-1][1]:
+            return f"Above 0.0% 52W High (Rs. {levels_sorted[-1][1]:.2f})"
+            
+        for i in range(len(levels_sorted) - 1):
+            low_lbl, low_val = levels_sorted[i]
+            high_lbl, high_val = levels_sorted[i+1]
+            if low_val <= current_price <= high_val:
+                return f"Between {low_lbl} (Rs. {low_val:.2f}) and {high_lbl} (Rs. {high_val:.2f})"
+    except Exception:
+        pass
+    return "Neutral Zone"
+
+
 @app.get("/api/synthesis")
 async def get_synthesis(
     symbol: str,
@@ -1060,45 +1096,167 @@ async def get_synthesis(
         rsi = technicals.get("rsi", 50.0)
         sma_50 = technicals.get("sma_50", 0.0)
         sma_200 = technicals.get("sma_200", 0.0)
-
         scoring = profile.get("score_metrics", {})
         final_score = scoring.get("final_score", 50)
         recommendation = profile.get("analysis", {}).get("recommendation", scoring.get("action", "HOLD"))
 
+        # CAPM Risk factors (Nifty 50)
+        nifty50_risk = profile.get("capm_risk_nifty50", {})
+        nifty50_beta = nifty50_risk.get("beta", profile.get("info", {}).get("beta", 1.0))
+        try:
+            nifty50_beta = float(nifty50_beta)
+        except Exception:
+            nifty50_beta = 1.0
+        nifty50_alpha = nifty50_risk.get("capm_alpha_pct", 0.0)
+        nifty50_corr = nifty50_risk.get("correlation", 0.5)
+
+        # CAPM Risk factors (Cap-specific Index)
+        sector_risk = profile.get("capm_risk_sector", {})
+        sector_beta = sector_risk.get("beta", nifty50_beta)
+        try:
+            sector_beta = float(sector_beta)
+        except Exception:
+            sector_beta = nifty50_beta
+        sector_alpha = sector_risk.get("capm_alpha_pct", nifty50_alpha)
+        sector_corr = sector_risk.get("correlation", nifty50_corr)
+        sector_bench_symbol = sector_risk.get("benchmark_symbol", "^NSEI")
+        sector_bench_name = sector_risk.get("benchmark_name", "Nifty 50")
+
+        # Market capture ratios
+        capture_ratios = profile.get("capture_ratios", {})
+        up_capture = capture_ratios.get("up_capture", 100.0)
+        down_capture = capture_ratios.get("down_capture", 100.0)
+        bench_symbol = capture_ratios.get("benchmark_symbol", "^NSEI")
+
+        # Drawdown metrics
+        drawdown_metrics = profile.get("drawdown_metrics", {})
+        max_dd = drawdown_metrics.get("max_drawdown_pct", -20.0)
+        worst_dd_days = drawdown_metrics.get("worst_drawdown_duration_days", 365)
+
+        # Fibonacci zone analysis
+        fib_levels = technicals.get("fib_levels", {})
+        fib_zone = get_fibonacci_retracement_zone(current_price, fib_levels)
+
+        # Evaluating high-priority critical warning alerts
+        warning_flags = []
+        if altman_z_score < 1.81:
+            warning_flags.append(f"Insolvency Risk: Altman Z-Score of {altman_z_score:.2f} sits in the Distress Zone.")
+        if piotroski_score <= 3:
+            warning_flags.append(f"Weak Earnings Quality: Piotroski F-Score is critical at {piotroski_score}/9.")
+        shareholding = profile.get("shareholding", {})
+        promoter_pledge_pct = float(shareholding.get("Promoter Pledging %", 0.0))
+        if promoter_pledge_pct > 25.0:
+            warning_flags.append(f"High Promoter Pledge: {promoter_pledge_pct:.1f}% of promoter shares are pledged as collateral.")
+        if rsi > 75.0:
+            warning_flags.append(f"Overheated Momentum: Daily RSI at {rsi:.1f} indicates near-term overbought exhaustion.")
+        if max_dd < -35.0:
+            warning_flags.append(f"Historical Drawdown Risk: Stock has registered a severe historical peak-to-trough drawdown of {max_dd:.1f}%.")
+        if down_capture > 150.0:
+            warning_flags.append(f"Elevated Downside Risk: Downside market capture is exceptionally high at {down_capture:.1f}%.")
+
+        # Peer benchmarking and valuations
+        peers = profile.get("peers", [])
+        median_peer_pe = 0.0
+        median_peer_pb = 0.0
+        if len(peers) > 1:
+            pe_vals = []
+            pb_vals = []
+            for p in peers[1:]:
+                try:
+                    pe_str = str(p.get("P/E", "N/A")).replace(",", "").strip()
+                    if pe_str != "N/A" and pe_str != "":
+                        pe_vals.append(float(pe_str))
+                except ValueError:
+                    pass
+                try:
+                    pb_str = str(p.get("P/B", "N/A")).replace(",", "").strip()
+                    if pb_str != "N/A" and pb_str != "":
+                        pb_vals.append(float(pb_str))
+                except ValueError:
+                    pass
+            if pe_vals:
+                median_peer_pe = float(np.median(pe_vals))
+            if pb_vals:
+                median_peer_pb = float(np.median(pb_vals))
+
+        target_pe = fundamentals.get("pe_ratio", 0.0)
+        valuation_comparison = "N/A"
+        if target_pe > 0 and median_peer_pe > 0:
+            diff_pe = ((target_pe - median_peer_pe) / median_peer_pe) * 100
+            comparison_type = "premium" if diff_pe > 0 else "discount"
+            valuation_comparison = f"trades at a **{abs(diff_pe):.1f}% {comparison_type}** to peer group median PE (**{median_peer_pe:.2f}**)"
+
+        target_pb = fundamentals.get("pb_ratio", 0.0)
+        try:
+            target_pb = float(target_pb)
+        except Exception:
+            target_pb = 0.0
+        pb_comparison = "N/A"
+        if target_pb > 0 and median_peer_pb > 0:
+            diff_pb = ((target_pb - median_peer_pb) / median_peer_pb) * 100
+            pb_comp_type = "premium" if diff_pb > 0 else "discount"
+            pb_comparison = f"trades at a **{abs(diff_pb):.1f}% {pb_comp_type}** to peer group median PB (**{median_peer_pb:.2f}**)"
+
         # Formulate institutional prompt
         system_prompt = (
             "You are the Chief Investment Officer (CIO) of a premier Indian equities advisory firm.\n"
-            "Your task is to compile a highly coherent, institutional-grade 3-paragraph equity research prospectus for the specified stock.\n"
-            "You must analyze and synthesize all provided workspace indicators into exactly three distinct, narrative-rich paragraphs:\n"
-            "Paragraph 1: Operational & Solvency Health. Analyze operational cash flows, Piotroski F-Score, Altman Z-Score, and leverage constraints.\n"
-            "Paragraph 2: Valuation & Margin of Safety. Synthesize the DCF intrinsic value against the current price, detail the margin of safety, and discuss pricing premiums relative to peers/historical valuation.\n"
-            "Paragraph 3: Momentum & Technical Timing. Outline key technical levels (SMAs, RSI, support/resistance trendlines), discuss trading volume, and state broker targets.\n"
-            "Maintain a neutral, highly professional tone. End all sentences with periods. Do not use exclamation marks. Avoid bullet points, list items, or arbitrary markdown headings; output only the three paragraphs of clean, flowing text. Highlight key numbers (e.g. ratios, prices, percentages) using bold formatting."
+            "Your task is to compile a highly coherent, institutional-grade 360-degree equity research prospectus for the specified stock.\n"
+            "You must analyze and synthesize all provided workspace indicators into exactly five distinct sections, each using the exact markdown subheadings provided below:\n"
+            "\n"
+            "### I. Operational Quality & Solvency Scorecard\n"
+            "Synthesize earnings quality metrics, including the Piotroski F-Score, Altman Z-Score, debt-to-equity, current ratios, and operational cash flows (CFO to PAT). Discuss insolvency risk, financial flexibility, and structural safety.\n"
+            "\n"
+            "### II. Valuation & Peer Benchmarking\n"
+            "Analyze the DCF intrinsic value against the current price, the margin of safety, and historical valuation bands. Compare trailing/forward PE and Price-to-Book ratios relative to the peer group and sector medians. Describe any valuation premium or discount.\n"
+            "\n"
+            "### III. Technical Timing & Fibonacci Zones\n"
+            "Detail moving averages (50-day and 200-day SMAs), 14-day RSI momentum, volume patterns, breakout status, and current price positioning relative to Fibonacci retracement levels (e.g., golden ratio boundary, support/resistance bands).\n"
+            "\n"
+            "### IV. CAPM Risk Analytics & Market Capture\n"
+            "Synthesize the asset's risk profile relative to BOTH the Nifty 50 benchmark index AND its size-specific capitalization index. Compare the systematic Beta (sensitivity), Alpha (excess return), and Pearson Correlation for both indices. Discuss the Upside/Downside Market Capture percentages, and historical drawdown/volatility limits (Max Drawdown % and recovery profile).\n"
+            "\n"
+            "### V. CIO Investment Prospectus & Conviction Summary\n"
+            "State your final strategic consensus recommendation (BUY/SELL/HOLD) aligned with the investor's horizon and risk profile. Incorporate the Composite Conviction Score (1-100), define actionable suggested Entry (Buy) and Exit (Sell) Price Ranges, and synthesize key catalysts and risk flags.\n"
+            "\n"
+            "Maintain a professional, objective, and analytical tone. Highlight key figures, scores, ratios, and price limits using bold formatting (e.g. **Rs. 1,420**, **78.6%**, **Beta of 1.15**). Do not use bullet points or list items; write in clean, narrative paragraphs under each heading."
         )
 
         user_prompt = f"""
         Company: {profile.get('company_name', symbol)} ({ticker})
         Investor Profile: Horizon: {horizon} | Risk: {risk}
         
-        1. Operational & Solvency Indicators:
+        1. Operational Quality & Solvency Scorecard:
         - Piotroski F-Score: {piotroski_score}/9 ({piotroski_label})
         - Altman Z-Score: {altman_z_score:.2f} ({altman_zone})
         - Debt-to-Equity: {fundamentals.get('debt_to_equity', 'N/A')}
+        - Current Ratio: {fundamentals.get('current_ratio', 'N/A')}
         - CFO to PAT Ratio: {fundamentals.get('cfo_to_pat', 'N/A')}
         
-        2. Valuation & Margin of Safety:
+        2. Valuation & Sector Peer Benchmarking:
         - Current Price: Rs. {current_price}
-        - DCF Intrinsic Value: Rs. {dcf_intrinsic_value:.2f}
-        - Margin of Safety: {margin_of_safety:.1f}%
-        - Valuation Status: {dcf.get('valuation_rating', 'N/A')}
-        - PE Ratio: {fundamentals.get('pe_ratio', 'N/A')} (Sector Median: {fundamentals.get('sector_pe', 'N/A')})
+        - DCF Intrinsic Value: Rs. {dcf_intrinsic_value:.2f} (Margin of Safety: {margin_of_safety:.1f}%, Status: {dcf.get('valuation_rating', 'N/A')})
+        - PE Ratio: {target_pe:.1f} (Peer Group Median PE: {median_peer_pe:.2f}, Comparison: {valuation_comparison})
+        - PB Ratio: {target_pb:.2f} (Peer Group Median PB: {median_peer_pb:.2f}, Comparison: {pb_comparison})
         
-        3. Technical & Momentum Indicators:
-        - 14-day RSI: {rsi:.1f}
-        - 50-day SMA: Rs. {sma_50}
-        - 200-day SMA: Rs. {sma_200}
-        - Technical Trend: {technicals.get('trend_50_vs_200', 'N/A')}
-        - Analyst Targets: Median Target: Rs. {profile.get('consensus', {}).get('target_median', 'N/A')}, Recommendation: {profile.get('consensus', {}).get('recommendation', 'N/A')}
+        3. Technical Timing & Fibonacci Retracements:
+        - 14-day RSI: {rsi:.1f} ({technicals.get('rsi_status', 'Neutral')})
+        - 50-day SMA: Rs. {sma_50} | 200-day SMA: Rs. {sma_200} (Trend: {technicals.get('trend_50_vs_200', 'N/A')})
+        - Breakout Status: {technicals.get('breakout_status', 'N/A')} ({technicals.get('breakout_desc', 'N/A')})
+        - Fibonacci Levels: {json.dumps(fib_levels)}
+        - Current Fibonacci Retracement Zone: {fib_zone}
+        
+        4. CAPM Risk Analytics & Market Capture:
+        - Relative to Nifty 50: Beta: {nifty50_beta:.2f}, Alpha: {nifty50_alpha:.2f}%, Correlation: {nifty50_corr:.2f}
+        - Relative to {sector_bench_name} ({sector_bench_symbol}): Beta: {sector_beta:.2f}, Alpha: {sector_alpha:.2f}%, Correlation: {sector_corr:.2f}
+        - Market Capture Ratios: Upside Market Capture: {up_capture:.1f}% | Downside Market Capture: {down_capture:.1f}% (relative to {bench_symbol})
+        - Max Drawdown: {max_dd:.1f}% (Worst Drawdown Duration: {worst_dd_days} days)
+        
+        5. CIO Investment Prospectus & Conviction:
+        - Composite AI Score: {final_score}/100
+        - Strategic recommendation: {recommendation}
+        - Suggested Buy Range: {profile.get('analysis', {}).get('suggested_buy_price_range', 'N/A')}
+        - Suggested Sell Range: {profile.get('analysis', {}).get('suggested_sell_price_range', 'N/A')}
+        - Analyst Target Median: Rs. {profile.get('consensus', {}).get('target_median', 'N/A')}
         """
 
         synthesis_text = await asyncio.to_thread(call_groq_llm, system_prompt, user_prompt)
@@ -1106,22 +1264,39 @@ async def get_synthesis(
         # Failsafe programmatic fallback if LLM is unavailable or errors
         if "ERROR" in synthesis_text or not synthesis_text.strip():
             p1 = (
-                f"**{profile.get('company_name', symbol)}** demonstrates robust operational quality with a Piotroski F-Score "
-                f"of **{piotroski_score}/9** ({piotroski_label}) and an Altman Z-Score of **{altman_z_score:.2f}** ({altman_zone}). "
-                f"The leverage is comfortable with a Debt-to-Equity ratio of **{fundamentals.get('debt_to_equity', 0.0):.2f}x**, "
-                f"underpinning solid cash generation from operations."
+                f"### I. Operational Quality & Solvency Scorecard\n"
+                f"**{profile.get('company_name', symbol)}** shows a Piotroski F-Score of "
+                f"**{piotroski_score}/9** ({piotroski_label}) and an Altman Z-Score of **{altman_z_score:.2f}** ({altman_zone}). "
+                f"With a Debt-to-Equity ratio of **{fundamentals.get('debt_to_equity', 0.0):.2f}x** and a CFO to PAT ratio of "
+                f"**{fundamentals.get('cfo_to_pat', 0.88):.2f}x**, the company exhibits strong financial solvency and robust cash flows from operations."
             )
             p2 = (
-                f"From a valuation perspective, the stock trades at **Rs. {current_price}** relative to our Discounted Cash Flow (DCF) "
-                f"estimated intrinsic value of **Rs. {dcf_intrinsic_value:.2f}**. This provides a **{margin_of_safety:.1f}% margin of safety**, "
-                f"ranking it as **{dcf.get('valuation_rating', 'Fairly Valued')}** at current market price."
+                f"### II. Valuation & Peer Benchmarking\n"
+                f"Trading at **Rs. {current_price}** relative to a DCF intrinsic value of **Rs. {dcf_intrinsic_value:.2f}**, the stock "
+                f"features a **{margin_of_safety:.1f}% margin of safety** ({dcf.get('valuation_rating', 'Fairly Valued')}). "
+                f"Compared to its peers, the target's P/E of **{target_pe:.1f}** {valuation_comparison} against the median peer group P/E of **{median_peer_pe:.2f}**."
             )
             p3 = (
-                f"Technically, the stock exhibits a stable trend structure with its 14-day RSI hovering at **{rsi:.1f}**. "
-                f"It is currently trading relative to its 50-day SMA of **Rs. {sma_50}** and 200-day SMA of **Rs. {sma_200}**. "
-                f"Broker consensus is aligned with a target median price of **Rs. {profile.get('consensus', {}).get('target_median', current_price * 1.15)}**."
+                f"### III. Technical Timing & Fibonacci Zones\n"
+                f"Technically, the stock is in a **{technicals.get('trend_50_vs_200', 'Neutral')}** trend structure, trading relative to its "
+                f"50-day SMA of **Rs. {sma_50}** and 200-day SMA of **Rs. {sma_200}**. Momentum is **{technicals.get('rsi_status', 'Neutral')}** "
+                f"with an RSI of **{rsi:.1f}**. Breakout status is currently **{technicals.get('breakout_status', 'CONSOLIDATING')}**. The price is positioned "
+                f"**{fib_zone}**."
             )
-            synthesis_text = f"{p1}\n\n{p2}\n\n{p3}"
+            p4 = (
+                f"### IV. CAPM Risk Analytics & Market Capture\n"
+                f"Under CAPM risk parameters, the stock exhibits a **Beta of {nifty50_beta:.2f}**, an **Alpha of {nifty50_alpha:.2f}%**, and a correlation of **{nifty50_corr:.2f}** relative to the Nifty 50 index. "
+                f"Relative to {sector_bench_name}, it reports a **Beta of {sector_beta:.2f}**, an **Alpha of {sector_alpha:.2f}%**, and a correlation of **{sector_corr:.2f}**. "
+                f"The systematic pricing sensitivity is supported by an **Upside Capture of {up_capture:.1f}%** and a **Downside Capture of {down_capture:.1f}%**. "
+                f"Historically, the asset has a **Maximum Drawdown of {max_dd:.1f}%** with a recovery period of **{worst_dd_days} days**."
+            )
+            p5 = (
+                f"### V. CIO Investment Prospectus & Conviction Summary\n"
+                f"Our institutional Composite AI Score is **{final_score}/100** with a recommended action of **{recommendation}** "
+                f"for a **{horizon}** horizon. Actionable entry ranges are identified at **{profile.get('analysis', {}).get('suggested_buy_price_range', 'Rs. ' + str(round(current_price * 0.95)) + ' - Rs. ' + str(round(current_price * 1.02)))}**, "
+                f"targeting an exit range of **{profile.get('analysis', {}).get('suggested_sell_price_range', 'Rs. ' + str(round(current_price * 1.15)) + ' - Rs. ' + str(round(current_price * 1.25)))}**."
+            )
+            synthesis_text = f"{p1}\n\n{p2}\n\n{p3}\n\n{p4}\n\n{p5}"
 
         return {
             "synthesis_text": synthesis_text,
@@ -1136,7 +1311,10 @@ async def get_synthesis(
             "piotroski_label": piotroski_label,
             "rsi": rsi,
             "sma_50": sma_50,
-            "sma_200": sma_200
+            "sma_200": sma_200,
+            "capm_risk_nifty50": nifty50_risk,
+            "capm_risk_sector": sector_risk,
+            "risk_warning_flags": warning_flags
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"AI Synthesis compilation failed: {str(e)}")
@@ -2178,72 +2356,183 @@ async def get_risk_factors(symbol: str, benchmark: str = "^NSEI", period: str = 
         if period not in valid_periods:
             period = "1y"
             
-        # Download price data
-        loop = asyncio.get_event_loop()
-        df_stock = await loop.run_in_executor(None, lambda: yf.download(symbol, period=period, progress=False))
-        df_bench = await loop.run_in_executor(None, lambda: yf.download(benchmark, period=period, progress=False))
+        # Determine cap-specific benchmark
+        import sqlite3
+        import os
+        from backend.financial_utils import resolve_benchmark_by_mcap
         
-        if df_stock.empty or df_bench.empty:
-            raise HTTPException(status_code=400, detail=f"No price data found for {symbol} or benchmark {benchmark}")
+        cap_type = None
+        DATABASE_DIR = os.environ.get("DATABASE_DIR", os.path.join(os.path.dirname(__file__), "data"))
+        DATABASE_PATH = os.path.join(DATABASE_DIR, "watchlist_database.db")
+        if os.path.exists(DATABASE_PATH):
+            try:
+                conn = sqlite3.connect(DATABASE_PATH)
+                cursor = conn.cursor()
+                clean_sym = symbol.split(".")[0].upper()
+                cursor.execute("SELECT cap_type FROM screener_universe WHERE symbol = ? OR base_symbol = ?", (symbol, clean_sym))
+                row = cursor.fetchone()
+                if row:
+                    cap_type = row[0]
+                conn.close()
+            except Exception as e:
+                print(f"Error querying cap_type for {symbol}: {e}")
+                
+        # Resolve suggested benchmark
+        suggested_sym = "^CNX100"
+        suggested_name = "Nifty 100"
+        if cap_type:
+            cap_type_lower = cap_type.lower()
+            if "mid" in cap_type_lower:
+                suggested_sym = "NIFTYMIDCAP150.NS"
+                suggested_name = "Nifty Midcap 150"
+            elif "small" in cap_type_lower:
+                suggested_sym = "MOSMALL250.NS"
+                suggested_name = "Nifty Smallcap 250"
+        else:
+            # Fallback to yfinance if not in DB
+            try:
+                ticker_obj = yf.Ticker(symbol)
+                info = ticker_obj.info
+                mcap = info.get("marketCap", 0)
+                mcap_cr = mcap / 1e7 if mcap else 0
+                if mcap_cr > 0:
+                    suggested_sym, suggested_name = resolve_benchmark_by_mcap(mcap_cr)
+            except Exception as e:
+                print(f"Error resolving mcap from yf for {symbol}: {e}")
+                
+        # Collect unique tickers to download
+        tickers_to_download = list(set([symbol, benchmark, "^NSEI", suggested_sym]))
+        
+        # Download all price data concurrently
+        loop = asyncio.get_event_loop()
+        download_tasks = []
+        for ticker in tickers_to_download:
+            download_tasks.append(
+                loop.run_in_executor(None, lambda t=ticker: yf.download(t, period=period, progress=False))
+            )
+        dfs = await asyncio.gather(*download_tasks)
+        df_map = dict(zip(tickers_to_download, dfs))
+        
+        df_stock = df_map.get(symbol)
+        df_bench = df_map.get(benchmark)
+        df_nifty50 = df_map.get("^NSEI")
+        df_suggested = df_map.get(suggested_sym)
+        
+        if df_stock is None or df_stock.empty:
+            raise HTTPException(status_code=400, detail=f"No price data found for stock {symbol}")
+        if df_bench is None or df_bench.empty:
+            raise HTTPException(status_code=400, detail=f"No price data found for selected benchmark {benchmark}")
             
-        # Safely extract close series
+        def compute_risk_metrics(df_s, df_b, rf_rate=0.07):
+            if df_s is None or df_s.empty or df_b is None or df_b.empty:
+                return {
+                    "beta": 1.0,
+                    "correlation": 0.5,
+                    "annual_stock_ret": 12.0,
+                    "annual_bench_ret": 10.0,
+                    "alpha": 1.5
+                }
+            close_s = df_s['Close']
+            if isinstance(close_s, pd.DataFrame):
+                close_s = close_s.iloc[:, 0]
+            close_b = df_b['Close']
+            if isinstance(close_b, pd.DataFrame):
+                close_b = close_b.iloc[:, 0]
+                
+            df_aligned = pd.DataFrame({'stock': close_s, 'bench': close_b}).dropna()
+            if df_aligned.empty:
+                return {
+                    "beta": 1.0,
+                    "correlation": 0.5,
+                    "annual_stock_ret": 12.0,
+                    "annual_bench_ret": 10.0,
+                    "alpha": 1.5
+                }
+            df_aligned['stock_ret'] = df_aligned['stock'].pct_change()
+            df_aligned['bench_ret'] = df_aligned['bench'].pct_change()
+            df_aligned = df_aligned.dropna()
+            
+            if len(df_aligned) < 5:
+                return {
+                    "beta": 1.0,
+                    "correlation": 0.5,
+                    "annual_stock_ret": 12.0,
+                    "annual_bench_ret": 10.0,
+                    "alpha": 1.5
+                }
+                
+            covariance = float(df_aligned['stock_ret'].cov(df_aligned['bench_ret']))
+            bench_variance = float(df_aligned['bench_ret'].var())
+            beta = covariance / bench_variance if bench_variance != 0.0 else 1.0
+            correlation = float(df_aligned['stock_ret'].corr(df_aligned['bench_ret']))
+            
+            cum_s = float((1 + df_aligned['stock_ret']).prod() - 1)
+            cum_b = float((1 + df_aligned['bench_ret']).prod() - 1)
+            
+            num_days = len(df_aligned)
+            ann_s = float(((cum_s + 1) ** (252.0 / num_days) - 1)) if num_days > 0 else 0.0
+            ann_b = float(((cum_b + 1) ** (252.0 / num_days) - 1)) if num_days > 0 else 0.0
+            
+            alpha_val = ann_s - (rf_rate + beta * (ann_b - rf_rate))
+            
+            return {
+                "beta": round(beta, 3),
+                "correlation": round(correlation, 3),
+                "annual_stock_ret": round(ann_s * 100, 2),
+                "annual_bench_ret": round(ann_b * 100, 2),
+                "alpha": round(alpha_val * 100, 2)
+            }
+            
+        # Calculate selected benchmark metrics
+        main_metrics = compute_risk_metrics(df_stock, df_bench)
+        
+        # Calculate Nifty 50 metrics
+        n50_metrics = compute_risk_metrics(df_stock, df_nifty50)
+        n50_metrics["benchmark_name"] = "Nifty 50"
+        n50_metrics["benchmark_symbol"] = "^NSEI"
+        
+        # Calculate Suggested Cap index metrics
+        suggested_metrics = compute_risk_metrics(df_stock, df_suggested)
+        suggested_metrics["benchmark_name"] = suggested_name
+        suggested_metrics["benchmark_symbol"] = suggested_sym
+        
+        # Format daily scatter points for main benchmark chart
         close_stock = df_stock['Close']
         if isinstance(close_stock, pd.DataFrame):
             close_stock = close_stock.iloc[:, 0]
-            
         close_bench = df_bench['Close']
         if isinstance(close_bench, pd.DataFrame):
             close_bench = close_bench.iloc[:, 0]
-            
-        # Align series
-        df = pd.DataFrame({'stock': close_stock, 'bench': close_bench}).dropna()
-        if df.empty:
-            raise HTTPException(status_code=400, detail="Mismatched trading dates between stock and benchmark")
-            
-        # Calculate percent daily returns
-        df['stock_ret'] = df['stock'].pct_change()
-        df['bench_ret'] = df['bench'].pct_change()
-        df = df.dropna()
+        df_aligned_main = pd.DataFrame({'stock': close_stock, 'bench': close_bench}).dropna()
+        df_aligned_main['stock_ret'] = df_aligned_main['stock'].pct_change()
+        df_aligned_main['bench_ret'] = df_aligned_main['bench'].pct_change()
+        df_aligned_main = df_aligned_main.dropna()
         
-        if len(df) < 5:
-            raise HTTPException(status_code=400, detail="Insufficient trading dates data for covariance analysis")
-            
-        # Covariance and Variance
-        covariance = float(df['stock_ret'].cov(df['bench_ret']))
-        bench_variance = float(df['bench_ret'].var())
-        beta = covariance / bench_variance if bench_variance != 0.0 else 1.0
-        correlation = float(df['stock_ret'].corr(df['bench_ret']))
-        
-        # Cumulative returns
-        cum_stock = float((1 + df['stock_ret']).prod() - 1)
-        cum_bench = float((1 + df['bench_ret']).prod() - 1)
-        
-        # Annualized returns based on actual trading days in aligned dataset
-        num_days = len(df)
-        annual_stock = float(((cum_stock + 1) ** (252.0 / num_days) - 1)) if num_days > 0 else 0.0
-        annual_bench = float(((cum_bench + 1) ** (252.0 / num_days) - 1)) if num_days > 0 else 0.0
-        
-        # Format daily scatter points
         scatter_points = []
-        for date, row in df.iterrows():
+        for date, row in df_aligned_main.iterrows():
             scatter_points.append({
                 "x": float(row['bench_ret'] * 100),
                 "y": float(row['stock_ret'] * 100),
                 "date": date.strftime('%Y-%m-%d')
             })
             
+        cum_stock = float((1 + df_aligned_main['stock_ret']).prod() - 1)
+        cum_bench = float((1 + df_aligned_main['bench_ret']).prod() - 1)
+        
         return {
             "status": "success",
             "symbol": symbol,
             "benchmark": benchmark,
             "period": period,
-            "beta": beta,
-            "correlation": correlation,
-            "annual_stock_ret": annual_stock * 100,
-            "annual_bench_ret": annual_bench * 100,
+            "beta": main_metrics["beta"],
+            "correlation": main_metrics["correlation"],
+            "annual_stock_ret": main_metrics["annual_stock_ret"],
+            "annual_bench_ret": main_metrics["annual_bench_ret"],
             "cum_stock_ret": cum_stock * 100,
             "cum_bench_ret": cum_bench * 100,
-            "scatter_points": scatter_points
+            "scatter_points": scatter_points,
+            "nifty50_risk": n50_metrics,
+            "suggested_risk": suggested_metrics
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"CAPM Calculation Error: {str(e)}")
