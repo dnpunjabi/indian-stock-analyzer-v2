@@ -425,11 +425,27 @@ async def run_cio_parent_agent(query: str, horizon: str, risk_profile: str, cust
     sentiment_report = ""
     
     if not use_local_simulator:
-        config = LocalAgentConfig(
-            system_instructions="You are the Chief Investment Officer of a premier Indian Mutual Fund."
-        )
-        try:
-            async with Agent(config) as agent:
+        if os.environ.get("GEMINI_API_KEY"):
+            config = LocalAgentConfig(
+                system_instructions="You are the Chief Investment Officer of a premier Indian Mutual Fund."
+            )
+            try:
+                async with Agent(config) as agent:
+                    loop = asyncio.get_event_loop()
+                    f_sub = loop.run_in_executor(None, run_fundamental_subagent, profile)
+                    t_sub = loop.run_in_executor(None, run_technical_subagent, profile)
+                    s_sub = loop.run_in_executor(None, run_sentiment_subagent, profile)
+                    
+                    fundamental_report, technical_report, sentiment_report = await asyncio.gather(f_sub, t_sub, s_sub)
+                    
+                    # If any subagent returned a 401, trigger simulation fallback
+                    if "ERROR_401" in fundamental_report or "ERROR_401" in technical_report or "ERROR_401" in sentiment_report:
+                        use_local_simulator = True
+            except Exception:
+                use_local_simulator = True
+        else:
+            # Bypass Agent context manager and call Groq subagents directly
+            try:
                 loop = asyncio.get_event_loop()
                 f_sub = loop.run_in_executor(None, run_fundamental_subagent, profile)
                 t_sub = loop.run_in_executor(None, run_technical_subagent, profile)
@@ -440,8 +456,8 @@ async def run_cio_parent_agent(query: str, horizon: str, risk_profile: str, cust
                 # If any subagent returned a 401, trigger simulation fallback
                 if "ERROR_401" in fundamental_report or "ERROR_401" in technical_report or "ERROR_401" in sentiment_report:
                     use_local_simulator = True
-        except Exception:
-            use_local_simulator = True
+            except Exception:
+                use_local_simulator = True
             
     if use_local_simulator:
         print("Activating local high-fidelity fallback portfolio modeling...")
