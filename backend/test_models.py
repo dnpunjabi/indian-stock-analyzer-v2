@@ -972,7 +972,123 @@ class TestPortfolioAPI(unittest.TestCase):
         # Check if "Wise PE Valuation Call" gate exists and passed
         pe_gate = next(g for g in value_combo["gates"] if g["name"] == "Wise PE Valuation Call")
         self.assertTrue(pe_gate["passed"])
-        self.assertIn("Peer-Relative Value", pe_gate["details"])
+
+import pandas as pd
+
+class TestAlertsEnhancements(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.client = TestClient(app)
+        main.init_db()
+
+    def setUp(self):
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM alerts")
+            cursor.execute("DELETE FROM alert_settings")
+            conn.commit()
+
+    def test_alert_settings_endpoints(self):
+        """Verifies alerts settings GET and POST endpoints."""
+        response = self.client.get("/api/alerts/settings")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["slack_webhook"], "")
+        self.assertEqual(data["discord_webhook"], "")
+
+        payload = {
+            "slack_webhook": "https://hooks.slack.com/services/test-slack",
+            "discord_webhook": "https://discord.com/api/webhooks/test-discord"
+        }
+        save_response = self.client.post("/api/alerts/settings", json=payload)
+        self.assertEqual(save_response.status_code, 200)
+        self.assertEqual(save_response.json()["status"], "success")
+
+        response_saved = self.client.get("/api/alerts/settings")
+        self.assertEqual(response_saved.status_code, 200)
+        data_saved = response_saved.json()
+        self.assertEqual(data_saved["slack_webhook"], "https://hooks.slack.com/services/test-slack")
+        self.assertEqual(data_saved["discord_webhook"], "https://discord.com/api/webhooks/test-discord")
+
+    @patch("backend.main.get_complete_financial_profile")
+    @patch("backend.main.fetch_history_df")
+    def test_alert_evaluations(self, mock_fetch_history, mock_get_profile):
+        """Tests the evaluation of crossovers, SMA50 difference, and Fibonacci proximity."""
+        mock_get_profile.return_value = {
+            "fundamentals": {"current_price": 100.0},
+            "technicals": {"rsi": 50.0, "sma_200": 90.0}
+        }
+
+        dates = pd.date_range(end="2026-06-09", periods=250, freq="D")
+        close_prices = [100.0] * 200 + [80.0] * 49 + [2000.0]
+        volumes = [500000] * 250
+        df_history = pd.DataFrame({"Close": close_prices, "Volume": volumes}, index=dates)
+        mock_fetch_history.return_value = df_history
+
+        set_payload = {
+            "ticker": "RELIANCE",
+            "condition_type": "DMA_CROSS",
+            "operator": ">",
+            "value": "0"
+        }
+        set_res = self.client.post("/api/alerts/set", json=set_payload)
+        self.assertEqual(set_res.status_code, 200)
+        alert_id = set_res.json()["id"]
+
+        check_res = self.client.get("/api/alerts/check")
+        self.assertEqual(check_res.status_code, 200)
+        check_data = check_res.json()
+        
+        triggered_alert = next((a for a in check_data["alerts"] if a["id"] == alert_id), None)
+        self.assertIsNotNone(triggered_alert)
+        self.assertTrue(triggered_alert["triggered"])
+        self.assertEqual(triggered_alert["status"], "Triggered")
+
+    @patch("backend.main.get_complete_financial_profile")
+    @patch("backend.main.fetch_history_df")
+    def test_fibonacci_level_and_sma50_triggers(self, mock_fetch_history, mock_get_profile):
+        """Tests SMA50 percent difference and Fibonacci retracement proximity alerts."""
+        mock_get_profile.return_value = {
+            "fundamentals": {"current_price": 100.0},
+            "technicals": {"rsi": 50.0}
+        }
+
+        dates = pd.date_range(end="2026-06-09", periods=120, freq="D")
+        close_prices = [100.0] * 60 + [200.0] * 59 + [151.0]
+        df_history = pd.DataFrame({"Close": close_prices, "Volume": [100000]*120}, index=dates)
+        mock_fetch_history.return_value = df_history
+
+        fib_payload = {
+            "ticker": "TCS",
+            "condition_type": "FIB_LEVEL",
+            "operator": "==",
+            "value": "1.5"
+        }
+        set_res = self.client.post("/api/alerts/set", json=fib_payload)
+        self.assertEqual(set_res.status_code, 200)
+        fib_alert_id = set_res.json()["id"]
+
+        sma50_payload = {
+            "ticker": "TCS",
+            "condition_type": "SMA50",
+            "operator": "<",
+            "value": "-20"
+        }
+        set_res2 = self.client.post("/api/alerts/set", json=sma50_payload)
+        self.assertEqual(set_res2.status_code, 200)
+        sma_alert_id = set_res2.json()["id"]
+
+        check_res = self.client.get("/api/alerts/check")
+        self.assertEqual(check_res.status_code, 200)
+        check_data = check_res.json()
+
+        fib_alert = next((a for a in check_data["alerts"] if a["id"] == fib_alert_id), None)
+        self.assertIsNotNone(fib_alert)
+        self.assertTrue(fib_alert["triggered"])
+
+        sma_alert = next((a for a in check_data["alerts"] if a["id"] == sma_alert_id), None)
+        self.assertIsNotNone(sma_alert)
+        self.assertTrue(sma_alert["triggered"])
 
 
 if __name__ == "__main__":

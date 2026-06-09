@@ -116,6 +116,13 @@ def init_db():
             trigger_date TEXT DEFAULT ''
         )
         """)
+        # Persistent alert settings table
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS alert_settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        )
+        """)
         # Persistent screener universe table
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS screener_universe (
@@ -1032,6 +1039,10 @@ class AlertRequest(BaseModel):
     condition_type: str
     operator: str
     value: str
+
+class AlertSettingsRequest(BaseModel):
+    slack_webhook: str = ""
+    discord_webhook: str = ""
 
 class WatchlistCreate(BaseModel):
     name: str
@@ -2138,6 +2149,34 @@ async def list_alerts():
             for row in rows
         ]
 
+@app.get("/api/alerts/settings")
+async def get_alert_settings():
+    """Returns the Slack/Discord webhook settings from database."""
+    slack_webhook = ""
+    discord_webhook = ""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT key, value FROM alert_settings WHERE key IN ('slack_webhook', 'discord_webhook')")
+        for row in cursor.fetchall():
+            if row["key"] == "slack_webhook":
+                slack_webhook = row["value"]
+            elif row["key"] == "discord_webhook":
+                discord_webhook = row["value"]
+    return {"slack_webhook": slack_webhook, "discord_webhook": discord_webhook}
+
+@app.post("/api/alerts/settings")
+async def save_alert_settings(data: AlertSettingsRequest):
+    """Saves or updates the Slack/Discord webhook settings in database."""
+    try:
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute("INSERT OR REPLACE INTO alert_settings (key, value) VALUES ('slack_webhook', ?)", (data.slack_webhook,))
+            cursor.execute("INSERT OR REPLACE INTO alert_settings (key, value) VALUES ('discord_webhook', ?)", (data.discord_webhook,))
+            conn.commit()
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save settings: {str(e)}")
+
 @app.delete("/api/alerts/{alert_id}")
 async def delete_alert(alert_id: str):
     """Deletes a single alert by ID."""
@@ -2150,6 +2189,21 @@ async def delete_alert(alert_id: str):
 @app.get("/api/alerts/check")
 async def check_alerts():
     """Background-triggered active alert scanning sweep."""
+    # Fetch webhook settings once
+    slack_webhook = ""
+    discord_webhook = ""
+    try:
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT key, value FROM alert_settings WHERE key IN ('slack_webhook', 'discord_webhook')")
+            for row in cursor.fetchall():
+                if row["key"] == "slack_webhook":
+                    slack_webhook = row["value"]
+                elif row["key"] == "discord_webhook":
+                    discord_webhook = row["value"]
+    except Exception as db_err:
+        print(f"Error reading alert settings for webhook: {db_err}")
+
     triggers = []
     with get_db() as conn:
         cursor = conn.cursor()
@@ -2162,6 +2216,14 @@ async def check_alerts():
             t = await asyncio.to_thread(get_complete_financial_profile, ticker)
             triggered = False
             cur_val = ""
+            
+            # Fetch history if required
+            df = None
+            if alert["condition_type"] in ["DMA_CROSS", "EMA_CROSS", "VOL_BREAKOUT", "BB_CROSS", "MACD_CROSS", "52W_PROXIMITY", "SMA50", "FIB_LEVEL"]:
+                df = await fetch_history_df(ticker, "1y", "1d")
+                if df.empty:
+                    print(f"Skipping alert check #{alert['id']} for {ticker} as price history is empty.")
+                    continue
             
             if alert["condition_type"] == "RSI":
                 rsi_val = t["technicals"]["rsi"]
@@ -2208,6 +2270,146 @@ async def check_alerts():
                 elif alert["operator"] == "<" and price_val < sma_200:
                     triggered = True
                     
+            elif alert["condition_type"] == "DMA_CROSS":
+                # 50 SMA vs 200 SMA
+                df["MA_50"] = df["Close"].rolling(window=50).mean()
+                df["MA_200"] = df["Close"].rolling(window=200).mean()
+                df_clean = df.dropna(subset=["MA_200"])
+                if len(df_clean) >= 2:
+                    ma50_prev, ma50_curr = float(df_clean["MA_50"].iloc[-2]), float(df_clean["MA_50"].iloc[-1])
+                    ma200_prev, ma200_curr = float(df_clean["MA_200"].iloc[-2]), float(df_clean["MA_200"].iloc[-1])
+                    cur_val = f"50d SMA: Rs. {ma50_curr:.2f} vs 200d SMA: Rs. {ma200_curr:.2f}"
+                    if alert["operator"] == ">": # Golden Cross
+                        if ma50_prev < ma200_prev and ma50_curr >= ma200_curr:
+                            triggered = True
+                    elif alert["operator"] == "<": # Death Cross
+                        if ma50_prev > ma200_prev and ma50_curr <= ma200_curr:
+                            triggered = True
+
+            elif alert["condition_type"] == "EMA_CROSS":
+                # 50 EMA vs 200 EMA
+                df["MA_50"] = df["Close"].ewm(span=50, adjust=False).mean()
+                df["MA_200"] = df["Close"].ewm(span=200, adjust=False).mean()
+                df_clean = df.dropna(subset=["MA_200"])
+                if len(df_clean) >= 2:
+                    ma50_prev, ma50_curr = float(df_clean["MA_50"].iloc[-2]), float(df_clean["MA_50"].iloc[-1])
+                    ma200_prev, ma200_curr = float(df_clean["MA_200"].iloc[-2]), float(df_clean["MA_200"].iloc[-1])
+                    cur_val = f"50d EMA: Rs. {ma50_curr:.2f} vs 200d EMA: Rs. {ma200_curr:.2f}"
+                    if alert["operator"] == ">": # Golden Cross
+                        if ma50_prev < ma200_prev and ma50_curr >= ma200_curr:
+                            triggered = True
+                    elif alert["operator"] == "<": # Death Cross
+                        if ma50_prev > ma200_prev and ma50_curr <= ma200_curr:
+                            triggered = True
+
+            elif alert["condition_type"] == "VOL_BREAKOUT":
+                # Volume vs 20d Average Volume ratio
+                df["Vol_20MA"] = df["Volume"].rolling(window=20).mean()
+                df_clean = df.dropna(subset=["Vol_20MA"])
+                if len(df_clean) >= 1:
+                    vol_curr = float(df_clean["Volume"].iloc[-1])
+                    vol_ma = float(df_clean["Vol_20MA"].iloc[-1])
+                    vol_ratio = vol_curr / vol_ma if vol_ma > 0 else 1.0
+                    cur_val = f"Volume Ratio: {vol_ratio:.2f}x (Avg: {int(vol_ma)})"
+                    threshold = float(alert["value"])
+                    if alert["operator"] == ">" and vol_ratio > threshold:
+                        triggered = True
+                    elif alert["operator"] == "<" and vol_ratio < threshold:
+                        triggered = True
+
+            elif alert["condition_type"] == "BB_CROSS":
+                # Bollinger Band Crossover
+                df["BB_Mid"] = df["Close"].rolling(window=20).mean()
+                df["BB_Std"] = df["Close"].rolling(window=20).std()
+                df["BB_Upper"] = df["BB_Mid"] + 2 * df["BB_Std"]
+                df["BB_Lower"] = df["BB_Mid"] - 2 * df["BB_Std"]
+                df_clean = df.dropna(subset=["BB_Upper"])
+                if len(df_clean) >= 2:
+                    close_prev, close_curr = float(df_clean["Close"].iloc[-2]), float(df_clean["Close"].iloc[-1])
+                    upper_prev, upper_curr = float(df_clean["BB_Upper"].iloc[-2]), float(df_clean["BB_Upper"].iloc[-1])
+                    lower_prev, lower_curr = float(df_clean["BB_Lower"].iloc[-2]), float(df_clean["BB_Lower"].iloc[-1])
+                    if alert["operator"] == ">": # Crosses above Upper Band
+                        cur_val = f"Price: Rs. {close_curr:.2f} vs BB Upper: Rs. {upper_curr:.2f}"
+                        if close_prev < upper_prev and close_curr >= upper_curr:
+                            triggered = True
+                    elif alert["operator"] == "<": # Crosses below Lower Band
+                        cur_val = f"Price: Rs. {close_curr:.2f} vs BB Lower: Rs. {lower_curr:.2f}"
+                        if close_prev > lower_prev and close_curr <= lower_curr:
+                            triggered = True
+
+            elif alert["condition_type"] == "MACD_CROSS":
+                # MACD vs Signal Line Crossover
+                ema12 = df["Close"].ewm(span=12, adjust=False).mean()
+                ema26 = df["Close"].ewm(span=26, adjust=False).mean()
+                df["MACD"] = ema12 - ema26
+                df["Signal"] = df["MACD"].ewm(span=9, adjust=False).mean()
+                df_clean = df.dropna(subset=["Signal"])
+                if len(df_clean) >= 2:
+                    macd_prev, macd_curr = float(df_clean["MACD"].iloc[-2]), float(df_clean["MACD"].iloc[-1])
+                    sig_prev, sig_curr = float(df_clean["Signal"].iloc[-2]), float(df_clean["Signal"].iloc[-1])
+                    cur_val = f"MACD: {macd_curr:.3f} vs Signal: {sig_curr:.3f}"
+                    if alert["operator"] == ">":
+                        if macd_prev < sig_prev and macd_curr >= sig_curr:
+                            triggered = True
+                    elif alert["operator"] == "<":
+                        if macd_prev > sig_prev and macd_curr <= sig_curr:
+                            triggered = True
+
+            elif alert["condition_type"] == "52W_PROXIMITY":
+                # Price vs 52-Week Range
+                high_52w = float(df["Close"].max())
+                low_52w = float(df["Close"].min())
+                if len(df) >= 1:
+                    price_val = float(df["Close"].iloc[-1])
+                    proximity_pct = float(alert["value"])
+                    if alert["operator"] == ">": # near 52w High
+                        diff_pct = ((high_52w - price_val) / high_52w) * 100
+                        cur_val = f"Price: Rs. {price_val:.2f} (52w High: Rs. {high_52w:.2f}, Diff: {diff_pct:.1f}%)"
+                        if diff_pct <= proximity_pct:
+                            triggered = True
+                    elif alert["operator"] == "<": # near 52w Low
+                        diff_pct = ((price_val - low_52w) / low_52w) * 100
+                        cur_val = f"Price: Rs. {price_val:.2f} (52w Low: Rs. {low_52w:.2f}, Diff: {diff_pct:.1f}%)"
+                        if diff_pct <= proximity_pct:
+                            triggered = True
+
+            elif alert["condition_type"] == "SMA50":
+                # Price vs SMA-50 % diff
+                df["SMA_50"] = df["Close"].rolling(window=50).mean()
+                df_clean = df.dropna(subset=["SMA_50"])
+                if len(df_clean) >= 1:
+                    price_val = float(df_clean["Close"].iloc[-1])
+                    sma_50 = float(df_clean["SMA_50"].iloc[-1])
+                    pct_diff = ((price_val - sma_50) / sma_50) * 100
+                    cur_val = f"Price: Rs. {price_val:.2f} vs SMA50: Rs. {sma_50:.2f} (Diff: {pct_diff:+.1f}%)"
+                    threshold = float(alert["value"])
+                    if alert["operator"] == ">" and pct_diff > threshold:
+                        triggered = True
+                    elif alert["operator"] == "<" and pct_diff < threshold:
+                        triggered = True
+
+            elif alert["condition_type"] == "FIB_LEVEL":
+                # Fibonacci Retracement Proximity
+                sub_df = df.iloc[-120:] if len(df) >= 120 else df
+                swing_high = float(sub_df["Close"].max())
+                swing_low = float(sub_df["Close"].min())
+                swing_diff = swing_high - swing_low
+                fib_382 = swing_high - 0.382 * swing_diff
+                fib_500 = swing_high - 0.500 * swing_diff
+                fib_618 = swing_high - 0.618 * swing_diff
+                if len(df) >= 1:
+                    price_val = float(df["Close"].iloc[-1])
+                    matched_level = None
+                    matched_val = 0.0
+                    for level_name, level_val in [("38.2%", fib_382), ("50.0%", fib_500), ("61.8%", fib_618)]:
+                        diff_pct = abs(price_val - level_val) / level_val * 100
+                        if diff_pct <= 1.5:
+                            matched_level = level_name
+                            matched_val = level_val
+                            triggered = True
+                            break
+                    cur_val = f"Price: Rs. {price_val:.2f} near Fib {matched_level or 'Support'} Level: Rs. {matched_val:.2f} (Range: {swing_low:.0f}-{swing_high:.0f})"
+                    
             if triggered:
                 trigger_date = datetime.now().strftime("%Y-%m-%d %H:%M")
                 with get_db() as conn:
@@ -2218,6 +2420,47 @@ async def check_alerts():
                     )
                     conn.commit()
                 triggers.append(f"ALERT TRIGGERED: {alert['ticker']} reached {cur_val} (Target: {alert['operator']} {alert['value']})")
+                
+                # Asynchronously dispatch webhook alerts
+                async def send_webhook_async(url, payload):
+                    import requests
+                    try:
+                        await asyncio.to_thread(requests.post, url, json=payload, timeout=5)
+                    except Exception as web_err:
+                        print(f"Failed to deliver alert webhook: {web_err}")
+
+                text_msg = (
+                    f"🔔 **INSTITUTIONAL ALERT TRIGGERED** 🔔\n"
+                    f"• **Stock**: {alert['ticker']}\n"
+                    f"• **Condition**: {alert['condition_type']} {alert['operator']} {alert['value']}\n"
+                    f"• **Triggered Value**: {cur_val}\n"
+                    f"• **Triggered At**: {trigger_date}"
+                )
+
+                if discord_webhook:
+                    discord_payload = {
+                        "content": None,
+                        "embeds": [{
+                            "title": "🚨 Institutional Alert Triggered",
+                            "color": 15548997,  # Red
+                            "fields": [
+                                {"name": "Stock", "value": f"**{alert['ticker']}**", "inline": True},
+                                {"name": "Condition", "value": f"`{alert['condition_type']} {alert['operator']} {alert['value']}`", "inline": True},
+                                {"name": "Triggered Value", "value": f"{cur_val}", "inline": False},
+                                {"name": "Timestamp", "value": f"{trigger_date}", "inline": True}
+                            ],
+                            "footer": {
+                                "text": "APEX Agentic Equities AI Workstation"
+                            }
+                        }]
+                    }
+                    asyncio.create_task(send_webhook_async(discord_webhook, discord_payload))
+
+                if slack_webhook:
+                    slack_payload = {
+                        "text": text_msg
+                    }
+                    asyncio.create_task(send_webhook_async(slack_webhook, slack_payload))
                 
         except Exception as e:
             print(f"Error checking alert #{alert['id']}: {e}")

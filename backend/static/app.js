@@ -4370,13 +4370,38 @@ function renderComparisonArena(data) {
 function setupAlertCenter() {
     document.getElementById('save-alert-btn').addEventListener('click', setAlertRule);
     document.getElementById('scan-alerts-btn').addEventListener('click', checkAlertRules);
+    
+    // Webhook settings save listener
+    const saveWebhooksBtn = document.getElementById('save-webhooks-btn');
+    if (saveWebhooksBtn) {
+        saveWebhooksBtn.addEventListener('click', saveWebhooksSettings);
+    }
+    
+    // Autocomplete on stock input
+    setupAlertSymbolAutocomplete();
+    
+    // Dynamic cheatsheet guide
+    const conditionSelect = document.getElementById('alert-condition');
+    if (conditionSelect) {
+        conditionSelect.addEventListener('change', updateAlertCheatsheet);
+        // Trigger once to set defaults
+        updateAlertCheatsheet();
+    }
+    
+    // Acknowledge warning HUD button listener
+    const ackBtn = document.getElementById('hud-ack-btn');
+    if (ackBtn) {
+        ackBtn.addEventListener('click', dismissEmergencyHUD);
+    }
+    
+    fetchWebhooksSettings();
     fetchAlertsList();
     startRealTimeAlertScanner();
 }
 
 // Start Real-Time Alert Engine background scanner
 function startRealTimeAlertScanner() {
-    // Run a silent background scanner every 30 seconds
+    // Run a background scanner every 30 seconds
     setInterval(async () => {
         try {
             const response = await fetch('/api/alerts/check');
@@ -4385,20 +4410,23 @@ function startRealTimeAlertScanner() {
             
             // Check if there are any new triggers in this sweep
             if (data.triggers && data.triggers.length > 0) {
-                // 1. Play premium institutional double-beep alert sound
+                // 1. Play premium institutional alert sound
                 playAlertSound();
                 
-                // 2. Display a toast notification for each trigger
+                // 2. Display Emergency HUD
+                const hudMsg = data.triggers.join("<br>");
+                showEmergencyHUD(hudMsg);
+                
+                // 3. Display a toast notification for each trigger
                 data.triggers.forEach(msg => {
-                    showToast(`⚠️ SYSTEM ALERT: ${msg}`, 'warning');
+                    showToast(`🚨 SYSTEM ALERT: ${msg}`, 'warning');
                 });
                 
-                // 3. Append triggers dynamically to the header notifications list
+                // 4. Append triggers dynamically to the header notifications list
                 const notifBody = document.getElementById('notification-list-body');
                 const badge = document.getElementById('bell-badge-count');
                 
                 if (notifBody) {
-                    // Remove "No new system notifications" if present
                     if (notifBody.innerText.includes("No new system notifications")) {
                         notifBody.innerHTML = '';
                     }
@@ -4423,7 +4451,7 @@ function startRealTimeAlertScanner() {
                     });
                 }
                 
-                // 4. Update the badge count
+                // 5. Update the badge count
                 if (badge) {
                     let currentCount = 0;
                     if (badge.style.display !== 'none' && badge.innerText !== '') {
@@ -4431,10 +4459,10 @@ function startRealTimeAlertScanner() {
                     }
                     currentCount += data.triggers.length;
                     badge.innerText = currentCount;
-                    badge.style.display = 'flex'; // Ensure badge is visible
+                    badge.style.display = 'flex';
                 }
                 
-                // 5. If user is currently looking at the alert center tab, update the list automatically!
+                // 6. If user is currently looking at the alert center tab, update the list automatically!
                 const alertsTab = document.getElementById('tab-alerts');
                 if (alertsTab && alertsTab.style.display !== 'none') {
                     renderAlertsList(data.alerts);
@@ -4446,41 +4474,70 @@ function startRealTimeAlertScanner() {
     }, 30000); // 30 seconds interval
 }
 
-function playAlertSound() {
-    const audioToggle = document.getElementById('setting-audio-toggle');
-    if (audioToggle && !audioToggle.checked) return;
+function playAlertSound(style = 'sonar_ping') {
+    const audioSelect = document.getElementById('hud-audio-select');
+    const activeStyle = audioSelect ? audioSelect.value : style;
+    if (activeStyle === 'mute') return;
     
     try {
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         
-        // First Beep
-        const osc1 = audioCtx.createOscillator();
-        const gain1 = audioCtx.createGain();
-        osc1.connect(gain1);
-        gain1.connect(audioCtx.destination);
-        osc1.type = 'sine';
-        osc1.frequency.value = 880; // A5
-        gain1.gain.setValueAtTime(0.08, audioCtx.currentTime);
-        gain1.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
-        osc1.start(audioCtx.currentTime);
-        osc1.stop(audioCtx.currentTime + 0.15);
-        
-        // Second Beep (150ms later)
-        const osc2 = audioCtx.createOscillator();
-        const gain2 = audioCtx.createGain();
-        osc2.connect(gain2);
-        gain2.connect(audioCtx.destination);
-        osc2.type = 'sine';
-        osc2.frequency.value = 1200; // High tone
-        gain2.gain.setValueAtTime(0.08, audioCtx.currentTime + 0.15);
-        gain2.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
-        osc2.start(audioCtx.currentTime + 0.15);
-        osc2.stop(audioCtx.currentTime + 0.3);
+        if (activeStyle === 'sonar_ping') {
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(1400, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(700, audioCtx.currentTime + 0.6);
+            gainNode.gain.setValueAtTime(0.12, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.8);
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + 0.8);
+        } else if (activeStyle === 'chimes') {
+            const now = audioCtx.currentTime;
+            const frequencies = [880, 1100, 1320, 1650];
+            frequencies.forEach((freq, idx) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.type = 'triangle';
+                osc.frequency.value = freq;
+                const delay = idx * 0.08;
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(0.06, now + delay + 0.03);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.35);
+                osc.start(now + delay);
+                osc.stop(now + delay + 0.4);
+            });
+        } else {
+            const osc1 = audioCtx.createOscillator();
+            const gain1 = audioCtx.createGain();
+            osc1.connect(gain1);
+            gain1.connect(audioCtx.destination);
+            osc1.type = 'sine';
+            osc1.frequency.value = 880;
+            gain1.gain.setValueAtTime(0.08, audioCtx.currentTime);
+            gain1.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+            osc1.start(audioCtx.currentTime);
+            osc1.stop(audioCtx.currentTime + 0.15);
+            
+            const osc2 = audioCtx.createOscillator();
+            const gain2 = audioCtx.createGain();
+            osc2.connect(gain2);
+            gain2.connect(audioCtx.destination);
+            osc2.type = 'sine';
+            osc2.frequency.value = 1200;
+            gain2.gain.setValueAtTime(0.08, audioCtx.currentTime + 0.15);
+            gain2.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.35);
+            osc2.start(audioCtx.currentTime + 0.15);
+            osc2.stop(audioCtx.currentTime + 0.35);
+        }
     } catch (e) {
-        console.warn("AudioContext beep failed: ", e);
+        console.warn("AudioContext tone synthesis failed: ", e);
     }
 }
-
 
 async function fetchAlertsList() {
     try {
@@ -4526,6 +4583,9 @@ async function setAlertRule() {
 function renderAlertsList(list) {
     const tbody = document.getElementById('alerts-table-body');
     tbody.innerHTML = '';
+    
+    // Also update cockpit radar scanner target plots!
+    renderRadarTargets(list);
     
     if (list.length === 0) {
         tbody.innerHTML = '<tr><td colspan="7" class="center-text text-muted">No alert rules configured. Create one on the left.</td></tr>';
@@ -4584,6 +4644,11 @@ async function checkAlertRules() {
         renderAlertsList(data.alerts);
         
         if (data.triggers.length > 0) {
+            // Play sound and show Emergency HUD
+            playAlertSound();
+            const hudMsg = data.triggers.join("<br>");
+            showEmergencyHUD(hudMsg);
+            
             showToast("ALERTS TRIGGERED: " + data.triggers.join(", "), "warning");
         } else {
             showToast("Alert scanning sweep complete. All asset conditions are currently holding within boundaries.", "success");
@@ -4593,6 +4658,264 @@ async function checkAlertRules() {
     } finally {
         hideLoader();
     }
+}
+
+// --- HUD & Webhook Integration Helpers ---
+function showEmergencyHUD(message) {
+    const hud = document.getElementById('emergency-warning-hud');
+    const msgEl = document.getElementById('hud-warning-message');
+    if (!hud || !msgEl) return;
+    
+    msgEl.innerHTML = message;
+    hud.style.display = 'block';
+}
+
+function dismissEmergencyHUD() {
+    const hud = document.getElementById('emergency-warning-hud');
+    if (hud) hud.style.display = 'none';
+}
+
+async function fetchWebhooksSettings() {
+    try {
+        const response = await fetch('/api/alerts/settings');
+        if (!response.ok) return;
+        const data = await response.json();
+        
+        const slackInput = document.getElementById('webhook-slack');
+        const discordInput = document.getElementById('webhook-discord');
+        if (slackInput) slackInput.value = data.slack_webhook || '';
+        if (discordInput) discordInput.value = data.discord_webhook || '';
+    } catch (err) {
+        console.error("Failed to fetch webhook settings:", err);
+    }
+}
+
+async function saveWebhooksSettings() {
+    const slack = document.getElementById('webhook-slack').value.trim();
+    const discord = document.getElementById('webhook-discord').value.trim();
+    
+    try {
+        const response = await fetch('/api/alerts/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ slack_webhook: slack, discord_webhook: discord })
+        });
+        
+        if (!response.ok) throw new Error("Failed to save settings.");
+        
+        showToast("Webhook configurations successfully saved.", "success");
+    } catch (err) {
+        showToast("Failed to save webhook settings: " + err.message, "error");
+    }
+}
+
+// --- Autocomplete Stock Search ---
+function setupAlertSymbolAutocomplete() {
+    const input = document.getElementById('alert-symbol');
+    const dropdown = document.getElementById('alert-symbol-suggestions');
+    if (!input || !dropdown) return;
+
+    let debounceTimer;
+    input.addEventListener('input', () => {
+        clearTimeout(debounceTimer);
+        const query = input.value.trim();
+        if (query.length < 2) {
+            dropdown.style.display = 'none';
+            return;
+        }
+
+        debounceTimer = setTimeout(async () => {
+            try {
+                const response = await fetch(`/api/search/suggestions?q=${encodeURIComponent(query)}`);
+                if (!response.ok) return;
+                const data = await response.json();
+                
+                if (data.length === 0) {
+                    dropdown.style.display = 'none';
+                    return;
+                }
+
+                dropdown.innerHTML = '';
+                data.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'autocomplete-suggestion';
+                    div.innerHTML = `
+                        <strong>${item.symbol}</strong>
+                        <span class="suggestion-sector">${item.sector || 'Equity'}</span>
+                    `;
+                    div.addEventListener('click', () => {
+                        input.value = item.symbol;
+                        dropdown.style.display = 'none';
+                    });
+                    dropdown.appendChild(div);
+                });
+                dropdown.style.display = 'block';
+            } catch (err) {
+                console.error("Autocomplete search failed:", err);
+            }
+        }, 150);
+    });
+
+    document.addEventListener('click', (e) => {
+        if (e.target !== input && e.target !== dropdown && !dropdown.contains(e.target)) {
+            dropdown.style.display = 'none';
+        }
+    });
+}
+
+// --- Dynamic Helper Cheatsheet Panel ---
+function updateAlertCheatsheet() {
+    const select = document.getElementById('alert-condition');
+    const guideText = document.getElementById('alert-strategy-guide-text');
+    const operator = document.getElementById('alert-operator');
+    const valInput = document.getElementById('alert-value');
+    const valHelper = document.getElementById('alert-value-helper');
+
+    if (!select || !guideText) return;
+
+    const condition = select.value;
+    let desc = "";
+    let defaultOp = ">";
+    let defaultVal = "0";
+    let helper = "";
+    let operatorsList = [
+        { value: '<', text: '< Less Than / Crosses Below' },
+        { value: '>', text: '> Greater Than / Crosses Above' }
+    ];
+
+    if (condition === "RSI") {
+        desc = "<strong>RSI-14 (Relative Strength):</strong> Tracks momentum speed/change. Triggers when RSI crosses boundaries (&lt; 30 oversold or &gt; 70 overbought).";
+        defaultVal = "30";
+        helper = "RSI values: oversold is &lt; 30; overbought is &gt; 70.";
+    } else if (condition === "PE") {
+        desc = "<strong>Stock P/E Value:</strong> Evaluates earnings multiples. Triggers when P/E is above/below a set multiple or the stock's median P/E.";
+        defaultVal = "25";
+        helper = "Enter target P/E ratio number, or type 'MEDIAN' to trigger relative to 10-year median P/E bands.";
+    } else if (condition === "RATING") {
+        desc = "<strong>AI Analyst Rating:</strong> Evaluates advisor consensus recommendation. Triggers when rating equals 'Strong Buy', 'Buy', 'Hold', or 'Sell'.";
+        operatorsList = [
+            { value: '==', text: '= Equals' }
+        ];
+        defaultOp = "==";
+        defaultVal = "Strong Buy";
+        helper = "Enter one of: 'Strong Buy', 'Buy', 'Hold', 'Sell'.";
+    } else if (condition === "PRICE") {
+        desc = "<strong>Current Price (Rs.):</strong> Triggers when current stock close price crosses above or below target Rs. price.";
+        defaultVal = "1500";
+        helper = "Enter target price limit in INR (e.g. 3500).";
+    } else if (condition === "SMA") {
+        desc = "<strong>Price vs SMA-200 (% Diff):</strong> Measures percentage deviation from the long-term 200-day Simple Moving Average. Triggers when diff crosses threshold.";
+        defaultVal = "5";
+        helper = "Deviation percent (e.g. 5 for 5% above SMA-200, or -5 for 5% below).";
+    } else if (condition === "DMA_CROSS") {
+        desc = "<strong>50 SMA vs 200 SMA Crossover:</strong> Classic golden/death cross momentum trigger. Triggers when 50 SMA crosses above (&gt; Golden Cross) or below (&lt; Death Cross) 200 SMA.";
+        defaultVal = "0";
+        helper = "Set to 0. Trigger evaluates daily crossover condition directly.";
+    } else if (condition === "EMA_CROSS") {
+        desc = "<strong>50 EMA vs 200 EMA Crossover:</strong> Trend crossover using Exponential Moving Average, prioritizing recent price movements. Triggers on cross.";
+        defaultVal = "0";
+        helper = "Set to 0. Trigger evaluates EMA crossover directly.";
+    } else if (condition === "VOL_BREAKOUT") {
+        desc = "<strong>Volume vs 20d Avg Volume:</strong> Detects institutional smart-money breakouts. Triggers when current volume is X times greater than 20d average.";
+        defaultOp = ">";
+        defaultVal = "2.0";
+        helper = "Enter volume ratio multiplier (e.g. 2.0x for double the 20-day average volume).";
+    } else if (condition === "BB_CROSS") {
+        desc = "<strong>Price vs Bollinger Bands:</strong> Standard volatility envelope. Triggers when price crosses above upper band (&gt;) or below lower band (&lt;).";
+        defaultVal = "0";
+        helper = "Set to 0. Triggers immediately on band crossing.";
+    } else if (condition === "MACD_CROSS") {
+        desc = "<strong>MACD vs Signal Line Cross:</strong> Moving Average Convergence Divergence trend-following oscillator. Triggers on bullish (&gt; cross above signal) or bearish (&lt; cross below signal) crossover.";
+        defaultVal = "0";
+        helper = "Set to 0. Trigger checks MACD crosses signal line.";
+    } else if (condition === "52W_PROXIMITY") {
+        desc = "<strong>Price vs 52-Week Range:</strong> Proximity to historical limits. Triggers when price is within X% of 52w High (&gt;) or 52w Low (&lt;).";
+        defaultVal = "3";
+        helper = "Enter percentage margin (e.g. 3 for within 3% of 52w range limits).";
+    } else if (condition === "SMA50") {
+        desc = "<strong>Price vs SMA-50 (% Diff):</strong> Measures percentage distance from the medium-term 50-day Simple Moving Average. Triggers when diff exceeds target.";
+        defaultVal = "2";
+        helper = "Deviation percent (e.g. 2 for 2% above SMA-50, or -2 for 2% below).";
+    } else if (condition === "FIB_LEVEL") {
+        desc = "<strong>Fibonacci Support Proximity:</strong> Measures proximity to 6-month swing range retracements (38.2%, 50.0%, 61.8%). Triggers when within 1.5% of support.";
+        operatorsList = [
+            { value: '==', text: '= Near Support Proximity' }
+        ];
+        defaultOp = "==";
+        defaultVal = "1.5";
+        helper = "Set threshold proximity percentage (e.g. 1.5 for 1.5% limit proximity).";
+    }
+
+    guideText.innerHTML = desc;
+
+    if (operator) {
+        operator.innerHTML = '';
+        operatorsList.forEach(op => {
+            const opt = document.createElement('option');
+            opt.value = op.value;
+            opt.textContent = op.text;
+            operator.appendChild(opt);
+        });
+        operator.value = defaultOp;
+    }
+
+    if (valInput) {
+        valInput.value = defaultVal;
+        valInput.placeholder = "e.g. " + defaultVal;
+    }
+    if (valHelper) {
+        valHelper.textContent = helper;
+    }
+}
+
+// --- Cockpit Radar Target Plotting ---
+function getSymbolCoordinates(symbol, id) {
+    let hash = 0;
+    const str = symbol + id;
+    for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const angle = Math.abs(hash % 360) * (Math.PI / 180);
+    const radius = 30 + Math.abs((hash >> 8) % 65);
+    const x = 110 + radius * Math.cos(angle);
+    const y = 110 + radius * Math.sin(angle);
+    return { x, y };
+}
+
+function renderRadarTargets(list) {
+    const layer = document.getElementById('radar-targets-layer');
+    if (!layer) return;
+    layer.innerHTML = '';
+    
+    list.forEach(item => {
+        const coords = getSymbolCoordinates(item.ticker, item.id);
+        const dot = document.createElement('div');
+        dot.className = 'radar-target';
+        if (item.status === 'Triggered') {
+            dot.className += ' triggered';
+        }
+        dot.style.left = `${coords.x}px`;
+        dot.style.top = `${coords.y}px`;
+        dot.setAttribute('data-symbol', item.ticker);
+        dot.title = `${item.ticker}: ${item.condition_type} ${item.operator} ${item.value} (${item.status})`;
+        
+        dot.addEventListener('click', () => {
+            const tableBody = document.getElementById('alerts-table-body');
+            if (tableBody) {
+                const rows = tableBody.querySelectorAll('tr');
+                rows.forEach(row => {
+                    if (row.innerText.includes(item.id)) {
+                        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        row.style.background = 'rgba(59, 130, 246, 0.25)';
+                        setTimeout(() => {
+                            row.style.background = '';
+                        }, 2000);
+                    }
+                });
+            }
+        });
+        layer.appendChild(dot);
+    });
 }
 
 // 9. Stateful Q&A Advisor Chat

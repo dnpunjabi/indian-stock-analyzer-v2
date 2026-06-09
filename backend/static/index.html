@@ -17,6 +17,26 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <!-- Emergency System Warning HUD -->
+    <div id="emergency-warning-hud" class="no-print" style="display: none;">
+        <div class="hud-content">
+            <span class="hud-beacon">🚨</span>
+            <div class="hud-text-area">
+                <span class="hud-title">EMERGENCY SYSTEM WARNING FIRE</span>
+                <span class="hud-message" id="hud-warning-message">Active alert conditions triggered. Take advisory action.</span>
+            </div>
+            <div class="hud-controls">
+                <select id="hud-audio-select" class="hud-select" title="Select audio warning tone style">
+                    <option value="sonar_ping" selected>Sonar Ping (Synthetic)</option>
+                    <option value="chimes">Synthetic Chimes</option>
+                    <option value="double_beep">Standard Double Beep</option>
+                    <option value="mute">Mute Audio Cues</option>
+                </select>
+                <button class="hud-btn" id="hud-ack-btn">ACKNOWLEDGE & MUTE</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast notification system container -->
     <div id="toast-container" class="toast-container no-print"></div>
 
@@ -1933,39 +1953,91 @@
 
                 <div class="alerts-grid">
                     
-                    <!-- Alert Creator -->
-                    <div class="card">
-                        <h3>CREATE VALUATION / TECHNICAL ALERT</h3>
-                        <div class="alert-form">
-                            <div class="form-group">
-                                <label for="alert-symbol">Stock Symbol</label>
-                                <input type="text" id="alert-symbol" placeholder="e.g. RELIANCE" value="TCS">
+                    <!-- Left Column: Controls & Visualizations -->
+                    <div style="display: flex; flex-direction: column; gap: 20px;">
+                        
+                        <!-- Alert Creator -->
+                        <div class="card">
+                            <h3>CREATE VALUATION / TECHNICAL ALERT</h3>
+                            <div class="alert-form">
+                                <div class="form-group" style="position: relative;">
+                                    <label for="alert-symbol">Stock Symbol</label>
+                                    <input type="text" id="alert-symbol" placeholder="e.g. RELIANCE" value="TCS" autocomplete="off">
+                                    <div id="alert-symbol-suggestions" class="autocomplete-dropdown" style="display: none;"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="alert-condition">Trigger Condition</label>
+                                    <select id="alert-condition">
+                                        <option value="RSI">RSI-14 (Relative Strength)</option>
+                                        <option value="PE">Stock P/E Value</option>
+                                        <option value="RATING">AI Analyst Rating</option>
+                                        <option value="PRICE">Current Price (Rs.)</option>
+                                        <option value="SMA">Price vs SMA-200 (% Diff)</option>
+                                        <option value="DMA_CROSS">50 SMA vs 200 SMA Crossover</option>
+                                        <option value="EMA_CROSS">50 EMA vs 200 EMA Crossover</option>
+                                        <option value="VOL_BREAKOUT">Volume vs 20d Avg Volume</option>
+                                        <option value="BB_CROSS">Price vs Bollinger Bands</option>
+                                        <option value="MACD_CROSS">MACD vs Signal Line Cross</option>
+                                        <option value="52W_PROXIMITY">Price vs 52-Week Range</option>
+                                        <option value="SMA50">Price vs SMA-50 (% Diff)</option>
+                                        <option value="FIB_LEVEL">Fibonacci Support Proximity</option>
+                                    </select>
+                                    <div id="alert-strategy-guide-panel" style="font-size: 9.5px; color: var(--text-secondary); line-height: 1.35; margin-top: 6px; padding: 8px 10px; border-radius: 6px; background: rgba(255, 255, 255, 0.02); border: 1px dashed var(--border-glass); box-sizing: border-box; transition: all 0.2s ease;">
+                                        <span id="alert-strategy-guide-text"><strong>RSI-14:</strong> Tracks momentum speed/change. Triggers when RSI crosses boundaries (&lt; 30 oversold or &gt; 70 overbought).</span>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="alert-operator">Operator</label>
+                                    <select id="alert-operator">
+                                        <option value="<">&lt; Less Than / Crosses Below</option>
+                                        <option value=">">&gt; Greater Than / Crosses Above</option>
+                                        <option value="==">= Equals</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="alert-value">Threshold Value</label>
+                                    <input type="text" id="alert-value" placeholder="e.g. 30" value="30">
+                                    <span class="helper-text" id="alert-value-helper">Enter target threshold numeric or text rating value.</span>
+                                </div>
+                                <button class="btn-primary" id="save-alert-btn" style="width: 100%;">Set Alert Trigger</button>
                             </div>
-                            <div class="form-group">
-                                <label for="alert-condition">Trigger Condition</label>
-                                <select id="alert-condition">
-                                    <option value="RSI">RSI-14 (Relative Strength)</option>
-                                    <option value="PE">Stock P/E Value</option>
-                                    <option value="RATING">AI Analyst Rating</option>
-                                    <option value="PRICE">Current Price (Rs.)</option>
-                                    <option value="SMA200">Price vs SMA-200 (% Diff)</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="alert-operator">Operator</label>
-                                <select id="alert-operator">
-                                    <option value="<">&lt; Less Than</option>
-                                    <option value=">">&gt; Greater Than</option>
-                                    <option value="==">= Equals (Ratings only)</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="alert-value">Threshold Value</label>
-                                <input type="text" id="alert-value" placeholder="e.g. 30 (for RSI) or 3800 (for Price)" value="30">
-                                <span class="helper-text">RSI: typically &lt; 30 (oversold) or &gt; 70 (overbought). P/E: custom number. Price: value in Rs. SMA200: % difference (e.g., 5 for 5% above SMA200). Rating: 'Strong Buy', 'Buy', 'Hold', 'Sell'.</span>
-                            </div>
-                            <button class="btn-primary" id="save-alert-btn" style="width: 100%;">Set Alert Trigger</button>
                         </div>
+
+                        <!-- Webhook Settings -->
+                        <div class="card">
+                            <h3>Webhook & Pager Integrations</h3>
+                            <p class="helper-text" style="margin-bottom: 12px;">Dispatches markdown triggers to Slack or rich embed color cards to Discord channels.</p>
+                            <div class="alert-form">
+                                <div class="form-group">
+                                    <label for="webhook-slack">Slack Webhook URL</label>
+                                    <input type="text" id="webhook-slack" placeholder="https://hooks.slack.com/services/..." value="">
+                                </div>
+                                <div class="form-group">
+                                    <label for="webhook-discord">Discord Webhook URL</label>
+                                    <input type="text" id="webhook-discord" placeholder="https://discord.com/api/webhooks/..." value="">
+                                </div>
+                                <button class="btn-primary" id="save-webhooks-btn" style="width: 100%;">Save Webhook Settings</button>
+                            </div>
+                        </div>
+
+                        <!-- Radar Cockpit -->
+                        <div class="card" id="radar-cockpit-card">
+                            <h3 style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0;">
+                                <span>📡 COCKPIT RADAR SCANNER</span>
+                                <span class="radar-scan-status" style="font-size: 9px; color: var(--color-primary); background: rgba(59, 130, 246, 0.1); padding: 2px 6px; border-radius: 4px; font-weight: 700;">SWEEP ACTIVE</span>
+                            </h3>
+                            <p class="helper-text" style="margin-bottom: 10px; margin-top: 5px;">Target coordinates map monitored assets. Red targets indicate active triggered states.</p>
+                            <div id="radar-scanner-container">
+                                <div class="radar-sweep-beam"></div>
+                                <div class="radar-grid-circle circle-1"></div>
+                                <div class="radar-grid-circle circle-2"></div>
+                                <div class="radar-grid-circle circle-3"></div>
+                                <div class="radar-crosshair-h"></div>
+                                <div class="radar-crosshair-v"></div>
+                                <div id="radar-targets-layer"></div>
+                            </div>
+                        </div>
+
                     </div>
 
                     <!-- Alert Logger -->
