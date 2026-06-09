@@ -55,13 +55,16 @@ def call_groq_llm(system_prompt: str, user_prompt: str = None, max_tokens: int =
         ]
         
     try:
+        print(f"Calling Groq API (model: llama-3.3-70b-versatile, tokens: {max_tokens})...")
         chat_completion = groq_client.chat.completions.create(
             messages=messages,
             model="llama-3.3-70b-versatile",
             max_tokens=max_tokens,
             temperature=0.2
         )
-        return chat_completion.choices[0].message.content
+        response_content = chat_completion.choices[0].message.content
+        print(f"Successfully received response from Groq API ({len(response_content)} chars)")
+        return response_content
     except Exception as e:
         print(f"Error calling Groq API: {e}")
         # Detect Invalid API Key (Finding 7 resolution)
