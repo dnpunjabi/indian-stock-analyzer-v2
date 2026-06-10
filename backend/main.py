@@ -4932,6 +4932,7 @@ async def parse_nl_scan(data: ParseNLScanRequest):
             "You are an expert financial system developer parsing plain English stock scanning requests into structured JSON rules.\n"
             "The user wants to SCAN MULTIPLE STOCKS in a market universe (not set an alert for a single stock).\n"
             "Analyze the user prompt and output a single JSON object. DO NOT output any markdown tags (like ```json), and DO NOT output any conversational text or preambles. Only output the raw JSON string.\n"
+            "Your output JSON must contain exactly these 4 keys: 'condition_type', 'operator', 'value', and 'universe'. DO NOT invent any other keys (such as 'additional_condition'). Map combinations of multiple criteria to the corresponding single allowed COMBO condition type.\n"
             "Allowed condition types:\n"
             "- RSI (Relative Strength Index limit)\n"
             "- PE (Price-to-Earnings ratio)\n"
@@ -4949,26 +4950,26 @@ async def parse_nl_scan(data: ParseNLScanRequest):
             "- FIB_382 (proximity to Fib 38.2% in %)\n"
             "- FIB_500 (proximity to Fib 50.0% in %)\n"
             "- FIB_618 (proximity to Fib 61.8% in %)\n"
-            "- COMBO_BULL_PULLBACK (Bull pullback: RSI oversold in SMA uptrend, e.g. RSI below 35 and golden cross / price above 200 SMA)\n"
-            "- COMBO_BEAR_PULLBACK (Bear pullback: RSI overbought in SMA downtrend, e.g. RSI above 60 and price below 200 SMA)\n"
-            "- COMBO_VALUE_REVERSAL (Oversold value buy: Low PE + RSI oversold, e.g. PE below 15 and RSI below 35)\n"
-            "- COMBO_GROWTH_MOMENTUM (Growth momentum: price above 200 SMA + RSI above 65 + strong buy rating)\n"
-            "- COMBO_VOL_BREAKOUT (Volume trend breakout: volume above 2x average + price above 50 SMA)\n"
-            "- COMBO_52W_BREAKOUT (52W trend breakout: price above 200 SMA + within 3% of 52w high)\n"
-            "- COMBO_52W_VAL_ENTRY (52W value entry: within 5% of 52w low + RSI below 35)\n"
-            "- COMBO_FIB_REVERSAL (Fib support bounce: near Fibonacci level + RSI below 35)\n"
-            "- COMBO_BB_REVERSION (BB mean reversion: below BB lower band + RSI below 30)\n"
-            "- COMBO_BB_BREAKOUT (BB volatility breakout: above BB upper band + volume above 2x average)\n"
-            "- COMBO_MACD_VOL (MACD cross with volume surge: MACD cross above Signal + volume above 2x average)\n"
-            "- COMBO_HIGH_QUALITY_DIP (Quality dip buy: Buy/Strong Buy rating + RSI below 35)\n"
-            "- COMBO_DEATH_CROSS_VOL (Death cross volume spurt: 50 SMA crosses below 200 SMA + volume above 2x average)\n"
-            "- COMBO_FIB_SMA_BOUNCE (Fib & SMA-200 confluence: near Fib level + price above 200 SMA)\n"
-            "- COMBO_PENNY_MOMENTUM (Penny stock momentum: price below 100 + RSI above 65 + volume above 2x average)\n"
-            "- COMBO_PREMIUM_GROWTH (Premium quality growth: price above 2000 + PE below 30 + Strong Buy rating)\n"
-            "- COMBO_EARNINGS_ACCUMULATION (PE value accumulation: PE below 20 + volume above 2x average)\n"
+            "- COMBO_BULL_PULLBACK (Bull pullback: RSI oversold in SMA uptrend, e.g. RSI below 35 and golden cross / price above 200 SMA, value is the RSI threshold, e.g. 35)\n"
+            "- COMBO_BEAR_PULLBACK (Bear pullback: RSI overbought in SMA downtrend, e.g. RSI above 60 and price below 200 SMA, value is the RSI threshold, e.g. 60)\n"
+            "- COMBO_VALUE_REVERSAL (Oversold value buy: Low PE + RSI oversold, e.g. PE below 15 and RSI below 35, value is the PE or RSI threshold)\n"
+            "- COMBO_GROWTH_MOMENTUM (Growth momentum: price above 200 SMA + RSI above 65 + strong buy rating, value is the RSI threshold)\n"
+            "- COMBO_VOL_BREAKOUT (Volume trend breakout: volume above threshold average, e.g. 2.0 or 3.0 + price above 50 SMA, value is the volume threshold ratio, e.g. 2.0)\n"
+            "- COMBO_52W_BREAKOUT (52W trend breakout: price above 200 SMA + within threshold % of 52w high, value is the proximity percentage threshold, e.g. 3.0)\n"
+            "- COMBO_52W_VAL_ENTRY (52W value entry: within threshold % of 52w low + RSI below 35, value is the proximity percentage threshold, e.g. 5.0)\n"
+            "- COMBO_FIB_REVERSAL (Fib support bounce: near Fibonacci level + RSI below 35, value is the Fib proximity percentage threshold, e.g. 2.0)\n"
+            "- COMBO_BB_REVERSION (BB mean reversion: below BB lower band + RSI below 30, value is the RSI threshold)\n"
+            "- COMBO_BB_BREAKOUT (BB volatility breakout: above BB upper band + volume above threshold average, value is the volume ratio threshold, e.g. 2.0)\n"
+            "- COMBO_MACD_VOL (MACD cross with volume surge: MACD cross above Signal + volume above threshold average, value is the volume ratio threshold, e.g. 2.0)\n"
+            "- COMBO_HIGH_QUALITY_DIP (Quality dip buy: Buy/Strong Buy rating + RSI below 35, value is the RSI threshold)\n"
+            "- COMBO_DEATH_CROSS_VOL (Death cross volume spurt: 50 SMA crosses below 200 SMA + volume above threshold average, value is the volume ratio threshold, e.g. 2.0)\n"
+            "- COMBO_FIB_SMA_BOUNCE (Fib & SMA-200 confluence: near Fib level + price above 200 SMA, value is the Fib proximity percentage threshold, e.g. 2.0)\n"
+            "- COMBO_PENNY_MOMENTUM (Penny stock momentum: price below 100 + RSI above 65 + volume above threshold average, value is the volume ratio threshold, e.g. 2.0)\n"
+            "- COMBO_PREMIUM_GROWTH (Premium quality growth: price above 2000 + PE below 30 + Strong Buy rating, value is the PE threshold)\n"
+            "- COMBO_EARNINGS_ACCUMULATION (PE value accumulation: PE below 20 + volume above threshold average, value is the volume ratio threshold, e.g. 2.0)\n"
             "- COMBO_SHORT_TERM_REVERSION (Short pullback in uptrend: price below 50 SMA + price above 200 SMA)\n"
-            "- COMBO_BB_SQUEEZE_BREAK (BB squeeze breakout: Bollinger Bands squeeze / narrow width + volume above 2x average)\n"
-            "- COMBO_CONTRARIAN_VALUE (Contrarian value play: PE below 12 + price below 200 SMA + RSI below 30)\n\n"
+            "- COMBO_BB_SQUEEZE_BREAK (BB squeeze breakout: Bollinger Bands squeeze / narrow width + volume above threshold average, value is the volume ratio threshold, e.g. 2.0)\n"
+            "- COMBO_CONTRARIAN_VALUE (Contrarian value play: PE below 12 + price below 200 SMA + RSI below 30, value is the PE threshold)\n\n"
             "Operators:\n"
             "- '>' (Greater Than / Crosses Above)\n"
             "- '<' (Less Than / Crosses Below)\n"
@@ -5122,7 +5123,7 @@ async def scan_trigger(condition_type: str, operator: str, value: str, universe:
                         triggered = True
 
                 elif condition_type == "VOL_BREAKOUT":
-                    vol_ratio = clean_float(t.get("volume_ratio", t.get("vol_breakout_ratio")), 1.0)
+                    vol_ratio = clean_float(t.get("volume_vs_avg20", t.get("volume_ratio", t.get("vol_breakout_ratio"))), 1.0)
                     cur_val = f"Vol Ratio: {vol_ratio:.2f}x"
                     threshold = float(value)
                     if operator == ">" and vol_ratio > threshold:
@@ -5154,8 +5155,8 @@ async def scan_trigger(condition_type: str, operator: str, value: str, universe:
                         triggered = True
 
                 elif condition_type == "52W_PROXIMITY":
-                    high_52w = clean_float(f.get("year_high", f.get("52w_high")), 0.0)
-                    low_52w = clean_float(f.get("year_low", f.get("52w_low")), 0.0)
+                    high_52w = clean_float(t.get("high_52w", t.get("year_high", f.get("year_high", f.get("52w_high")))), 0.0)
+                    low_52w = clean_float(t.get("low_52w", t.get("year_low", f.get("year_low", f.get("52w_low")))), 0.0)
                     proximity_pct = float(value)
                     if operator == ">":
                         if high_52w > 0:
@@ -5171,8 +5172,8 @@ async def scan_trigger(condition_type: str, operator: str, value: str, universe:
                                 triggered = True
 
                 elif condition_type in ["FIB_LEVEL", "FIB_382", "FIB_500", "FIB_618"]:
-                    high_52w = clean_float(f.get("year_high", f.get("52w_high")), 0.0)
-                    low_52w = clean_float(f.get("year_low", f.get("52w_low")), 0.0)
+                    high_52w = clean_float(t.get("high_52w", t.get("year_high", f.get("year_high", f.get("52w_high")))), 0.0)
+                    low_52w = clean_float(t.get("low_52w", t.get("year_low", f.get("year_low", f.get("52w_low")))), 0.0)
                     if high_52w <= 0 or low_52w <= 0:
                         continue
                     swing_diff = high_52w - low_52w
@@ -5231,35 +5232,38 @@ async def scan_trigger(condition_type: str, operator: str, value: str, universe:
                         triggered = True
 
                 elif condition_type == "COMBO_VOL_BREAKOUT":
-                    vol_ratio = clean_float(t.get("volume_ratio", t.get("vol_breakout_ratio")), 1.0)
+                    vol_ratio = clean_float(t.get("volume_vs_avg20", t.get("volume_ratio", t.get("vol_breakout_ratio"))), 1.0)
                     sma_50 = clean_float(t.get("sma_50"), 0.0)
-                    if vol_ratio > 2.0 and price > sma_50 > 0:
+                    threshold = clean_float(value, 2.0)
+                    if vol_ratio > threshold and price > sma_50 > 0:
                         cur_val = f"Vol: {vol_ratio:.1f}x, Above SMA50 (Rs.{sma_50:.0f})"
                         triggered = True
 
                 elif condition_type == "COMBO_52W_BREAKOUT":
                     sma_200 = clean_float(t.get("sma_200"), 0.0)
-                    high_52w = clean_float(f.get("year_high", f.get("52w_high")), 0.0)
+                    high_52w = clean_float(t.get("high_52w", t.get("year_high", f.get("year_high", f.get("52w_high")))), 0.0)
                     if price > sma_200 > 0 and high_52w > 0:
                         diff_pct = ((high_52w - price) / high_52w) * 100
-                        if diff_pct <= 3.0:
+                        threshold = clean_float(value, 3.0)
+                        if diff_pct <= threshold:
                             cur_val = f"Uptrend, within {diff_pct:.1f}% of 52wH (Rs.{high_52w:.0f})"
                             triggered = True
 
                 elif condition_type == "COMBO_52W_VAL_ENTRY":
                     rsi_val = clean_float(t.get("rsi"), 50.0)
-                    low_52w = clean_float(f.get("year_low", f.get("52w_low")), 0.0)
+                    low_52w = clean_float(t.get("low_52w", t.get("year_low", f.get("year_low", f.get("52w_low")))), 0.0)
                     if rsi_val < 35 and low_52w > 0:
                         diff_pct = ((price - low_52w) / low_52w) * 100
-                        if diff_pct <= 5.0:
+                        threshold = clean_float(value, 5.0)
+                        if diff_pct <= threshold:
                             cur_val = f"RSI: {rsi_val:.1f}, within {diff_pct:.1f}% of 52wL (Rs.{low_52w:.0f})"
                             triggered = True
 
                 elif condition_type == "COMBO_FIB_REVERSAL":
                     rsi_val = clean_float(t.get("rsi"), 50.0)
                     if rsi_val < 35:
-                        high_52w = clean_float(f.get("year_high", f.get("52w_high")), 0.0)
-                        low_52w = clean_float(f.get("year_low", f.get("52w_low")), 0.0)
+                        high_52w = clean_float(t.get("high_52w", t.get("year_high", f.get("year_high", f.get("52w_high")))), 0.0)
+                        low_52w = clean_float(t.get("low_52w", t.get("year_low", f.get("year_low", f.get("52w_low")))), 0.0)
                         if high_52w > 0 and low_52w > 0 and high_52w > low_52w:
                             swing = high_52w - low_52w
                             levels = {
@@ -5269,9 +5273,10 @@ async def scan_trigger(condition_type: str, operator: str, value: str, universe:
                                 "61.8%": high_52w - 0.618 * swing,
                                 "78.6%": high_52w - 0.786 * swing
                             }
+                            threshold = clean_float(value, 2.0)
                             for lbl, val in levels.items():
                                 diff = abs(((price - val) / val) * 100)
-                                if diff <= 2.0:
+                                if diff <= threshold:
                                     cur_val = f"RSI: {rsi_val:.1f}, near Fib {lbl} (Diff: {diff:.1f}%)"
                                     triggered = True
                                     break
@@ -5285,16 +5290,18 @@ async def scan_trigger(condition_type: str, operator: str, value: str, universe:
 
                 elif condition_type == "COMBO_BB_BREAKOUT":
                     bb_upper = clean_float(t.get("bb_upper"), 0.0)
-                    vol_ratio = clean_float(t.get("volume_ratio", t.get("vol_breakout_ratio")), 1.0)
-                    if bb_upper > 0 and price >= bb_upper and vol_ratio > 2.0:
+                    vol_ratio = clean_float(t.get("volume_vs_avg20", t.get("volume_ratio", t.get("vol_breakout_ratio"))), 1.0)
+                    threshold = clean_float(value, 2.0)
+                    if bb_upper > 0 and price >= bb_upper and vol_ratio > threshold:
                         cur_val = f"Price >= BB Upper (Rs.{bb_upper:.0f}), Vol: {vol_ratio:.1f}x"
                         triggered = True
 
                 elif condition_type == "COMBO_MACD_VOL":
                     macd_val = clean_float(t.get("macd"), 0.0)
                     signal_val = clean_float(t.get("signal"), 0.0)
-                    vol_ratio = clean_float(t.get("volume_ratio", t.get("vol_breakout_ratio")), 1.0)
-                    if macd_val > signal_val and vol_ratio > 2.0:
+                    vol_ratio = clean_float(t.get("volume_vs_avg20", t.get("volume_ratio", t.get("vol_breakout_ratio"))), 1.0)
+                    threshold = clean_float(value, 2.0)
+                    if macd_val > signal_val and vol_ratio > threshold:
                         cur_val = f"MACD Golden Cross, Vol: {vol_ratio:.1f}x"
                         triggered = True
 
@@ -5309,16 +5316,17 @@ async def scan_trigger(condition_type: str, operator: str, value: str, universe:
                 elif condition_type == "COMBO_DEATH_CROSS_VOL":
                     sma_50 = clean_float(t.get("sma_50"), 0.0)
                     sma_200 = clean_float(t.get("sma_200"), 0.0)
-                    vol_ratio = clean_float(t.get("volume_ratio", t.get("vol_breakout_ratio")), 1.0)
-                    if sma_50 > 0 and sma_200 > 0 and sma_50 < sma_200 and vol_ratio > 2.0:
+                    vol_ratio = clean_float(t.get("volume_vs_avg20", t.get("volume_ratio", t.get("vol_breakout_ratio"))), 1.0)
+                    threshold = clean_float(value, 2.0)
+                    if sma_50 > 0 and sma_200 > 0 and sma_50 < sma_200 and vol_ratio > threshold:
                         cur_val = f"Death Cross Active, Vol: {vol_ratio:.1f}x"
                         triggered = True
 
                 elif condition_type == "COMBO_FIB_SMA_BOUNCE":
                     sma_200 = clean_float(t.get("sma_200"), 0.0)
                     if price > sma_200 > 0:
-                        high_52w = clean_float(f.get("year_high", f.get("52w_high")), 0.0)
-                        low_52w = clean_float(f.get("year_low", f.get("52w_low")), 0.0)
+                        high_52w = clean_float(t.get("high_52w", t.get("year_high", f.get("year_high", f.get("52w_high")))), 0.0)
+                        low_52w = clean_float(t.get("low_52w", t.get("year_low", f.get("year_low", f.get("52w_low")))), 0.0)
                         if high_52w > 0 and low_52w > 0 and high_52w > low_52w:
                             swing = high_52w - low_52w
                             levels = {
@@ -5328,17 +5336,19 @@ async def scan_trigger(condition_type: str, operator: str, value: str, universe:
                                 "61.8%": high_52w - 0.618 * swing,
                                 "78.6%": high_52w - 0.786 * swing
                             }
+                            threshold = clean_float(value, 2.0)
                             for lbl, val in levels.items():
                                 diff = abs(((price - val) / val) * 100)
-                                if diff <= 2.0:
+                                if diff <= threshold:
                                     cur_val = f"Above SMA200, near Fib {lbl} (Diff: {diff:.1f}%)"
                                     triggered = True
                                     break
 
                 elif condition_type == "COMBO_PENNY_MOMENTUM":
                     rsi_val = clean_float(t.get("rsi"), 50.0)
-                    vol_ratio = clean_float(t.get("volume_ratio", t.get("vol_breakout_ratio")), 1.0)
-                    if price < 100.0 and rsi_val > 65 and vol_ratio > 2.0:
+                    vol_ratio = clean_float(t.get("volume_vs_avg20", t.get("volume_ratio", t.get("vol_breakout_ratio"))), 1.0)
+                    threshold = clean_float(value, 2.0)
+                    if price < 100.0 and rsi_val > 65 and vol_ratio > threshold:
                         cur_val = f"Penny Stock, RSI: {rsi_val:.1f}, Vol: {vol_ratio:.1f}x"
                         triggered = True
 
@@ -5352,8 +5362,9 @@ async def scan_trigger(condition_type: str, operator: str, value: str, universe:
 
                 elif condition_type == "COMBO_EARNINGS_ACCUMULATION":
                     pe_val = clean_float(f.get("pe_ratio"), 0.0)
-                    vol_ratio = clean_float(t.get("volume_ratio", t.get("vol_breakout_ratio")), 1.0)
-                    if 0 < pe_val < 20.0 and vol_ratio > 2.0:
+                    vol_ratio = clean_float(t.get("volume_vs_avg20", t.get("volume_ratio", t.get("vol_breakout_ratio"))), 1.0)
+                    threshold = clean_float(value, 2.0)
+                    if 0 < pe_val < 20.0 and vol_ratio > threshold:
                         cur_val = f"Value PE: {pe_val:.1f}, Vol Spurt: {vol_ratio:.1f}x"
                         triggered = True
 
@@ -5367,8 +5378,9 @@ async def scan_trigger(condition_type: str, operator: str, value: str, universe:
                 elif condition_type == "COMBO_BB_SQUEEZE_BREAK":
                     bb_lower = clean_float(t.get("bb_lower"), 0.0)
                     bb_upper = clean_float(t.get("bb_upper"), 0.0)
-                    vol_ratio = clean_float(t.get("volume_ratio", t.get("vol_breakout_ratio")), 1.0)
-                    if bb_lower > 0 and bb_upper > 0 and vol_ratio > 2.0:
+                    vol_ratio = clean_float(t.get("volume_vs_avg20", t.get("volume_ratio", t.get("vol_breakout_ratio"))), 1.0)
+                    threshold = clean_float(value, 2.0)
+                    if bb_lower > 0 and bb_upper > 0 and vol_ratio > threshold:
                         middle = (bb_upper + bb_lower) / 2.0
                         width_pct = ((bb_upper - bb_lower) / middle) * 100
                         if width_pct <= 10.0 and price >= bb_upper:
@@ -5393,8 +5405,8 @@ async def scan_trigger(condition_type: str, operator: str, value: str, universe:
                 sector = s.get("sector", "N/A")
                 cap_type = s.get("cap_type", "N/A")
                 analysis = prof.get("analysis") or {}
-                rating = (analysis.get("recommendation") or "N/A").upper()
-                score = clean_float(analysis.get("score", analysis.get("composite_score")), 0.0)
+                rating = (analysis.get("recommendation") or prof.get("recommendation") or "N/A").upper()
+                score = clean_float(prof.get("final_score") or prof.get("score_metrics", {}).get("final_score") or analysis.get("score", analysis.get("composite_score")), 0.0)
                 de_ratio = clean_float(f.get("debt_to_equity", f.get("de_ratio")), 0.0)
 
                 matched.append({

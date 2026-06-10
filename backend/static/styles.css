@@ -7323,19 +7323,21 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     }
 }
 
-/* Light theme overrides for Rule Scanner */
-[data-theme="light"] #tab-rule-scanner .card {
+/* Light theme overrides for Rule Scanner & Alert Center */
+[data-theme="light"] #tab-rule-scanner .card,
+[data-theme="light"] #tab-alerts .card {
     background: rgba(255, 255, 255, 0.6) !important;
     border-color: rgba(0, 0, 0, 0.08) !important;
 }
 
-[data-theme="light"] #rule-scanner-nl-prompt {
+[data-theme="light"] #rule-scanner-nl-prompt,
+[data-theme="light"] #alert-nl-prompt {
     background: rgba(0, 0, 0, 0.03) !important;
     color: var(--text-primary) !important;
     border-color: rgba(0, 0, 0, 0.12) !important;
 }
 
-[data-theme="light"] #tab-rule-scanner .alerts-radar-sentinel-card {
+[data-theme="light"] .alerts-radar-sentinel-card {
     background: rgba(255, 255, 255, 0.5) !important;
     border-color: rgba(0, 0, 0, 0.06) !important;
 }
@@ -7348,6 +7350,56 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 [data-theme="light"] #rule-scanner-strategy-guide {
     background: rgba(0, 0, 0, 0.02) !important;
     border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+[data-theme="light"] .ai-presets-container {
+    background: rgba(0, 0, 0, 0.02) !important;
+    border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+[data-theme="light"] .rs-nl-template-pill,
+[data-theme="light"] .nl-template-pill {
+    background: #ffffff !important;
+    border: 1px solid rgba(0, 0, 0, 0.1) !important;
+    color: #475569 !important;
+}
+
+[data-theme="light"] .ai-badge {
+    background: rgba(147, 51, 234, 0.1) !important;
+    border-color: rgba(147, 51, 234, 0.2) !important;
+    color: #7c3aed !important;
+}
+
+[data-theme="light"] .alert-preset-group > summary:hover {
+    color: #6d28d9 !important;
+    background: rgba(168, 85, 247, 0.06) !important;
+}
+
+#rule-scanner-nl-submit,
+#alert-nl-submit {
+    transition: all 0.3s ease;
+}
+
+#rule-scanner-nl-submit:hover,
+#alert-nl-submit:hover {
+    background: linear-gradient(135deg, rgba(147, 51, 234, 0.25) 0%, rgba(79, 70, 229, 0.25) 100%) !important;
+    border-color: rgba(168, 85, 247, 0.6) !important;
+    box-shadow: 0 4px 12px rgba(168, 85, 247, 0.1) !important;
+    transform: translateY(-1px);
+}
+
+[data-theme="light"] #rule-scanner-nl-submit,
+[data-theme="light"] #alert-nl-submit {
+    background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%) !important;
+    color: #ffffff !important;
+    border-color: #6d28d9 !important;
+}
+
+[data-theme="light"] #rule-scanner-nl-submit:hover,
+[data-theme="light"] #alert-nl-submit:hover {
+    background: linear-gradient(135deg, #6d28d9 0%, #4338ca 100%) !important;
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.25) !important;
+    transform: translateY(-1px);
 }
 
 /* AI Scan Preset collapsible groups styling */

@@ -14800,6 +14800,7 @@ window.executeSwingScan = executeSwingScan;
 window.loadSwingCandidate = loadSwingCandidate;
 window.recalculateSwingSizer = recalculateSwingSizer;
 window.runSwingBacktest = runSwingBacktest;
+window.loadStockAnalyzer = loadStockAnalyzer;
 
 
 // ─── RULE SCANNER MODULE ──────────────────────────────────────────────────────
@@ -14842,6 +14843,46 @@ const RULE_SCANNER_STRATEGY_GUIDE = {
     'COMBO_BB_SQUEEZE_BREAK': '<strong>Combo: BB Squeeze Breakout:</strong> Volatility squeeze breakout where Bollinger Band width is narrow and price breaks above upper band on high volume.',
     'COMBO_CONTRARIAN_VALUE': '<strong>Combo: Contrarian Value Play:</strong> Extreme value setups where P/E &lt; 12, price is below 200 SMA, and RSI is deeply oversold (&lt; 30).'
 };
+
+const RULE_SCANNER_COND_LABELS = {
+    'RSI': 'RSI-14 Momentum',
+    'PE': 'Stock P/E Ratio',
+    'RATING': 'AI Analyst Rating',
+    'PRICE': 'Current Price',
+    'SMA': 'Price vs SMA-200',
+    'DMA_CROSS': '50/200 SMA Crossover',
+    'EMA_CROSS': '50/200 EMA Crossover',
+    'VOL_BREAKOUT': 'Volume Breakout Ratio',
+    'BB_CROSS': 'Price vs Bollinger Bands',
+    'MACD_CROSS': 'MACD vs Signal Line',
+    '52W_PROXIMITY': 'Price vs 52-Week Range',
+    'SMA50': 'Price vs SMA-50',
+    'FIB_382': 'Fibonacci 38.2% Retracement',
+    'FIB_500': 'Fibonacci 50.0% Retracement',
+    'FIB_618': 'Fibonacci 61.8% Retracement',
+    'FIB_LEVEL': 'Fibonacci Proximity (All)',
+    'COMBO_BULL_PULLBACK': 'Combo: Bull Pullback (Oversold in Uptrend)',
+    'COMBO_BEAR_PULLBACK': 'Combo: Bear Pullback (Overbought in Downtrend)',
+    'COMBO_VALUE_REVERSAL': 'Combo: Oversold Value (Low PE + RSI < 35)',
+    'COMBO_GROWTH_MOMENTUM': 'Combo: Growth Momentum (Uptrend + Strong Buy)',
+    'COMBO_VOL_BREAKOUT': 'Combo: Vol Trend Spurt (Volume + SMA-50)',
+    'COMBO_52W_BREAKOUT': 'Combo: 52W Trend Breakout',
+    'COMBO_52W_VAL_ENTRY': 'Combo: 52W Value Entry',
+    'COMBO_FIB_REVERSAL': 'Combo: Fib Support Bounce',
+    'COMBO_BB_REVERSION': 'Combo: BB Lower Band Reversion',
+    'COMBO_BB_BREAKOUT': 'Combo: BB Upper Band Breakout',
+    'COMBO_MACD_VOL': 'Combo: MACD Crossover + Vol Surge',
+    'COMBO_HIGH_QUALITY_DIP': 'Combo: High Quality Dip Buy',
+    'COMBO_DEATH_CROSS_VOL': 'Combo: Death Cross + Vol Surge',
+    'COMBO_FIB_SMA_BOUNCE': 'Combo: Fib & SMA-200 Confluence',
+    'COMBO_PENNY_MOMENTUM': 'Combo: Penny Stock Momentum Surge',
+    'COMBO_PREMIUM_GROWTH': 'Combo: Premium Quality Growth',
+    'COMBO_EARNINGS_ACCUMULATION': 'Combo: PE Value Accumulation',
+    'COMBO_SHORT_TERM_REVERSION': 'Combo: Short Pullback in Uptrend',
+    'COMBO_BB_SQUEEZE_BREAK': 'Combo: BB Squeeze Breakout',
+    'COMBO_CONTRARIAN_VALUE': 'Combo: Contrarian Value Play'
+};
+
 
 function setupRuleScanner() {
     // Strategy guide cheatsheet
@@ -14934,22 +14975,8 @@ async function executeNLRuleScan() {
         });
         const data = await res.json();
         if (data.status === 'success') {
-            // Fill parametric form
-            const condSel = document.getElementById('rule-scanner-condition');
-            const opSel = document.getElementById('rule-scanner-operator');
-            const valInput = document.getElementById('rule-scanner-value');
-            const uniSel = document.getElementById('rule-scanner-universe');
-            if (condSel) condSel.value = data.condition_type;
-            if (opSel) opSel.value = data.operator;
-            if (valInput) valInput.value = data.value;
-            if (uniSel) uniSel.value = data.universe;
-
-            // Update strategy guide
-            const guide = document.getElementById('rule-scanner-strategy-text');
-            if (guide) guide.innerHTML = RULE_SCANNER_STRATEGY_GUIDE[data.condition_type] || '';
-
-            // Auto-execute
-            await executeRuleScan();
+            // Auto-execute directly without populating parametric fields or updating strategy guide text
+            await executeRuleScan(data.condition_type, data.operator, data.value, data.universe);
         } else {
             showToast('AI parsing failed: ' + (data.detail || 'Unknown error'), 'error');
         }
@@ -14960,16 +14987,44 @@ async function executeNLRuleScan() {
     }
 }
 
-async function executeRuleScan() {
-    const condition = document.getElementById('rule-scanner-condition')?.value || 'RSI';
-    const operator = document.getElementById('rule-scanner-operator')?.value || '<';
-    const value = document.getElementById('rule-scanner-value')?.value || '30';
-    const universe = document.getElementById('rule-scanner-universe')?.value || 'all';
+async function executeRuleScan(cond, op, val, uni) {
+    const condition = cond || document.getElementById('rule-scanner-condition')?.value || 'RSI';
+    const operator = op || document.getElementById('rule-scanner-operator')?.value || '<';
+    const value = val !== undefined ? val : (document.getElementById('rule-scanner-value')?.value || '30');
+    const universe = uni || document.getElementById('rule-scanner-universe')?.value || 'all';
+
+    // Reset Min Score and Max D/E filters for new scan
+    ruleScanFilterMinScore = 0;
+    ruleScanFilterMaxDE = 500;
+    const scoreSlider = document.getElementById('rule-scanner-filter-score');
+    if (scoreSlider) scoreSlider.value = 0;
+    const deSlider = document.getElementById('rule-scanner-filter-de');
+    if (deSlider) deSlider.value = 500;
+    const scoreVal = document.getElementById('rule-scanner-filter-score-val');
+    if (scoreVal) scoreVal.textContent = 0;
+    const deVal = document.getElementById('rule-scanner-filter-de-val');
+    if (deVal) deVal.textContent = "5.0";
+
+    // Reset AI Scan Analyst Synthesis
+    const synthesisPanel = document.getElementById('rule-scanner-synthesis-panel');
+    const synthesisText = document.getElementById('rule-scanner-synthesis-text');
+    if (synthesisPanel) synthesisPanel.style.display = 'none';
+    if (synthesisText) synthesisText.innerHTML = '';
 
     // Update telemetry
     const engineStatus = document.getElementById('rule-scanner-engine-status');
     if (engineStatus) { engineStatus.textContent = 'SCANNING...'; engineStatus.style.color = '#f59e0b'; }
-    document.getElementById('rule-scanner-active-condition').textContent = `${condition} ${operator} ${value} (${universe.toUpperCase()})`;
+    
+    const readableCond = RULE_SCANNER_COND_LABELS[condition] || condition;
+    let detailText = "";
+    if (condition.startsWith("COMBO_")) {
+        detailText = `${readableCond} (Universe: ${universe.toUpperCase()})`;
+    } else {
+        const opSymbol = operator === "==" ? "=" : operator;
+        detailText = `${readableCond} ${opSymbol} ${value} (Universe: ${universe.toUpperCase()})`;
+    }
+    document.getElementById('rule-scanner-active-condition').textContent = detailText;
+
 
     try {
         const params = new URLSearchParams({ condition_type: condition, operator, value, universe });
@@ -15041,7 +15096,7 @@ function renderRuleScanResults() {
     if (!tbody) return;
 
     if (pageSlice.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" class="center-text text-muted">No matches found for the current filter settings.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="center-text text-muted">No matches found for the current filter settings.</td></tr>';
     } else {
         tbody.innerHTML = pageSlice.map((r, idx) => {
             const globalIdx = start + idx;
@@ -15050,7 +15105,7 @@ function renderRuleScanResults() {
             return `<tr style="border-bottom: 1px solid rgba(255,255,255,0.04); transition: background 0.15s;" onmouseenter="this.style.background='rgba(255,255,255,0.03)'" onmouseleave="this.style.background='transparent'">
                 <td style="padding: 10px 8px;">
                     <div style="display: flex; flex-direction: column; gap: 2px;">
-                        <span style="font-weight: 700; font-size: 12px; color: var(--text-primary); cursor: pointer;" onclick="switchTab('analyzer'); document.getElementById('stock-input') && (document.getElementById('stock-input').value = '${(r.symbol || '').replace('.NS','')}')">${(r.symbol || '').replace('.NS','')}</span>
+                        <span style="font-weight: 700; font-size: 12px; color: var(--text-primary); cursor: pointer;" onclick="window.loadStockAnalyzer('${r.symbol}')">${(r.symbol || '').replace('.NS','')}</span>
                         <span style="font-size: 9px; color: var(--text-muted); max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${r.company_name || ''}</span>
                     </div>
                 </td>
@@ -15061,9 +15116,6 @@ function renderRuleScanResults() {
                 <td style="padding: 10px 8px; font-size: 10.5px; color: var(--color-primary); font-weight: 600; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${r.trigger_value || ''}">${r.trigger_value || 'N/A'}</td>
                 <td style="padding: 10px 8px;"><span class="${ratingClass}" style="font-size: 10.5px; font-weight: 700;">${r.rating || 'N/A'}</span></td>
                 <td class="rs-hide-mobile" style="padding: 10px 8px; font-size: 10.5px; color: var(--text-secondary);">${r.sector || 'N/A'}</td>
-                <td style="padding: 10px 8px;">
-                    <button class="btn-secondary" style="font-size: 9.5px; padding: 3px 8px; height: auto; border-radius: 4px;" onclick="switchTab('analyzer'); document.getElementById('stock-input') && (document.getElementById('stock-input').value = '${(r.symbol || '').replace('.NS','')}')">Analyze</button>
-                </td>
             </tr>`;
         }).join('');
 

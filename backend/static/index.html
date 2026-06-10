@@ -1964,7 +1964,7 @@
                                 <h3 style="margin: 0; font-family: 'Outfit', sans-serif; display: flex; align-items: center; gap: 8px; font-size: 13px;">
                                     <span>🔮</span> AI NATURAL LANGUAGE BUILDER
                                 </h3>
-                                <span style="font-size: 8px; padding: 2px 6px; border-radius: 4px; background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(168, 85, 247, 0.3); color: #d8b4fe; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;">Groq Copilot</span>
+                                <span class="ai-badge" style="font-size: 8px; padding: 2px 6px; border-radius: 4px; background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(168, 85, 247, 0.3); color: #d8b4fe; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;">Groq Copilot</span>
                             </div>
                             <p style="font-size: 11px; line-height: 1.45; color: var(--text-secondary); margin-bottom: 12px; margin-top: 0;">
                                 Describe your alert condition in plain conversational English. The AI Copilot will automatically resolve the stock symbol, calculate appropriate indicators, set thresholds, and configure the scanning rule instantly.
@@ -1973,7 +1973,7 @@
                                 <div class="form-group" style="margin: 0;">
                                     <textarea id="alert-nl-prompt" rows="3" placeholder="e.g. Alert me if TCS drops within 1.5% of its 50.0% Fibonacci retracement level or if Infosys crosses below its 200 SMA by 2.0%" style="width: 100%; min-height: 60px; padding: 10px; border-radius: 6px; border: 1px solid var(--border-glass); background: rgba(0,0,0,0.3); color: #fff; font-family: inherit; font-size: 11.5px; line-height: 1.4; resize: vertical; outline: none; transition: border-color 0.2s; box-sizing: border-box;"></textarea>
                                 </div>
-                                <div style="margin-top: 10px; margin-bottom: 10px; background: rgba(0,0,0,0.15); padding: 12px; border-radius: 8px; border: 1px solid var(--border-glass);">
+                                <div class="ai-presets-container" style="margin-top: 10px; margin-bottom: 10px; background: rgba(0,0,0,0.15); padding: 12px; border-radius: 8px; border: 1px solid var(--border-glass);">
                                     <span style="font-size: 11px; color: var(--color-primary); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 8px;">💡 AI Alert Dictionary & Presets</span>
                                     
                                     <!-- Group 1: Price Levels & Breakouts -->
@@ -2212,7 +2212,7 @@
                                 <h3 style="margin: 0; font-family: 'Outfit', sans-serif; display: flex; align-items: center; gap: 8px; font-size: 13px;">
                                     <span>🔮</span> AI SCAN COMMAND STATION
                                 </h3>
-                                <span style="font-size: 8px; padding: 2px 6px; border-radius: 4px; background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(168, 85, 247, 0.3); color: #d8b4fe; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;">Groq Copilot</span>
+                                <span class="ai-badge" style="font-size: 8px; padding: 2px 6px; border-radius: 4px; background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(168, 85, 247, 0.3); color: #d8b4fe; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;">Groq Copilot</span>
                             </div>
                             <p style="font-size: 11px; line-height: 1.45; color: var(--text-secondary); margin-bottom: 12px; margin-top: 0;">
                                 Describe your scanning criteria in plain English. The AI Copilot will parse conditions, resolve parameters, and configure the scanner automatically.
@@ -2221,7 +2221,7 @@
                                 <div class="form-group" style="margin: 0;">
                                     <textarea id="rule-scanner-nl-prompt" rows="3" placeholder='e.g. "Scan for mid-cap stocks with RSI below 35" or "Find large cap stocks near their 52-week low"' style="width: 100%; min-height: 60px; padding: 10px; border-radius: 6px; border: 1px solid var(--border-glass); background: rgba(0,0,0,0.3); color: #fff; font-family: inherit; font-size: 11.5px; line-height: 1.4; resize: vertical; outline: none; transition: border-color 0.2s; box-sizing: border-box;"></textarea>
                                 </div>
-                                <div style="margin-top: 10px; margin-bottom: 10px; background: rgba(0,0,0,0.15); padding: 12px; border-radius: 8px; border: 1px solid var(--border-glass);">
+                                <div class="ai-presets-container" style="margin-top: 10px; margin-bottom: 10px; background: rgba(0,0,0,0.15); padding: 12px; border-radius: 8px; border: 1px solid var(--border-glass);">
                                     <span style="font-size: 11px; color: var(--color-primary); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 8px;">💡 AI Scan Preset Dictionary</span>
                                     
                                     <!-- Group 1: Momentum & Oscillators -->
@@ -2480,7 +2480,7 @@
                                 <h3 style="margin: 0; font-family: 'Outfit', sans-serif; font-size: 15px; font-weight: 700; color: var(--text-primary); letter-spacing: 0.03em;">📡 RULE SCANNER RESULTS</h3>
                                 <span style="font-size: 9.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 500;" id="rule-scanner-results-subtitle">Matching Candidates</span>
                             </div>
-                            <div class="screener-actions-cluster" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                            <div class="screener-actions-cluster no-print" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
                                 <button class="btn-primary" id="rule-scanner-save-watchlist-btn" style="font-size: 11px; padding: 6px 12px; height: 32px; border-radius: 6px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">⭐ Save as Watchlist</button>
                                 <button class="btn-secondary" id="rule-scanner-copy-btn" style="font-size: 11px; padding: 6px 12px; height: 32px; border-radius: 6px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">📋 Copy Table</button>
                                 <button class="btn-secondary" id="rule-scanner-print-btn" style="font-size: 11px; padding: 6px 12px; height: 32px; border-radius: 6px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">🖨️ Print Report</button>
@@ -2524,12 +2524,11 @@
                                         <th class="rs-sortable" data-sort="trigger_value" style="cursor: pointer; user-select: none; font-family: 'Outfit', sans-serif; font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); padding: 12px 8px; letter-spacing: 0.04em;">🎯 Trigger ↕</th>
                                         <th class="rs-sortable" data-sort="rating" style="cursor: pointer; user-select: none; font-family: 'Outfit', sans-serif; font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); padding: 12px 8px; letter-spacing: 0.04em;">Rating ↕</th>
                                         <th class="rs-sortable rs-hide-mobile" data-sort="sector" style="cursor: pointer; user-select: none; font-family: 'Outfit', sans-serif; font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); padding: 12px 8px; letter-spacing: 0.04em;">Sector ↕</th>
-                                        <th style="font-family: 'Outfit', sans-serif; font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); padding: 12px 8px; letter-spacing: 0.04em;">⚡ Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody id="rule-scanner-results-body">
                                     <tr>
-                                        <td colspan="9" class="center-text text-muted">Execute a scan to view matching candidates.</td>
+                                        <td colspan="8" class="center-text text-muted">Execute a scan to view matching candidates.</td>
                                     </tr>
                                 </tbody>
                             </table>
