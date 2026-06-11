@@ -6964,6 +6964,18 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     animation: radar-pulse-triggered 1.2s infinite ease-in-out;
 }
 
+.radar-target:hover {
+    transform: translate(-50%, -50%) scale(1.4);
+    box-shadow: 0 0 15px #3b82f6 !important;
+    background: #3b82f6 !important;
+    z-index: 100;
+}
+
+.radar-target.triggered:hover {
+    box-shadow: 0 0 18px #ef4444 !important;
+    background: #ef4444 !important;
+}
+
 .radar-target::after {
     content: attr(data-symbol);
     position: absolute;
@@ -7847,7 +7859,8 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 @media (max-width: 992px) {
     .scanner-panel-grid,
     .custom-screener-grid,
-    #rule-scanner-results-telemetry-row {
+    #rule-scanner-results-telemetry-row,
+    #alerts-synthesis-telemetry-row {
         grid-template-columns: 1fr !important;
         gap: 15px !important;
     }

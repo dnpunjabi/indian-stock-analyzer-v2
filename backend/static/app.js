@@ -4440,10 +4440,65 @@ function setupAlertCenter() {
         ackBtn.addEventListener('click', dismissEmergencyHUD);
     }
     
+    // Play Warning Tone preview
+    const playToneBtn = document.getElementById('cockpit-play-tone-btn');
+    if (playToneBtn) {
+        playToneBtn.addEventListener('click', () => {
+            const select = document.getElementById('cockpit-audio-select');
+            if (select) playAlertSound(select.value);
+        });
+    }
+
+    // Simulate Emergency Warning HUD
+    const simAlarmBtn = document.getElementById('cockpit-simulate-alarm-btn');
+    if (simAlarmBtn) {
+        simAlarmBtn.addEventListener('click', () => {
+            const select = document.getElementById('cockpit-audio-select');
+            const toneStyle = select ? select.value : 'sonar_ping';
+            
+            const warningHud = document.getElementById('emergency-warning-hud');
+            const warningMsg = document.getElementById('hud-warning-message');
+            
+            if (warningHud) {
+                warningHud.style.display = 'block';
+                if (warningMsg) {
+                    warningMsg.textContent = "SENTINEL COCKPIT DIAGNOSTIC ALARM: Active warning state simulation triggered.";
+                }
+                playAlertSound(toneStyle);
+                showToast("System warning alarm simulation active.", "warning");
+            }
+        });
+    }
+    
     setupAlertsTableSorting();
     fetchWhatsAppSettings();
     fetchAlertsList();
     startRealTimeAlertScanner();
+
+    // Sentinel Diagnostics HUD Button Listeners
+    const forceCheckBtn = document.getElementById('sentinel-force-evaluate-btn');
+    if (forceCheckBtn) {
+        forceCheckBtn.addEventListener('click', async () => {
+            const ticker = document.getElementById('sentinel-ticker')?.textContent;
+            if (ticker && ticker !== 'N/A') {
+                showToast(`Force evaluating rule metrics for ${ticker}...`, "info");
+                await checkAlertRules();
+                // Find and re-deploy telemetry for updated status
+                const updatedItem = lastAlertsList.find(x => x.ticker === ticker);
+                if (updatedItem) deploySentinelTelemetry(updatedItem);
+            }
+        });
+    }
+
+    const chartViewBtn = document.getElementById('sentinel-chart-view-btn');
+    if (chartViewBtn) {
+        chartViewBtn.addEventListener('click', () => {
+            const symbol = document.getElementById('sentinel-ticker')?.textContent;
+            if (symbol && symbol !== 'N/A') {
+                window.loadStockAnalyzer(symbol);
+            }
+        });
+    }
 }
 
 async function generateNLAlertRule() {
@@ -4559,9 +4614,9 @@ function startRealTimeAlertScanner() {
     }, 30000); // 30 seconds interval
 }
 
-function playAlertSound(style = 'sonar_ping') {
+function playAlertSound(style = null) {
     const audioSelect = document.getElementById('hud-audio-select');
-    const activeStyle = audioSelect ? audioSelect.value : style;
+    const activeStyle = style || (audioSelect ? audioSelect.value : 'sonar_ping');
     if (activeStyle === 'mute') return;
     
     try {
@@ -4670,6 +4725,9 @@ function renderAlertsList(list) {
     
     // Also update cockpit radar scanner target plots!
     renderRadarTargets(list);
+    
+    // Update visual analytics distribution metrics chart
+    updateAlertsAnalyticsChart(list);
     
     // Sort and render the page (keeping current sorting but resetting page if bounds exceeded)
     sortAlerts(alertsSortCol, false);
@@ -5173,6 +5231,9 @@ function renderRadarTargets(list) {
         dot.title = `${item.ticker}: ${item.condition_type} ${item.operator} ${item.value} (${item.status})`;
         
         dot.addEventListener('click', () => {
+            // Deploy asset telemetry diagnostics HUD
+            deploySentinelTelemetry(item);
+
             const tableBody = document.getElementById('alerts-table-body');
             if (tableBody) {
                 const rows = tableBody.querySelectorAll('tr');
@@ -5189,6 +5250,207 @@ function renderRadarTargets(list) {
         });
         layer.appendChild(dot);
     });
+}
+
+async function deploySentinelTelemetry(item) {
+    const activePanel = document.getElementById('alerts-sentinel-hud-active');
+    const idlePanel = document.getElementById('alerts-sentinel-hud-idle');
+    const hudContainer = document.getElementById('alerts-sentinel-hud');
+    
+    if (!activePanel || !idlePanel) return;
+    
+    idlePanel.style.display = 'none';
+    activePanel.style.display = 'flex';
+    
+    // Fill in basic static info
+    document.getElementById('sentinel-ticker').textContent = item.ticker;
+    const statusEl = document.getElementById('sentinel-status');
+    statusEl.textContent = item.status;
+    if (item.status === 'Triggered') {
+        statusEl.style.background = 'rgba(239, 68, 68, 0.15)';
+        statusEl.style.color = '#f87171';
+        statusEl.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+    } else {
+        statusEl.style.background = 'rgba(16, 185, 129, 0.15)';
+        statusEl.style.color = '#34d399';
+        statusEl.style.border = '1px solid rgba(16, 185, 129, 0.3)';
+    }
+    
+    document.getElementById('sentinel-condition').textContent = item.condition_type;
+    document.getElementById('sentinel-target').textContent = `${item.operator} ${item.value}`;
+    
+    // Loading state for live stats
+    document.getElementById('sentinel-price').textContent = 'Loading...';
+    document.getElementById('sentinel-rsi').textContent = 'Loading...';
+    const contextEl = document.getElementById('sentinel-context');
+    contextEl.textContent = 'Gathering asset metrics and calculating indicator vectors...';
+    
+    try {
+        // Fetch financial profile
+        const res = await fetch(`/api/analyze?query=${encodeURIComponent(item.ticker)}`);
+        if (!res.ok) throw new Error("Failed to fetch asset profile");
+        const profile = await res.json();
+        
+        const price = profile.fundamentals?.current_price;
+        const rsi = profile.technicals?.rsi;
+        
+        document.getElementById('sentinel-price').textContent = price ? `₹${price.toLocaleString('en-IN')}` : 'N/A';
+        document.getElementById('sentinel-rsi').textContent = rsi ? rsi.toFixed(1) : 'N/A';
+        
+        // Context box calculation
+        if (item.status === 'Triggered') {
+            contextEl.innerHTML = `🚨 <strong>Trigger Details:</strong> ${item.ai_context || 'Condition validated.'}`;
+            hudContainer.style.background = 'rgba(239, 68, 68, 0.02)';
+            hudContainer.style.borderColor = 'rgba(239, 68, 68, 0.2)';
+        } else {
+            // Proximity calculation
+            let proximityMsg = '';
+            if (item.condition_type === 'PRICE' && price) {
+                const targetVal = parseFloat(item.value);
+                const diffPct = Math.abs(price - targetVal) / targetVal * 100;
+                proximityMsg = `Proximity margin is <strong>${diffPct.toFixed(1)}%</strong> from the target price threshold.`;
+            } else if (item.condition_type === 'RSI' && rsi) {
+                const targetVal = parseFloat(item.value);
+                const diffPoints = Math.abs(rsi - targetVal);
+                proximityMsg = `Proximity margin is <strong>${diffPoints.toFixed(1)} points</strong> from the RSI momentum threshold.`;
+            } else {
+                proximityMsg = `Telemetry checks active. Monitoring rules for target crossover.`;
+            }
+            contextEl.innerHTML = `🛰️ <strong>Telemetry Info:</strong> ${proximityMsg}`;
+            hudContainer.style.background = 'rgba(16, 185, 129, 0.01)';
+            hudContainer.style.borderColor = 'rgba(16, 185, 129, 0.2)';
+        }
+    } catch (err) {
+        document.getElementById('sentinel-price').textContent = 'Offline';
+        document.getElementById('sentinel-rsi').textContent = 'Offline';
+        contextEl.textContent = 'Unable to establish connections to local market timeseries cache.';
+    }
+}
+
+let alertsAnalyticsChartInstance = null;
+
+function updateAlertsAnalyticsChart(list) {
+    const canvas = document.getElementById('alerts-analytics-chart');
+    const emptyMsg = document.getElementById('alerts-analytics-chart-empty');
+    if (!canvas) return;
+
+    if (!list || list.length === 0) {
+        if (emptyMsg) emptyMsg.style.display = 'block';
+        canvas.style.display = 'none';
+        if (alertsAnalyticsChartInstance) {
+            alertsAnalyticsChartInstance.destroy();
+            alertsAnalyticsChartInstance = null;
+        }
+        return;
+    }
+
+    if (emptyMsg) emptyMsg.style.display = 'none';
+    canvas.style.display = 'block';
+
+    // Group alerts by condition_type
+    const groups = {};
+    list.forEach(item => {
+        const type = item.condition_type || 'OTHER';
+        groups[type] = (groups[type] || 0) + 1;
+    });
+
+    const labels = Object.keys(groups);
+    const data = Object.values(groups);
+
+    // Dynamic color palette matching our dark/light glassmorphic theme
+    const isDark = document.body.getAttribute('data-theme') !== 'light';
+    const borderCol = isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)';
+    const textCol = isDark ? '#9ca3af' : '#4b5563';
+
+    const backgroundColors = [
+        'rgba(59, 130, 246, 0.25)',  // Primary Blue
+        'rgba(16, 185, 129, 0.25)',  // Emerald Green
+        'rgba(168, 85, 247, 0.25)',  // Purple
+        'rgba(245, 158, 11, 0.25)',  // Amber
+        'rgba(239, 68, 68, 0.25)',   // Crimson Red
+        'rgba(6, 182, 212, 0.25)'    // Cyan
+    ];
+    const borderColors = [
+        '#3b82f6',
+        '#10b981',
+        '#a855f7',
+        '#f59e0b',
+        '#ef4444',
+        '#06b6d4'
+    ];
+
+    if (alertsAnalyticsChartInstance) {
+        alertsAnalyticsChartInstance.data.labels = labels;
+        alertsAnalyticsChartInstance.data.datasets[0].data = data;
+        alertsAnalyticsChartInstance.data.datasets[0].backgroundColor = labels.map((_, i) => backgroundColors[i % backgroundColors.length]);
+        alertsAnalyticsChartInstance.data.datasets[0].borderColor = labels.map((_, i) => borderColors[i % borderColors.length]);
+        alertsAnalyticsChartInstance.options.scales.x.grid.color = borderCol;
+        alertsAnalyticsChartInstance.options.scales.y.grid.color = borderCol;
+        alertsAnalyticsChartInstance.options.scales.x.ticks.color = textCol;
+        alertsAnalyticsChartInstance.options.scales.y.ticks.color = textCol;
+        alertsAnalyticsChartInstance.update();
+    } else {
+        const ctx = canvas.getContext('2d');
+        alertsAnalyticsChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Alert Rules Count',
+                    data: data,
+                    backgroundColor: labels.map((_, i) => backgroundColors[i % backgroundColors.length]),
+                    borderColor: labels.map((_, i) => borderColors[i % borderColors.length]),
+                    borderWidth: 1.5,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: isDark ? 'rgba(11, 15, 29, 0.9)' : 'rgba(255, 255, 255, 0.9)',
+                        titleColor: isDark ? '#fff' : '#000',
+                        bodyColor: isDark ? '#e5e7eb' : '#374151',
+                        borderColor: borderCol,
+                        borderWidth: 1
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            color: borderCol,
+                            drawBorder: false
+                        },
+                        ticks: {
+                            color: textCol,
+                            font: {
+                                size: 9,
+                                weight: '600'
+                            }
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: borderCol,
+                            drawBorder: false
+                        },
+                        ticks: {
+                            color: textCol,
+                            stepSize: 1,
+                            font: {
+                                size: 9
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
 }
 
 // 9. Stateful Q&A Advisor Chat
