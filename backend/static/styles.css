@@ -4,6 +4,11 @@
 */
 
 :root {
+    /* Fonts (kept globally) */
+    --font-heading: 'Outfit', sans-serif;
+    --font-body: 'Inter', sans-serif;
+
+    /* Base Default Variables (Dark Mode + Classic Theme) */
     --bg-main: #060913;
     --bg-sidebar: #0b0f1d;
     --bg-card: rgba(18, 25, 41, 0.7);
@@ -25,8 +30,7 @@
     --text-secondary: #9ca3af;
     --text-muted: #6b7280;
     
-    --font-heading: 'Outfit', sans-serif;
-    --font-body: 'Inter', sans-serif;
+    --glow-shadow: 0 0 12px rgba(59, 130, 246, 0.25);
 
     /* Audit cell colors */
     --audit-pass-bg: rgba(16, 185, 129, 0.03);
@@ -37,30 +41,42 @@
     --audit-fail-border-hover: rgba(239, 68, 68, 0.3);
 }
 
-/* Light Theme Variables */
-[data-theme="light"] {
-    --bg-main: #f3f4f6;
+/* ==================== BASE MODES ==================== */
+
+/* Dark Mode Base Variables */
+[data-mode="dark"] {
+    --bg-main: #060913;
+    --bg-sidebar: #0b0f1d;
+    --bg-card: rgba(18, 25, 41, 0.7);
+    --bg-card-hover: rgba(26, 36, 59, 0.85);
+    --border-glass: rgba(255, 255, 255, 0.06);
+    --bg-glass-input: rgba(15, 23, 42, 0.8);
+    
+    --text-primary: #f3f4f6;
+    --text-secondary: #9ca3af;
+    --text-muted: #6b7280;
+
+    --audit-pass-bg: rgba(16, 185, 129, 0.03);
+    --audit-fail-bg: rgba(239, 68, 68, 0.02);
+    --audit-pass-bg-hover: rgba(16, 185, 129, 0.08);
+    --audit-fail-bg-hover: rgba(239, 68, 68, 0.06);
+    --audit-pass-border-hover: rgba(16, 185, 129, 0.3);
+    --audit-fail-border-hover: rgba(239, 68, 68, 0.3);
+}
+
+/* Light/Alabaster Mode Base Variables */
+[data-mode="light"] {
+    --bg-main: #f1f5f9;
     --bg-sidebar: #ffffff;
-    --bg-card: rgba(255, 255, 255, 0.8);
+    --bg-card: rgba(255, 255, 255, 0.75);
     --bg-card-hover: rgba(255, 255, 255, 0.95);
     --border-glass: rgba(0, 0, 0, 0.08);
     --bg-glass-input: rgba(255, 255, 255, 0.9);
     
-    --color-primary: #2563eb;
-    --color-primary-glow: rgba(37, 99, 235, 0.15);
-    --color-emerald: #059669;
-    --color-emerald-glow: rgba(5, 150, 105, 0.15);
-    --color-crimson: #dc2626;
-    --color-crimson-glow: rgba(220, 38, 38, 0.15);
-    --color-amber: #d97706;
-    --color-amber-glow: rgba(217, 119, 6, 0.15);
-    --neon-green: #059669;
-    
-    --text-primary: #111827;
-    --text-secondary: #4b5563;
-    --text-muted: #6b7280;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #64748b;
 
-    /* Audit cell colors */
     --audit-pass-bg: rgba(16, 185, 129, 0.05);
     --audit-fail-bg: rgba(239, 68, 68, 0.04);
     --audit-pass-bg-hover: rgba(16, 185, 129, 0.12);
@@ -68,6 +84,121 @@
     --audit-pass-border-hover: rgba(16, 185, 129, 0.4);
     --audit-fail-border-hover: rgba(239, 68, 68, 0.4);
 }
+
+/* ==================== ACCENT THEMES ==================== */
+
+/* Apex Classic Theme Accents */
+[data-theme="classic"] {
+    --color-primary: #3b82f6;
+    --color-primary-glow: rgba(59, 130, 246, 0.3);
+    --color-emerald: #10b981;
+    --color-emerald-glow: rgba(16, 185, 129, 0.25);
+    --color-crimson: #ef4444;
+    --color-crimson-glow: rgba(239, 68, 68, 0.25);
+    --color-amber: #f59e0b;
+    --color-amber-glow: rgba(245, 158, 11, 0.25);
+    --neon-green: #10b981;
+    --glow-shadow: 0 0 12px rgba(59, 130, 246, 0.25);
+}
+
+/* Cyberpunk Theme Accents */
+[data-theme="cyberpunk"] {
+    --color-primary: #a855f7;
+    --color-primary-glow: rgba(168, 85, 247, 0.3);
+    --color-emerald: #00f59b;
+    --color-emerald-glow: rgba(0, 245, 155, 0.25);
+    --color-crimson: #ff007f;
+    --color-crimson-glow: rgba(255, 0, 127, 0.25);
+    --color-amber: #f59e0b;
+    --color-amber-glow: rgba(245, 158, 11, 0.25);
+    --neon-green: #00f59b;
+    --glow-shadow: 0 0 15px rgba(168, 85, 247, 0.35);
+}
+
+/* Bloomberg Theme Accents */
+[data-theme="bloomberg"] {
+    --color-primary: #e0a926;
+    --color-primary-glow: rgba(224, 169, 38, 0.3);
+    --color-emerald: #10b981;
+    --color-emerald-glow: rgba(16, 185, 129, 0.25);
+    --color-crimson: #ef4444;
+    --color-crimson-glow: rgba(239, 68, 68, 0.25);
+    --color-amber: #d97706;
+    --color-amber-glow: rgba(217, 119, 6, 0.25);
+    --neon-green: #10b981;
+    --glow-shadow: 0 0 10px rgba(224, 169, 38, 0.25);
+}
+
+/* Ayu Mirage Theme Accents */
+[data-theme="ayu-mirage"] {
+    --color-primary: #ffb454;
+    --color-primary-glow: rgba(255, 180, 84, 0.3);
+    --color-emerald: #7fd962;
+    --color-emerald-glow: rgba(127, 217, 98, 0.25);
+    --color-crimson: #f27983;
+    --color-crimson-glow: rgba(242, 121, 131, 0.25);
+    --color-amber: #e6b450;
+    --color-amber-glow: rgba(230, 180, 80, 0.25);
+    --neon-green: #7fd962;
+    --glow-shadow: 0 0 10px rgba(255, 180, 84, 0.25);
+}
+
+/* Nord Ice Theme Accents */
+[data-theme="nord-ice"] {
+    --color-primary: #88c0d0;
+    --color-primary-glow: rgba(136, 192, 208, 0.3);
+    --color-emerald: #a3be8c;
+    --color-emerald-glow: rgba(163, 190, 140, 0.25);
+    --color-crimson: #bf616a;
+    --color-crimson-glow: rgba(191, 97, 106, 0.25);
+    --color-amber: #ebcb8b;
+    --color-amber-glow: rgba(235, 203, 139, 0.25);
+    --neon-green: #a3be8c;
+    --glow-shadow: 0 0 10px rgba(136, 192, 208, 0.2);
+}
+
+/* Dracula Theme Accents */
+[data-theme="dracula"] {
+    --color-primary: #bd93f9;
+    --color-primary-glow: rgba(189, 147, 249, 0.3);
+    --color-emerald: #50fa7b;
+    --color-emerald-glow: rgba(80, 250, 123, 0.25);
+    --color-crimson: #ff79c6;
+    --color-crimson-glow: rgba(255, 121, 198, 0.25);
+    --color-amber: #f1fa8c;
+    --color-amber-glow: rgba(241, 250, 140, 0.25);
+    --neon-green: #50fa7b;
+    --glow-shadow: 0 0 12px rgba(189, 147, 249, 0.3);
+}
+
+/* Emerald Capital Theme Accents */
+[data-theme="emerald-capital"] {
+    --color-primary: #d4af37;
+    --color-primary-glow: rgba(212, 175, 55, 0.3);
+    --color-emerald: #34d399;
+    --color-emerald-glow: rgba(52, 211, 153, 0.25);
+    --color-crimson: #f87171;
+    --color-crimson-glow: rgba(248, 113, 113, 0.25);
+    --color-amber: #fbbf24;
+    --color-amber-glow: rgba(251, 191, 36, 0.25);
+    --neon-green: #34d399;
+    --glow-shadow: 0 0 10px rgba(212, 175, 55, 0.2);
+}
+
+/* Solarized Paper Theme Accents */
+[data-theme="solarized-paper"] {
+    --color-primary: #2aa198;
+    --color-primary-glow: rgba(42, 161, 152, 0.3);
+    --color-emerald: #859900;
+    --color-emerald-glow: rgba(133, 153, 0, 0.25);
+    --color-crimson: #cb4b16;
+    --color-crimson-glow: rgba(203, 75, 22, 0.25);
+    --color-amber: #b58900;
+    --color-amber-glow: rgba(181, 137, 0, 0.25);
+    --neon-green: #859900;
+    --glow-shadow: 0 4px 12px rgba(42, 161, 152, 0.1);
+}
+
 
 /* Global Reset */
 * {
@@ -949,9 +1080,14 @@ input[type="text"]:focus {
     color: var(--text-secondary);
 }
 
-.analyzer-suggestions-box div:hover {
-    background: rgba(59, 130, 246, 0.15) !important;
+.analyzer-suggestions-box div:hover,
+.analyzer-suggestions-box div.active-suggestion {
+    background: rgba(59, 130, 246, 0.18) !important;
     color: var(--text-primary);
+}
+
+.analyzer-suggestions-box div.active-suggestion {
+    border-left: 3px solid var(--color-primary);
 }
 
 /* ── Analyze Asset Button ── */
@@ -4024,6 +4160,21 @@ input[type="range"]::-webkit-slider-thumb:hover {
 /* Card visibility utilities */
 .card-hidden {
     display: none !important;
+}
+
+.dashboard-grid > .card:not(.card-hidden) {
+    animation: cardFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes cardFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(8px) scale(0.99);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
 }
 
 /* ==================== LIGHT THEME ACCESSIBILITY OVERRIDES ==================== */
@@ -7974,5 +8125,16 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     outline: none;
 }
 
+/* Dynamic Notification Bell Shake Animation */
+@keyframes bell-shake {
+    0%, 100% { transform: rotate(0); }
+    15%, 45% { transform: rotate(12deg); }
+    30%, 60% { transform: rotate(-12deg); }
+    75% { transform: rotate(4deg); }
+    85% { transform: rotate(-4deg); }
+}
 
-
+.bell-shake-active {
+    display: inline-block;
+    animation: bell-shake 0.8s ease-in-out;
+}

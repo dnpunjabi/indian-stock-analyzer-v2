@@ -210,6 +210,14 @@ function setupEnterpriseHeader() {
         notifDropdown.style.display = 'none'; // Close other dropdown
     });
 
+    // Prevent auto-closing when clicking inside dropdowns
+    notifDropdown.addEventListener('click', (e) => {
+        e.stopPropagation();
+    });
+    settingsDropdown.addEventListener('click', (e) => {
+        e.stopPropagation();
+    });
+
     // Close on click outside
     document.addEventListener('click', (e) => {
         if (!bellBtn.contains(e.target) && !notifDropdown.contains(e.target)) {
@@ -655,17 +663,17 @@ function sortScreenerResults() {
     
     renderScreenerResults(activeScreenerResults, true);
 }
-
 async function runAIScreener() {
     const universe = document.getElementById('screener-universe-select').value;
     const horizon = document.getElementById('profile-horizon')?.value || 'Long-term (3+ years)';
     const risk = document.getElementById('profile-risk')?.value || 'Moderate';
     
     setScreenerBtnLoading(true);
-    showLoader(
-        "Scanning Selected Cap Universe...",
-        `Executing quantitative screening sweeps across the selected segment (${universe.toUpperCase()}) to filter the absolute best buy recommendations.`
-    );
+    
+    // Display results box and run skeletons immediately
+    const resultsBox = document.getElementById('screener-results-box');
+    if (resultsBox) resultsBox.style.display = 'block';
+    renderScreenerSkeletons();
     
     try {
         const encodedHorizon = encodeURIComponent(horizon);
@@ -700,8 +708,6 @@ async function runAIScreener() {
     } catch (e) {
         setScreenerBtnLoading(false, 0);
         showToast("Failed to execute screener scan: " + e.message, 'error');
-    } finally {
-        hideLoader();
     }
 }
 
@@ -903,11 +909,16 @@ function setupAnalyzerControls() {
     // Autocomplete online suggestions for Single Stock Workspace
     const searchInput = document.getElementById('analyzer-search-input');
     const analyzerSuggestionsDiv = document.getElementById('analyzer-suggestions');
+    let activeSuggestionIndex = -1;
+    let suggestionsData = [];
+
     if (searchInput && analyzerSuggestionsDiv) {
         searchInput.addEventListener('input', async () => {
             const query = searchInput.value.trim();
             if (query.length < 2) {
                 analyzerSuggestionsDiv.style.display = 'none';
+                suggestionsData = [];
+                activeSuggestionIndex = -1;
                 return;
             }
             
@@ -915,26 +926,48 @@ function setupAnalyzerControls() {
                 const res = await fetch(`/api/search/suggestions?q=${encodeURIComponent(query)}`);
                 if (res.ok) {
                     const data = await res.json();
+                    suggestionsData = data;
+                    activeSuggestionIndex = -1;
+                    
                     if (data.length > 0) {
                         analyzerSuggestionsDiv.innerHTML = '';
-                        data.forEach(item => {
+                        data.forEach((item, index) => {
                             const div = document.createElement('div');
                             div.style.padding = '8px 12px';
                             div.style.cursor = 'pointer';
-                            div.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+                            div.style.borderBottom = '1px solid var(--border-glass)';
                             div.style.transition = 'background 0.2s';
-                            div.innerHTML = `<span style="color:#fff; font-weight:600;">${item.base_symbol}</span> - <span style="color:var(--text-secondary);">${item.name}</span> <span style="float:right; color:var(--text-muted); font-size:9.5px;">${item.sector}</span>`;
+                            div.className = 'suggestion-item';
+                            div.setAttribute('data-index', index);
                             
-                            div.addEventListener('mouseenter', () => {
-                                div.style.background = 'rgba(255,255,255,0.05)';
-                            });
-                            div.addEventListener('mouseleave', () => {
-                                div.style.background = 'transparent';
-                            });
+                            // Color tag badge for cap segment (Large/Mid/Small)
+                            const capText = item.cap_type ? item.cap_type.toUpperCase() : 'ALL';
+                            let capColor = 'var(--text-muted)';
+                            if (capText.includes('LARGE')) capColor = 'var(--neon-green)';
+                            else if (capText.includes('MID')) capColor = 'var(--color-amber)';
+                            else if (capText.includes('SMALL')) capColor = 'var(--color-primary)';
+                            
+                            div.innerHTML = `
+                                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                                    <div>
+                                        <span style="color:var(--text-primary); font-weight:700; font-family:'Outfit';">${item.base_symbol}</span> 
+                                        <span style="color:var(--text-muted); font-size: 10px;">(${item.name})</span>
+                                    </div>
+                                    <div style="display: flex; gap: 8px; align-items: center;">
+                                        <span style="font-size:9.5px; color:var(--text-muted);">${item.sector}</span>
+                                        <span style="font-size:8px; font-weight:800; border: 1px solid ${capColor}40; color:${capColor}; padding:1px 4px; border-radius:3px; background:${capColor}08;">${capText}</span>
+                                    </div>
+                                </div>
+                            `;
+                            
                             div.addEventListener('click', () => {
                                 searchInput.value = item.base_symbol;
                                 analyzerSuggestionsDiv.style.display = 'none';
+                                suggestionsData = [];
+                                activeSuggestionIndex = -1;
+                                loadStockAnalyzer(item.base_symbol);
                             });
+                            
                             analyzerSuggestionsDiv.appendChild(div);
                         });
                         analyzerSuggestionsDiv.style.display = 'block';
@@ -946,6 +979,43 @@ function setupAnalyzerControls() {
                 console.error("Analyzer suggestions error:", err);
             }
         });
+
+        // Keydown listener for arrow keys navigation
+        searchInput.addEventListener('keydown', (e) => {
+            const items = analyzerSuggestionsDiv.querySelectorAll('.suggestion-item');
+            if (analyzerSuggestionsDiv.style.display === 'none' || items.length === 0) {
+                return;
+            }
+            
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                activeSuggestionIndex = (activeSuggestionIndex + 1) % items.length;
+                highlightSuggestion(items);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                activeSuggestionIndex = (activeSuggestionIndex - 1 + items.length) % items.length;
+                highlightSuggestion(items);
+            } else if (e.key === 'Enter') {
+                if (activeSuggestionIndex >= 0 && activeSuggestionIndex < items.length) {
+                    e.preventDefault();
+                    items[activeSuggestionIndex].click();
+                }
+            } else if (e.key === 'Escape') {
+                analyzerSuggestionsDiv.style.display = 'none';
+                activeSuggestionIndex = -1;
+            }
+        });
+
+        function highlightSuggestion(items) {
+            items.forEach((item, index) => {
+                if (index === activeSuggestionIndex) {
+                    item.classList.add('active-suggestion');
+                    item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                } else {
+                    item.classList.remove('active-suggestion');
+                }
+            });
+        }
         
         document.addEventListener('click', (e) => {
             if (e.target !== searchInput && e.target !== analyzerSuggestionsDiv) {
@@ -1219,6 +1289,74 @@ function setAnalyzeBtnLoading(isLoading) {
         }, 2200);
     }
 }
+function applyCardSkeletons(isLoading) {
+    const cards = [
+        '#volume-dynamics-card',
+        '#tech-timing-card',
+        '#tech-fib-card',
+        '#tech-volatility-card',
+        '#drawdown-card',
+        '#sandbox-card',
+        '#historical-bands-card',
+        '#consensus-comparator-card',
+        '#peers-card',
+        '#shareholding-card',
+        '#earnings-quality-card',
+        '#strategical-audit-card'
+    ];
+    cards.forEach(selector => {
+        const card = document.querySelector(selector);
+        if (!card) return;
+        if (isLoading) {
+            card.classList.add('loading-skeleton');
+            if (!card.dataset.originalHtml) {
+                card.dataset.originalHtml = card.innerHTML;
+            }
+            card.innerHTML = `
+                <div style="display: flex; flex-direction: column; gap: 15px; width: 100%; height: 100%; min-height: 180px; box-sizing: border-box; padding: 10px;">
+                    <div class="skeleton" style="height: 20px; width: 50%; border-radius: 4px;"></div>
+                    <div class="skeleton" style="height: 90px; width: 100%; border-radius: 6px;"></div>
+                    <div style="display: flex; gap: 10px; width: 100%; margin-top: 5px;">
+                        <div class="skeleton" style="height: 12px; width: 25%; border-radius: 4px;"></div>
+                        <div class="skeleton" style="height: 12px; width: 35%; border-radius: 4px;"></div>
+                    </div>
+                </div>
+            `;
+        } else {
+            card.classList.remove('loading-skeleton');
+            if (card.dataset.originalHtml) {
+                card.innerHTML = card.dataset.originalHtml;
+                delete card.dataset.originalHtml;
+            }
+        }
+    });
+}
+
+function renderScreenerSkeletons() {
+    const tbody = document.getElementById('screener-results-body');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    for (let i = 0; i < 5; i++) {
+        tbody.innerHTML += `
+            <tr style="height: 50px;">
+                <td><div class="skeleton" style="height: 16px; width: 24px; border-radius: 4px;"></div></td>
+                <td>
+                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                        <div class="skeleton" style="height: 16px; width: 120px; border-radius: 4px;"></div>
+                        <div class="skeleton" style="height: 10px; width: 60px; border-radius: 4px;"></div>
+                    </div>
+                </td>
+                <td><div class="skeleton" style="height: 14px; width: 80px; border-radius: 4px;"></div></td>
+                <td><div class="skeleton" style="height: 14px; width: 60px; border-radius: 4px;"></div></td>
+                <td><div class="skeleton" style="height: 20px; width: 50px; border-radius: 4px;"></div></td>
+                <td><div class="skeleton" style="height: 14px; width: 35px; border-radius: 4px;"></div></td>
+                <td><div class="skeleton" style="height: 14px; width: 35px; border-radius: 4px;"></div></td>
+                <td><div class="skeleton" style="height: 14px; width: 35px; border-radius: 4px;"></div></td>
+                <td><div class="skeleton" style="height: 20px; width: 70px; border-radius: 4px;"></div></td>
+            </tr>
+        `;
+    }
+}
 
 async function loadStockAnalyzer(query) {
     const searchInput = document.getElementById('analyzer-search-input');
@@ -1230,10 +1368,15 @@ async function loadStockAnalyzer(query) {
     const risk = document.getElementById('profile-risk').value;
     
     setAnalyzeBtnLoading(true);
-    showLoader(
-        "Orchestrating Multi-Agent Workspace...",
-        "Chief Investment Officer parent agent is spawning subagents. Fundamental CFA checking Screener.in ratios, technical chartist computing RSI, sentiment auditor auditing shareholding pledges..."
-    );
+    
+    // Switch to analyzer tab immediately and load skeletons for instant feedback
+    const emptyStateEl = document.getElementById('analyzer-empty-state');
+    if (emptyStateEl) emptyStateEl.style.display = 'none';
+    const dashboardEl = document.getElementById('analyzer-dashboard');
+    if (dashboardEl) dashboardEl.style.display = 'block';
+    
+    switchTab('analyzer');
+    applyCardSkeletons(true);
     
     try {
         const response = await fetch(`/api/analyze?query=${encodeURIComponent(query)}&horizon=${encodeURIComponent(horizon)}&risk=${encodeURIComponent(risk)}`);
@@ -1247,15 +1390,15 @@ async function loadStockAnalyzer(query) {
         document.getElementById('chart-period').value = '1y';
         document.getElementById('chart-interval').value = '1d';
         
-        switchTab('analyzer');
+        // Clear skeletons first, then render actual dashboard elements
+        applyCardSkeletons(false);
         renderStockDashboard(profile);
         if (window.resetAnalyzerSubtabs) window.resetAnalyzerSubtabs();
         setAnalyzeBtnLoading(false);
     } catch (e) {
+        applyCardSkeletons(false);
         setAnalyzeBtnLoading(false);
         showToast("Analysis error: " + e.message, 'error');
-    } finally {
-        hideLoader();
     }
 }
 
@@ -4562,6 +4705,15 @@ function startRealTimeAlertScanner() {
                     showToast(`🚨 SYSTEM ALERT: ${msg}`, 'warning');
                 });
                 
+                // Shake the bell icon dynamically
+                const bellIcon = document.querySelector('#header-bell-btn .bell-icon');
+                if (bellIcon) {
+                    bellIcon.classList.add('bell-shake-active');
+                    setTimeout(() => {
+                        bellIcon.classList.remove('bell-shake-active');
+                    }, 800);
+                }
+
                 // 4. Append triggers dynamically to the header notifications list
                 const notifBody = document.getElementById('notification-list-body');
                 const badge = document.getElementById('bell-badge-count');
@@ -8545,37 +8697,124 @@ function executeSystemPrint(printContent, customFeatures = 'width=850,height=900
         setTimeout(cleanup, 25000);
     }
 }
-
 // Dark/Light Theme Handler
 function setupThemeToggle() {
-    const savedTheme = localStorage.getItem('theme') || 'dark';
-    document.documentElement.setAttribute('data-theme', savedTheme);
+    const savedMode = localStorage.getItem('theme-mode') || localStorage.getItem('theme') || 'dark';
+    const savedAccent = localStorage.getItem('theme-accent') || 'classic';
+    
+    document.documentElement.setAttribute('data-mode', savedMode);
+    document.documentElement.setAttribute('data-theme', savedAccent);
+    
+    // Wire dropdown selectors
+    const modeSelect = document.getElementById('setting-theme-mode');
+    const accentSelect = document.getElementById('setting-theme-accent');
+    
+    if (modeSelect) {
+        modeSelect.value = savedMode;
+        modeSelect.addEventListener('change', (e) => {
+            const newMode = e.target.value;
+            setWorkstationMode(newMode);
+        });
+    }
+    
+    if (accentSelect) {
+        accentSelect.value = savedAccent;
+        accentSelect.addEventListener('change', (e) => {
+            const newAccent = e.target.value;
+            setWorkstationAccent(newAccent);
+        });
+    }
     
     const desktopBtn = document.getElementById('theme-toggle-btn');
     const mobileBtn = document.getElementById('mobile-theme-toggle');
     
     const toggle = () => {
-        const currentTheme = document.documentElement.getAttribute('data-theme');
-        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-        document.documentElement.setAttribute('data-theme', newTheme);
-        localStorage.setItem('theme', newTheme);
-        showToast(`Switched to ${newTheme} theme`, 'success');
-        if (typeof updateBacktestChartThemeColors === 'function') {
-            updateBacktestChartThemeColors();
-        }
-        if (typeof updateRiskChartThemeColors === 'function') {
-            updateRiskChartThemeColors();
-        }
-        if (typeof updateVolumeChartThemeColors === 'function') {
-            updateVolumeChartThemeColors();
-        }
+        const currentMode = document.documentElement.getAttribute('data-mode') || 'dark';
+        const newMode = currentMode === 'dark' ? 'light' : 'dark';
+        setWorkstationMode(newMode);
     };
     
     if (desktopBtn) desktopBtn.addEventListener('click', toggle);
     if (mobileBtn) mobileBtn.addEventListener('click', toggle);
 }
 
-// Mobile Responsive Toggler
+function setWorkstationMode(mode) {
+    document.documentElement.setAttribute('data-mode', mode);
+    // Backward compatibility for general dark/light class toggles in existing scripts
+    document.documentElement.setAttribute('data-theme', mode === 'light' ? 'light' : localStorage.getItem('theme-accent') || 'classic');
+    localStorage.setItem('theme-mode', mode);
+    localStorage.setItem('theme', mode); // legacy support
+    
+    const modeSelect = document.getElementById('setting-theme-mode');
+    if (modeSelect) modeSelect.value = mode;
+    
+    showToast(`Workstation Mode set to ${mode === 'light' ? 'Alabaster Day' : 'Dark Mode'}`, 'success');
+    
+    refreshChartThemeColors();
+}
+
+function setWorkstationAccent(accent) {
+    document.documentElement.setAttribute('data-theme', accent);
+    localStorage.setItem('theme-accent', accent);
+    
+    const accentSelect = document.getElementById('setting-theme-accent');
+    if (accentSelect) accentSelect.value = accent;
+    
+    const textLabel = accentSelect ? accentSelect.options[accentSelect.selectedIndex].text : accent;
+    showToast(`Visual Theme set to ${textLabel}`, 'success');
+    
+    refreshChartThemeColors();
+}
+
+function refreshChartThemeColors() {
+    const isLight = document.documentElement.getAttribute('data-mode') === 'light';
+    const textColor = isLight ? '#475569' : '#9ca3af';
+    const gridColor = isLight ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.03)';
+    
+    if (window.Chart) {
+        Chart.defaults.color = textColor;
+        
+        // Also update existing chart instances if they are currently drawn
+        const chartInstances = [
+            activeChartInstance,
+            activePeerChartInstance,
+            alertsAnalyticsChartInstance,
+            activeFibChartInstance,
+            activeDrawdownChartInstance,
+            backtestChartInstance,
+            activeRiskChartInstance,
+            activeVolumePriceChart,
+            activeVolumeDeliveryChart
+        ];
+        chartInstances.forEach(chart => {
+            if (chart && chart.options) {
+                // Update scales colors
+                if (chart.options.scales) {
+                    Object.keys(chart.options.scales).forEach(scaleKey => {
+                        const scale = chart.options.scales[scaleKey];
+                        if (scale.grid) scale.grid.color = gridColor;
+                        if (scale.ticks) scale.ticks.color = textColor;
+                    });
+                }
+                // Update legend labels
+                if (chart.options.plugins && chart.options.plugins.legend && chart.options.plugins.legend.labels) {
+                    chart.options.plugins.legend.labels.color = textColor;
+                }
+                chart.update();
+            }
+        });
+    }
+
+    if (typeof updateBacktestChartThemeColors === 'function') {
+        updateBacktestChartThemeColors();
+    }
+    if (typeof updateRiskChartThemeColors === 'function') {
+        updateRiskChartThemeColors();
+    }
+    if (typeof updateVolumeChartThemeColors === 'function') {
+        updateVolumeChartThemeColors();
+    }
+}// Mobile Responsive Toggler
 function setupMobileMenu() {
     const toggleBtn = document.getElementById('mobile-menu-toggle');
     const sidebar = document.getElementById('sidebar');
