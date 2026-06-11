@@ -3,7 +3,7 @@ from typing import List, Dict, Tuple, Optional
 
 # Token definitions
 TOKEN_SPEC = [
-    ('NUMBER',     r'\d+(?:\.\d+)?'),
+    ('NUMBER',     r'\d+(?:\.\d+)?|\.\d+'),
     ('COMPARE',    r'>=|<=|==|!=|>|<'),
     ('MATH',       r'[\+\-\*\/]'),
     ('LPAREN',     r'\('),
@@ -300,10 +300,11 @@ class Parser:
     def parse_expr(self) -> ASTNode:
         node = self.parse_term()
         while True:
-            op_tok = self.match('MATH')
-            if op_tok and op_tok[1] in ('+', '-'):
+            tok = self.current_token()
+            if tok and tok[0] == 'MATH' and tok[1] in ('+', '-'):
+                self.pos += 1
                 right = self.parse_term()
-                node = BinaryOpNode(node, op_tok[1], right)
+                node = BinaryOpNode(node, tok[1], right)
             else:
                 break
         return node
@@ -311,10 +312,11 @@ class Parser:
     def parse_term(self) -> ASTNode:
         node = self.parse_factor()
         while True:
-            op_tok = self.match('MATH')
-            if op_tok and op_tok[1] in ('*', '/'):
+            tok = self.current_token()
+            if tok and tok[0] == 'MATH' and tok[1] in ('*', '/'):
+                self.pos += 1
                 right = self.parse_factor()
-                node = BinaryOpNode(node, op_tok[1], right)
+                node = BinaryOpNode(node, tok[1], right)
             else:
                 break
         return node
