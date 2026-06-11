@@ -1124,6 +1124,9 @@ class SavedScreenCreate(BaseModel):
     universe: str = "all"
     formula: Optional[str] = None
 
+class ExplainFormulaRequest(BaseModel):
+    formula: str
+
 
 class WatchlistCreate(BaseModel):
     name: str
@@ -5535,6 +5538,35 @@ async def scan_synthesis(data: ScanSynthesisRequest):
         return {"status": "success", "synthesis": summary.strip()}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Synthesis generation failed: {str(e)}")
+
+
+@app.post("/api/screener/explain-formula")
+async def explain_formula(data: ExplainFormulaRequest):
+    """Generates an AI explanation of the Chartink-style formula using Groq."""
+    try:
+        from backend.formula_parser import parse_formula_to_conditions
+        # Validate syntax locally first
+        try:
+            parse_formula_to_conditions(data.formula)
+        except Exception as pe:
+            raise HTTPException(status_code=400, detail=f"Formula Syntax Error: {str(pe)}")
+            
+        from backend.agent import call_groq_llm
+        
+        sys_prompt = (
+            "You are a professional quantitative finance and technical analysis expert.\n"
+            "Analyze the given stock scanner formula and explain its conditions, mathematical logic, and what kind of trade setups or chart patterns it scans for in a clear, concise, and professional tone.\n"
+            "Format the output using markdown if necessary, using simple terminology suitable for traders. Keep it under 4 sentences."
+        )
+        
+        user_prompt = f"Stock Scanner Formula:\n{data.formula}"
+        
+        explanation = await asyncio.to_thread(call_groq_llm, sys_prompt, user_prompt)
+        return {"status": "success", "explanation": explanation.strip()}
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate explanation: {str(e)}")
 
 
 # ─── CHARTINK-STYLE CUSTOM SCREENER ENGINE ─────────────────────────────────────

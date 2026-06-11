@@ -14923,6 +14923,11 @@ function setupRuleScanner() {
     const saveBtn = document.getElementById('custom-screener-save-btn');
     if (saveBtn) saveBtn.addEventListener('click', saveCurrentScreen);
 
+    const explainFormulaBtn = document.getElementById('custom-screener-explain-formula-btn');
+    if (explainFormulaBtn) {
+        explainFormulaBtn.addEventListener('click', explainCurrentFormula);
+    }
+
     window.activeCustomScreenerMode = 'interactive';
     const modeInteractiveBtn = document.getElementById('custom-screener-mode-interactive-btn');
     const modeFormulaBtn = document.getElementById('custom-screener-mode-formula-btn');
@@ -15830,6 +15835,52 @@ async function loadSavedScreens() {
         });
     } catch (err) {
         console.error('Failed to load saved screens:', err);
+    }
+}
+
+async function explainCurrentFormula() {
+    const formulaInput = document.getElementById('custom-screener-formula-input');
+    const formula = formulaInput ? formulaInput.value.trim() : '';
+    if (!formula) {
+        showToast('Please enter a formula to explain.', 'warning');
+        return;
+    }
+
+    const panel = document.getElementById('custom-screener-formula-explanation-panel');
+    const textEl = document.getElementById('custom-screener-formula-explanation-text');
+    const errDiv = document.getElementById('custom-screener-formula-error');
+    
+    if (!panel || !textEl) return;
+    if (errDiv) errDiv.style.display = 'none';
+
+    panel.style.display = 'block';
+    textEl.innerHTML = '<span style="color: #a855f7; font-size: 11px;">🧠 AI analyst translating formula logic...</span>';
+
+    try {
+        const res = await fetch('/api/screener/explain-formula', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ formula: formula })
+        });
+        const data = await res.json();
+        
+        if (res.status === 400) {
+            if (errDiv) {
+                errDiv.textContent = data.detail || 'Syntax error in formula.';
+                errDiv.style.display = 'block';
+            }
+            panel.style.display = 'none';
+            showToast('Formula parsing failed. See error output below editor.', 'error');
+            return;
+        }
+
+        if (data.status === 'success') {
+            textEl.textContent = data.explanation || 'No explanation generated.';
+        } else {
+            textEl.textContent = 'Explanation generation failed: ' + (data.detail || 'Unknown error');
+        }
+    } catch (err) {
+        textEl.textContent = 'Failed to generate explanation: ' + err.message;
     }
 }
 
