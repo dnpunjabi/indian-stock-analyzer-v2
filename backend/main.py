@@ -4701,7 +4701,7 @@ async def post_swing_synthesis(data: SwingSynthesisRequest):
         raise HTTPException(status_code=500, detail=f"Swing trade synthesis failed: {str(e)}")
 
 @app.get("/api/stock/volume-dynamics")
-async def get_stock_volume_dynamics(symbol: str):
+async def get_stock_volume_dynamics(symbol: str, generate_ai: bool = False):
     try:
         import requests
         import io
@@ -4963,12 +4963,16 @@ async def get_stock_volume_dynamics(symbol: str):
         )
         
         ai_summary = ""
-        try:
-            ai_summary = await asyncio.to_thread(call_groq_llm, system_prompt, user_prompt)
-        except Exception as llm_err:
-            print(f"Error calling LLM for volume dynamics summary: {llm_err}")
-            
-        if not ai_summary or "ERROR" in ai_summary.upper():
+        is_local_summary = True
+        if generate_ai:
+            try:
+                ai_summary = await asyncio.to_thread(call_groq_llm, system_prompt, user_prompt)
+                if ai_summary and "ERROR" not in ai_summary.upper():
+                    is_local_summary = False
+            except Exception as llm_err:
+                print(f"Error calling LLM for volume dynamics summary: {llm_err}")
+                
+        if is_local_summary:
             accum_status = "accumulation" if z_score >= 1.5 else ("distribution" if z_score <= -1.5 else "neutral consolidation")
             ai_summary = (
                 f"The volume dynamics for {symbol} indicate a period of {accum_status} with a deliverable value Z-Score of {z_score:.2f}. "
@@ -4986,7 +4990,8 @@ async def get_stock_volume_dynamics(symbol: str):
             "poc_price": poc_price,
             "bulk_deals": bulk_deals,
             "corporate_actions": corporate_actions,
-            "ai_summary": ai_summary
+            "ai_summary": ai_summary,
+            "is_local_summary": is_local_summary
         }
     except Exception as e:
         import traceback
@@ -5112,7 +5117,10 @@ async def get_telemetry_synthesis(data: TelemetrySynthesisRequest):
         synthesis = await asyncio.to_thread(call_groq_llm, system_prompt, user_prompt)
         return {"synthesis": synthesis.strip()}
     except Exception as e:
-        return {"synthesis": "Unable to generate AI telemetry synthesis at this time."}
+        import traceback
+        print("Exception in get_telemetry_synthesis:")
+        traceback.print_exc()
+        return {"synthesis": f"Unable to generate AI telemetry synthesis at this time. Error: {str(e)}"}
 
 
 
@@ -5811,11 +5819,15 @@ def get_indicator_value(ind_row: dict, fund: dict, tech_full: dict, key: str):
         from backend.swing_utils import clean_float
         return clean_float(fund.get("debt_to_equity"), 0.0)
     elif key_upper == "RATING":
-        analysis = tech_full.get("analysis") or {}
+        analysis = tech_full.get("analysis")
+        if not isinstance(analysis, dict):
+            analysis = {}
         return (analysis.get("recommendation") or tech_full.get("recommendation") or "HOLD").upper()
     elif key_upper == "SCORE":
         from backend.swing_utils import clean_float
-        analysis = tech_full.get("analysis") or {}
+        analysis = tech_full.get("analysis")
+        if not isinstance(analysis, dict):
+            analysis = {}
         return clean_float(tech_full.get("final_score") or tech_full.get("score_metrics", {}).get("final_score") or analysis.get("score", analysis.get("composite_score")), 0.0)
     else:
         try:

@@ -2436,6 +2436,13 @@ input[type="range"]::-webkit-slider-thumb:hover {
     gap: 25px;
 }
 
+#alerts-synthesis-telemetry-row {
+    display: grid;
+    grid-template-columns: 1.3fr 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
 .alert-form {
     display: flex;
     flex-direction: column;
@@ -2719,6 +2726,7 @@ input[type="range"]::-webkit-slider-thumb:hover {
     #tech-timing-card:not(.print-exclude),
     #tech-fib-card:not(.print-exclude),
     #tech-volatility-card:not(.print-exclude),
+    #volume-dynamics-card:not(.print-exclude),
     #drawdown-card:not(.print-exclude),
     #sandbox-card:not(.print-exclude),
     #historical-bands-card:not(.print-exclude),
@@ -7168,7 +7176,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
         grid-column: span 2 !important;
     }
 }
-
+@media (max-width: 992px) {
     .alerts-grid {
         grid-template-columns: 1fr !important;
     }
