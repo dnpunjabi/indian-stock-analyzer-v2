@@ -5313,6 +5313,44 @@ async function deploySentinelTelemetry(item) {
                 const targetVal = parseFloat(item.value);
                 const diffPoints = Math.abs(rsi - targetVal);
                 proximityMsg = `Proximity margin is <strong>${diffPoints.toFixed(1)} points</strong> from the RSI momentum threshold.`;
+            } else if (item.condition_type.startsWith('FIB_') && profile.technicals?.fib_levels) {
+                const fib = profile.technicals.fib_levels;
+                let levelVal = null;
+                let levelName = '';
+                if (item.condition_type === 'FIB_618') {
+                    levelVal = fib.fib_618;
+                    levelName = '61.8% Retracement';
+                } else if (item.condition_type === 'FIB_500') {
+                    levelVal = fib.fib_500;
+                    levelName = '50.0% Retracement';
+                } else if (item.condition_type === 'FIB_382') {
+                    levelVal = fib.fib_382;
+                    levelName = '38.2% Retracement';
+                } else if (item.condition_type === 'FIB_LEVEL') {
+                    const levels = [
+                        { name: '38.2%', val: fib.fib_382 },
+                        { name: '50.0%', val: fib.fib_500 },
+                        { name: '61.8%', val: fib.fib_618 }
+                    ];
+                    let closest = levels[0];
+                    let minDist = Math.abs(price - closest.val);
+                    levels.forEach(l => {
+                        const dist = Math.abs(price - l.val);
+                        if (dist < minDist) {
+                            minDist = dist;
+                            closest = l;
+                        }
+                    });
+                    levelVal = closest.val;
+                    levelName = `${closest.name} Retracement`;
+                }
+
+                if (levelVal && price) {
+                    const diffPct = Math.abs(price - levelVal) / levelVal * 100;
+                    proximityMsg = `Proximity margin is <strong>${diffPct.toFixed(1)}%</strong> from the Fib ${levelName} support (₹${levelVal.toLocaleString('en-IN', { maximumFractionDigits: 1 })}).`;
+                } else {
+                    proximityMsg = `Telemetry checks active. Monitoring rules for Fibonacci crossover.`;
+                }
             } else {
                 proximityMsg = `Telemetry checks active. Monitoring rules for target crossover.`;
             }
