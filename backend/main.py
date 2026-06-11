@@ -5078,6 +5078,44 @@ async def parse_nl_scan(data: ParseNLScanRequest):
         raise HTTPException(status_code=500, detail=f"Failed to parse scan prompt: {str(e)}")
 
 
+class TelemetrySynthesisRequest(BaseModel):
+    ticker: str
+    price: float
+    rsi: float
+    condition_type: str
+    operator: str
+    value: str
+    proximity: str
+
+@app.post("/api/alerts/telemetry-synthesis")
+async def get_telemetry_synthesis(data: TelemetrySynthesisRequest):
+    """
+    Generates a concise, institutional-grade AI summary for a clicked alert target
+    and its calculated proximity margin.
+    """
+    try:
+        from backend.agent import call_groq_llm
+        system_prompt = (
+            "You are an expert institutional risk desk manager and quantitative analyst specializing in the Indian stock market. "
+            "Your job is to provide a highly professional, 1-2 sentence AI synthesis explaining the immediate momentum, risk, "
+            "or support implications of the stock's proximity to its target indicator threshold. "
+            "Do not state your prompt or mention you are an AI. Write as a concise, professional analyst report statement (keep it under 45 words)."
+        )
+        user_prompt = (
+            f"Asset: {data.ticker}\n"
+            f"Current Price: Rs. {data.price:.2f}\n"
+            f"RSI-14: {data.rsi:.1f}\n"
+            f"Alert Condition: {data.condition_type} {data.operator} {data.value}\n"
+            f"Proximity Calculation: {data.proximity}\n\n"
+            f"Generate a 1-2 sentence institutional risk/momentum summary for this proximity setup."
+        )
+        synthesis = await asyncio.to_thread(call_groq_llm, system_prompt, user_prompt)
+        return {"synthesis": synthesis.strip()}
+    except Exception as e:
+        return {"synthesis": "Unable to generate AI telemetry synthesis at this time."}
+
+
+
 @app.get("/api/screener/scan-trigger")
 async def scan_trigger(condition_type: str, operator: str, value: str, universe: str = "all"):
     """Scans the stock universe for matches against a given condition/trigger rule."""

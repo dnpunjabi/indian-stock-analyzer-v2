@@ -2188,9 +2188,12 @@
                                     <div style="margin-top: 4px; padding: 8px; background: rgba(0,0,0,0.25); border: 1px solid var(--border-glass); border-radius: 6px; font-size: 10px; color: var(--text-secondary); line-height: 1.4; flex-grow: 1; min-height: 36px; display: flex; align-items: center;" id="sentinel-context">
                                         No telemetry loaded.
                                     </div>
-                                    <div style="display: flex; gap: 8px; margin-top: 6px;">
-                                        <button type="button" class="btn-primary" id="sentinel-force-evaluate-btn" style="flex: 1; font-size: 10px; padding: 4px 8px; height: 26px; font-weight: 600; cursor: pointer;">⚡ Force Rule Check</button>
-                                        <button type="button" class="btn-secondary" id="sentinel-chart-view-btn" style="font-size: 10px; padding: 4px 8px; height: 26px; font-weight: 600; border: 1px solid var(--border-glass); background: rgba(255,255,255,0.02); cursor: pointer;">📈 Load Chart</button>
+                                    <div style="display: flex; gap: 6px; margin-top: 6px;">
+                                        <button type="button" class="btn-primary" id="sentinel-force-evaluate-btn" style="font-size: 10px; padding: 4px 6px; height: 26px; font-weight: 600; cursor: pointer;">⚡ Force Check</button>
+                                        <button type="button" class="btn-secondary" id="sentinel-ai-summary-btn" style="flex: 1; font-size: 10px; padding: 4px 6px; height: 26px; font-weight: 600; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3); color: #3b82f6; cursor: pointer; transition: all 0.2s;" onmouseenter="this.style.background='rgba(59,130,246,0.18)'" onmouseleave="this.style.background='rgba(59,130,246,0.1)'">🧠 AI Audit</button>
+                                        <button type="button" class="btn-secondary" id="sentinel-chart-view-btn" style="font-size: 10px; padding: 4px 6px; height: 26px; font-weight: 600; border: 1px solid var(--border-glass); background: rgba(255,255,255,0.02); cursor: pointer;">📈 Chart</button>
+                                    </div>
+                                    <div id="sentinel-ai-summary-box" style="display: none; margin-top: 4px; padding: 8px; background: rgba(59, 130, 246, 0.04); border: 1px dashed rgba(59, 130, 246, 0.25); border-radius: 6px; font-size: 10.5px; color: var(--text-secondary); line-height: 1.45;">
                                     </div>
                                 </div>
                             </div>

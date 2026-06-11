@@ -5257,10 +5257,14 @@ async function deploySentinelTelemetry(item) {
     const idlePanel = document.getElementById('alerts-sentinel-hud-idle');
     const hudContainer = document.getElementById('alerts-sentinel-hud');
     
-    if (!activePanel || !idlePanel) return;
-    
     idlePanel.style.display = 'none';
     activePanel.style.display = 'flex';
+    
+    const aiSummaryBox = document.getElementById('sentinel-ai-summary-box');
+    if (aiSummaryBox) {
+        aiSummaryBox.style.display = 'none';
+        aiSummaryBox.textContent = '';
+    }
     
     // Fill in basic static info
     document.getElementById('sentinel-ticker').textContent = item.ticker;
@@ -5407,6 +5411,42 @@ async function deploySentinelTelemetry(item) {
             contextEl.innerHTML = `🛰️ <strong>Telemetry Info:</strong> ${proximityMsg}`;
             hudContainer.style.background = 'rgba(16, 185, 129, 0.01)';
             hudContainer.style.borderColor = 'rgba(16, 185, 129, 0.2)';
+        }
+
+        // AI Audit button binding (Triggered on demand)
+        const aiSummaryBtn = document.getElementById('sentinel-ai-summary-btn');
+        const aiSummaryBox = document.getElementById('sentinel-ai-summary-box');
+        if (aiSummaryBtn && aiSummaryBox) {
+            const newAiSummaryBtn = aiSummaryBtn.cloneNode(true);
+            aiSummaryBtn.parentNode.replaceChild(newAiSummaryBtn, aiSummaryBtn);
+            newAiSummaryBtn.addEventListener('click', async () => {
+                if (!price) {
+                    alert("Telemetry price metrics not loaded. Cannot run AI audit.");
+                    return;
+                }
+                aiSummaryBox.style.display = 'block';
+                aiSummaryBox.innerHTML = `⏳ <em>Synthesizing AI risk audit report...</em>`;
+                try {
+                    const synthRes = await fetch('/api/alerts/telemetry-synthesis', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            ticker: item.ticker,
+                            price: price,
+                            rsi: rsi || 50.0,
+                            condition_type: item.condition_type,
+                            operator: item.operator,
+                            value: item.value,
+                            proximity: (item.status === 'Triggered') ? 'Triggered.' : proximityMsg.replace(/<[^>]*>/g, '')
+                        })
+                    });
+                    if (!synthRes.ok) throw new Error("Synthesis failed");
+                    const synthData = await synthRes.json();
+                    aiSummaryBox.innerHTML = `🧠 <strong>AI Audit:</strong> ${synthData.synthesis}`;
+                } catch (err) {
+                    aiSummaryBox.innerHTML = `⚠️ <em>Unable to generate AI telemetry synthesis at this time.</em>`;
+                }
+            });
         }
     } catch (err) {
         document.getElementById('sentinel-price').textContent = 'Offline';
