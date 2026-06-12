@@ -9790,8 +9790,7 @@ function renderWatchlistItems() {
     // 2. Warmed Cache Rate
     let warmedCount = 0;
     activeWatch.items.forEach(item => {
-        const match = universeConstituents.find(u => u.symbol.split(".")[0].toUpperCase() === item.symbol.split(".")[0].toUpperCase());
-        if (match && match.is_cached === 1) {
+        if (item.is_cached === 1) {
             warmedCount++;
         }
     });
@@ -9909,8 +9908,7 @@ function renderWatchlistItems() {
     const pageData = sortedItems.slice(startIndex, endIndex);
     
     pageData.forEach(item => {
-        const match = universeConstituents.find(u => u.symbol.split(".")[0].toUpperCase() === item.symbol.split(".")[0].toUpperCase());
-        const isCached = match ? match.is_cached : 0;
+        const isCached = item.is_cached === 1 ? 1 : 0;
         const cacheBadgeHTML = isCached === 1 
             ? `<span class="badge-rec rec-buy" style="font-size: 8px; padding: 2px 5px; border-radius: 4px; font-weight: 700; cursor: default; border: 1px solid rgba(16,185,129,0.2);" title="Database cache warmed. Analysis loads instantly.">WARMED 🟢</span>`
             : `<span class="badge-rec rec-hold click-to-warm" data-symbol="${item.symbol}" style="font-size: 8px; padding: 2px 5px; border-radius: 4px; font-weight: 700; cursor: pointer; border: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.02); color: var(--text-muted);" title="Uncached database profile. Click to pre-warm cache.">COLD ⚪</span>`;
@@ -11533,21 +11531,69 @@ function exportTableToCSV(tbodyId, filename, theadId = null) {
 
 // Watchlist Batch Portfolio Analytics Run
 // Watchlist Batch Portfolio Analytics Run
+// Watchlist Batch Portfolio Analytics Run
 async function runWatchlistBatchAnalysis() {
     if (activeWatchlistId === null) return;
     
     const resultsContainer = document.getElementById('watchlist-analysis-results');
     const tbody = document.getElementById('watchlist-analysis-body');
+    const loadingPanel = document.getElementById('watchlist-analysis-loading-panel');
+    const contentPanel = document.getElementById('watchlist-analysis-content-panel');
+    const progressBar = document.getElementById('watchlist-analysis-progress-bar');
+    const progressConsole = document.getElementById('watchlist-analysis-progress-console');
+    
     if (!resultsContainer || !tbody) return;
     
     resultsContainer.style.display = 'block';
+    if (loadingPanel) loadingPanel.style.display = 'block';
+    if (contentPanel) contentPanel.style.display = 'none';
+    if (progressBar) progressBar.style.width = '5%';
+    
+    if (progressConsole) {
+        progressConsole.innerHTML = `
+            <div style="color: #64748b;">[SYSTEM] Initializing Watchlist Batch Analysis...</div>
+            <div style="color: var(--color-primary-light);">[ENGINE] Active watchlist ID resolved: ${activeWatchlistId}</div>
+        `;
+    }
+    
     const summaryBox = document.getElementById('watchlist-summary-box');
     if (summaryBox) summaryBox.style.display = 'none';
     
-    tbody.innerHTML = '<tr><td colspan="9" class="center-text text-muted"><span class="skeleton skeleton-text" style="display:inline-block; width:100%; height:20px;"></span>Batch analyzing assets...</td></tr>';
+    // Interactive progress ticker simulation
+    let progress = 5;
+    const logs = [
+        { threshold: 15, msg: "[INFO] Establishing secure session feeds with yfinance API...", color: '#38bdf8' },
+        { threshold: 30, msg: "[INFO] Parsing fundamental balance sheet columns...", color: '#f59e0b' },
+        { threshold: 45, msg: "[INFO] Simulating intrinsic valuation under multi-factor DCF models...", color: '#10b981' },
+        { threshold: 60, msg: "[INFO] Gathering momentum oscillators and technical RSI data...", color: '#a855f7' },
+        { threshold: 75, msg: "[INFO] Normalizing composite scores and recommendation matrix...", color: '#34d399' },
+        { threshold: 90, msg: "[INFO] Executing Z-Score cell heatmapping...", color: '#38bdf8' }
+    ];
+    
+    let logIndex = 0;
+    const progressInterval = setInterval(() => {
+        if (progress < 95) {
+            progress += Math.floor(Math.random() * 8) + 2;
+            if (progress > 95) progress = 95;
+            if (progressBar) progressBar.style.width = `${progress}%`;
+            
+            if (logIndex < logs.length && progress >= logs[logIndex].threshold) {
+                if (progressConsole) {
+                    const line = document.createElement('div');
+                    line.style.color = logs[logIndex].color;
+                    line.innerText = logs[logIndex].msg;
+                    progressConsole.appendChild(line);
+                    progressConsole.scrollTop = progressConsole.scrollHeight;
+                }
+                logIndex++;
+            }
+        }
+    }, 450);
     
     try {
         const response = await fetch(`/api/watchlists/${activeWatchlistId}/analyze`);
+        clearInterval(progressInterval);
+        
         if (!response.ok) throw new Error("Batch analysis endpoint failed.");
         const data = await response.json();
         
@@ -11558,6 +11604,8 @@ async function runWatchlistBatchAnalysis() {
         
         tbody.innerHTML = '';
         if (data.results.length === 0) {
+            if (loadingPanel) loadingPanel.style.display = 'none';
+            if (contentPanel) contentPanel.style.display = 'block';
             tbody.innerHTML = '<tr><td colspan="9" class="center-text text-muted">No items in watchlist to analyze.</td></tr>';
             return;
         }
@@ -11622,8 +11670,28 @@ async function runWatchlistBatchAnalysis() {
         updateWatchlistScatterChart(data.results);
         updateWatchlistThermometer(data.results);
         
-        showToast("Batch watchlist analysis complete.", "success");
+        // Show 100% complete in console before fading out
+        if (progressBar) progressBar.style.width = '100%';
+        if (progressConsole) {
+            const line = document.createElement('div');
+            line.style.color = 'var(--color-emerald)';
+            line.style.fontWeight = 'bold';
+            line.innerText = `[SUCCESS] Batch portfolio synthesis completed successfully!`;
+            progressConsole.appendChild(line);
+            progressConsole.scrollTop = progressConsole.scrollHeight;
+        }
+        
+        // Brief sleep to let user see 100% complete state
+        setTimeout(() => {
+            if (loadingPanel) loadingPanel.style.display = 'none';
+            if (contentPanel) contentPanel.style.display = 'block';
+            showToast("Batch watchlist analysis complete.", "success");
+        }, 650);
+        
     } catch (e) {
+        clearInterval(progressInterval);
+        if (loadingPanel) loadingPanel.style.display = 'none';
+        if (contentPanel) contentPanel.style.display = 'block';
         tbody.innerHTML = `<tr><td colspan="9" class="center-text red-text font-weight-bold">Batch analysis failed: ${e.message}</td></tr>`;
         showToast("Batch analysis failed: " + e.message, "error");
     }
@@ -12272,28 +12340,40 @@ async function runUniverseBulkCacheWarming() {
 async function runUniverseSingleCacheWarming(symbol, badgeElement) {
     if (!badgeElement) return;
     
-    const originalHTML = badgeElement.outerHTML;
     badgeElement.innerHTML = `<span class="spinner" style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid rgba(255,255,255,0.1); border-top-color: var(--neon-green); border-radius: 50%; animation: spin 1s linear infinite; margin-right: 4px;"></span>WARMING`;
+    
+    const baseSymbol = symbol.split(".")[0].toUpperCase();
     
     try {
         const res = await fetch(`/api/analyze?query=${encodeURIComponent(symbol)}`);
         if (res.ok) {
             showToast(`Successfully pre-warmed cache for ${symbol}!`, "success");
-            // Find and mark cached in universe list
-            const match = universeConstituents.find(item => item.symbol === symbol);
+            
+            // Mark cached in universe list
+            const match = universeConstituents.find(item => item.symbol.split(".")[0].toUpperCase() === baseSymbol);
             if (match) match.is_cached = 1;
             filterAndRenderUniverse();
             
-            // Refresh parent status
+            // Refresh watchlists database state to sync WARMED badges
+            if (typeof fetchWatchlists === 'function') {
+                await fetchWatchlists();
+            }
+            
+            // Refresh rebalancer status
             if (typeof loadRebalancerStatus === 'function') {
                 loadRebalancerStatus();
             }
         } else {
-            throw new Error("API warming failed");
+            throw new Error("Warming request timed out or failed on backend.");
         }
     } catch (err) {
         showToast(`Failed to warm ${symbol}: ${err.message}`, "error");
-        badgeElement.outerHTML = originalHTML;
+        if (typeof renderWatchlistItems === 'function') {
+            renderWatchlistItems();
+        }
+        if (typeof filterAndRenderUniverse === 'function') {
+            filterAndRenderUniverse();
+        }
     }
 }
 

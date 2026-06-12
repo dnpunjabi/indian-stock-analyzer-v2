@@ -2858,7 +2858,19 @@ async def get_watchlists():
         watchlists = [dict(row) for row in cursor.fetchall()]
         
         for w in watchlists:
-            cursor.execute("SELECT symbol, name, sector, quantity, purchase_price, in_portfolio FROM watchlist_items WHERE watchlist_id = ?", (w["id"],))
+            cursor.execute("""
+                SELECT 
+                    i.symbol, 
+                    i.name, 
+                    i.sector, 
+                    i.quantity, 
+                    i.purchase_price, 
+                    i.in_portfolio,
+                    (CASE WHEN p.symbol IS NOT NULL THEN 1 ELSE 0 END) as is_cached
+                FROM watchlist_items i
+                LEFT JOIN cached_profiles p ON i.symbol = p.symbol
+                WHERE i.watchlist_id = ?
+            """, (w["id"],))
             w["items"] = [dict(row) for row in cursor.fetchall()]
         
     return watchlists
@@ -2958,7 +2970,19 @@ async def get_single_watchlist(watchlist_id: int):
             raise HTTPException(status_code=404, detail="Watchlist not found.")
             
         w_dict = dict(watchlist)
-        cursor.execute("SELECT symbol, name, sector, quantity, purchase_price, in_portfolio FROM watchlist_items WHERE watchlist_id = ?", (watchlist_id,))
+        cursor.execute("""
+            SELECT 
+                i.symbol, 
+                i.name, 
+                i.sector, 
+                i.quantity, 
+                i.purchase_price, 
+                i.in_portfolio,
+                (CASE WHEN p.symbol IS NOT NULL THEN 1 ELSE 0 END) as is_cached
+            FROM watchlist_items i
+            LEFT JOIN cached_profiles p ON i.symbol = p.symbol
+            WHERE i.watchlist_id = ?
+        """, (watchlist_id,))
         w_dict["items"] = [dict(row) for row in cursor.fetchall()]
         
     return w_dict
