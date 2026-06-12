@@ -1403,24 +1403,25 @@
                                         <button class="btn-primary" id="quick-compare-peers-btn" style="font-size: 10px; padding: 4px 10px; height: auto;">⚔️ Compare Peers</button>
                                     </div>
                                 </div>
+                                <div id="peers-leaderboard-container" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; padding: 4px 0;"></div>
                                 <div class="table-scroll" style="border: 1px solid rgba(255,255,255,0.04); border-radius: 8px; overflow-x: auto; background: rgba(0,0,0,0.15);">
-                                    <table class="data-table small-table" style="width:100%; border-collapse:collapse; font-size:10.5px;">
+                                    <table class="data-table small-table" id="peer-benchmarking-table" style="width:100%; border-collapse:collapse; font-size:10.5px;">
                                         <thead>
-                                            <tr style="background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.05);">
+                                            <tr style="background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.05); user-select: none;">
                                                 <th style="width: 50px; text-align: center; padding: 6px;">
                                                     <input type="checkbox" id="peer-select-all-checkbox" checked style="cursor: pointer; transform: scale(1.15);" title="Select / Deselect All">
                                                 </th>
-                                                <th style="text-align: left; padding: 6px;">Peer Company</th>
-                                                <th style="padding: 6px;">P/E</th>
-                                                <th style="padding: 6px;">Mar Cap (Cr)</th>
-                                                <th style="padding: 6px;">P/B</th>
-                                                <th style="padding: 6px;">Debt/Eq</th>
-                                                <th style="padding: 6px;">ROCE %</th>
-                                                <th style="padding: 6px;">ROE %</th>
-                                                <th style="padding: 6px;">NPM %</th>
-                                                <th style="padding: 6px;">Profit Qtr YoY%</th>
-                                                <th style="padding: 6px;">Div Yield %</th>
-                                                <th style="padding: 6px;">Sales Qtr YoY%</th>
+                                                <th class="sortable-header" data-sort="company" style="text-align: left; padding: 6px; cursor: pointer;" title="Click to sort by Company Name">Peer Company <span class="sort-direction"></span></th>
+                                                <th class="sortable-header" data-sort="pe" style="padding: 6px; cursor: pointer; text-align: right;" title="Click to sort by PE multiple">P/E <span class="sort-direction"></span></th>
+                                                <th class="sortable-header" data-sort="marcap" style="padding: 6px; cursor: pointer; text-align: right;" title="Click to sort by Market Capitalization">Mar Cap (Cr) <span class="sort-direction"></span></th>
+                                                <th class="sortable-header" data-sort="pb" style="padding: 6px; cursor: pointer; text-align: right;" title="Click to sort by Price to Book">P/B <span class="sort-direction"></span></th>
+                                                <th class="sortable-header" data-sort="debteq" style="padding: 6px; cursor: pointer; text-align: right;" title="Click to sort by Debt to Equity">Debt/Eq <span class="sort-direction"></span></th>
+                                                <th class="sortable-header" data-sort="roce" style="padding: 6px; cursor: pointer; text-align: right;" title="Click to sort by ROCE">ROCE % <span class="sort-direction"></span></th>
+                                                <th class="sortable-header" data-sort="roe" style="padding: 6px; cursor: pointer; text-align: right;" title="Click to sort by ROE">ROE % <span class="sort-direction"></span></th>
+                                                <th class="sortable-header" data-sort="npm" style="padding: 6px; cursor: pointer; text-align: right;" title="Click to sort by NPM">NPM % <span class="sort-direction"></span></th>
+                                                <th class="sortable-header" data-sort="profitQtr" style="padding: 6px; cursor: pointer; text-align: right;" title="Click to sort by Profit Quarterly Growth">Profit Qtr YoY% <span class="sort-direction"></span></th>
+                                                <th class="sortable-header" data-sort="divYield" style="padding: 6px; cursor: pointer; text-align: right;" title="Click to sort by Dividend Yield">Div Yield % <span class="sort-direction"></span></th>
+                                                <th class="sortable-header" data-sort="salesQtr" style="padding: 6px; cursor: pointer; text-align: right;" title="Click to sort by Sales Quarterly Growth">Sales Qtr YoY% <span class="sort-direction"></span></th>
                                             </tr>
                                         </thead>
                                         <tbody id="peer-table-body">

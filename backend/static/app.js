@@ -1258,54 +1258,51 @@ function setupPeersControls() {
             }
             const profile = await res.json();
             
-            const peerBody = document.getElementById('peer-table-body');
-            if (peerBody) {
+            if (activeStockProfile && activeStockProfile.peers) {
                 // Ensure no duplications of target or existing peers
-                const existingCheckboxes = peerBody.querySelectorAll('.peer-select-checkbox');
-                let alreadyExists = false;
-                existingCheckboxes.forEach(cb => {
-                    const cbTicker = cb.getAttribute('data-ticker');
-                    if (cbTicker && (cbTicker.toLowerCase() === baseSymbol.toLowerCase() || cbTicker.toLowerCase() === companyName.toLowerCase())) {
-                        alreadyExists = true;
-                    }
+                const alreadyExists = activeStockProfile.peers.some(p => {
+                    const pName = p.Name || p.Company || "";
+                    return pName.toLowerCase().includes(baseSymbol.toLowerCase()) || pName.toLowerCase().includes(companyName.toLowerCase());
                 });
                 
                 if (alreadyExists) {
                     alert(`Stock "${companyName}" is already in the benchmarking list.`);
+                    if (addCustomPeerBtn) {
+                        addCustomPeerBtn.disabled = false;
+                        addCustomPeerBtn.innerText = originalText;
+                    }
+                    customPeerInput.disabled = false;
+                    customPeerInput.focus();
                     return;
                 }
                 
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td style="text-align: center; width: 50px;">
-                        <input type="checkbox" class="peer-select-checkbox" data-ticker="${baseSymbol}" checked style="cursor: pointer; transform: scale(1.15);">
-                    </td>
-                    <td><strong class="peer-name-click" style="color: var(--neon-blue); cursor: pointer;" title="Click to load workspace for this peer company">${companyName} (Custom)</strong></td>
-                    <td>${profile.fundamentals && profile.fundamentals.pe_ratio ? profile.fundamentals.pe_ratio.toFixed(1) : 'N/A'}</td>
-                    <td>${profile.fundamentals && profile.fundamentals.market_cap ? profile.fundamentals.market_cap.toLocaleString('en-IN') : 'N/A'}</td>
-                    <td>${profile.fundamentals && profile.fundamentals.roce_pct ? profile.fundamentals.roce_pct.toFixed(1) : 'N/A'}%</td>
-                    <td>${profile.fundamentals && profile.fundamentals.roe_pct ? profile.fundamentals.roe_pct.toFixed(1) : 'N/A'}%</td>
-                    <td>N/A</td>
-                `;
+                // Format the custom peer dictionary with all 12 columns
+                const newPeer = {
+                    "Name": `${companyName} (Custom)`,
+                    "Company": companyName,
+                    "P/E": profile.fundamentals && profile.fundamentals.pe_ratio ? profile.fundamentals.pe_ratio.toFixed(1) : "N/A",
+                    "Mar Cap": profile.fundamentals && profile.fundamentals.market_cap ? (profile.fundamentals.market_cap / 10000000).toFixed(0) : "N/A", // Convert Cap to Crores if not scaled
+                    "P/B": profile.fundamentals && profile.fundamentals.pb_ratio ? profile.fundamentals.pb_ratio.toFixed(1) : "N/A",
+                    "Debt/Equity": profile.fundamentals && profile.fundamentals.debt_equity ? profile.fundamentals.debt_equity.toFixed(2) : "N/A",
+                    "Debt to Equity": profile.fundamentals && profile.fundamentals.debt_equity ? profile.fundamentals.debt_equity.toFixed(2) : "N/A",
+                    "ROCE %": profile.fundamentals && profile.fundamentals.roce_pct ? profile.fundamentals.roce_pct.toFixed(1) : "N/A",
+                    "ROE %": profile.fundamentals && profile.fundamentals.roe_pct ? profile.fundamentals.roe_pct.toFixed(1) : "N/A",
+                    "NPM %": profile.fundamentals && profile.fundamentals.npm_pct ? profile.fundamentals.npm_pct.toFixed(1) : "N/A",
+                    "Profit Qtr YoY %": profile.fundamentals && profile.fundamentals.profit_growth_qtr ? profile.fundamentals.profit_growth_qtr.toFixed(1) : "N/A",
+                    "Div Yield %": profile.fundamentals && profile.fundamentals.div_yield ? profile.fundamentals.div_yield.toFixed(2) : "N/A",
+                    "Sales Qtr YoY %": profile.fundamentals && profile.fundamentals.sales_growth_3y ? profile.fundamentals.sales_growth_3y.toFixed(1) : "N/A"
+                };
                 
-                // Stop event propagation when clicking the checkbox to avoid workspace reload triggers
-                const checkbox = tr.querySelector('.peer-select-checkbox');
-                if (checkbox) {
-                    checkbox.onclick = (e) => {
-                        e.stopPropagation();
-                    };
+                // Wait, if the market cap is already in Crores (like Screener peer items), we don't divide by 1e7
+                if (profile.fundamentals && profile.fundamentals.market_cap) {
+                    const mcRaw = profile.fundamentals.market_cap;
+                    // If it is > 1000000, it's raw INR, so convert to Cr. If it is already small, keep it as is.
+                    newPeer["Mar Cap"] = mcRaw > 10000000 ? (mcRaw / 10000000).toFixed(0) : mcRaw.toFixed(0);
                 }
                 
-                // Bind click to company name row only
-                const nameClick = tr.querySelector('.peer-name-click');
-                if (nameClick) {
-                    nameClick.onclick = (e) => {
-                        e.stopPropagation();
-                        loadStockAnalyzer(fullTicker);
-                    };
-                }
+                activeStockProfile.peers.push(newPeer);
+                renderPeersTable(activeStockProfile.peers);
                 
-                peerBody.appendChild(tr);
                 customPeerInput.value = '';
             }
         } catch (err) {
@@ -1510,6 +1507,356 @@ function updatePEBandsTimeframe(years) {
     }
 }
 
+let currentSortColumn = 'marcap';
+let currentSortDirection = 'desc';
+
+// Setup click handlers for sortable headers in Sector Peer Benchmarking
+function setupPeersSorting() {
+    const table = document.getElementById('peer-benchmarking-table');
+    if (!table) return;
+    const headers = table.querySelectorAll('.sortable-header');
+    headers.forEach(h => {
+        h.onclick = () => {
+            const col = h.getAttribute('data-sort');
+            if (currentSortColumn === col) {
+                currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSortColumn = col;
+                currentSortDirection = 'desc';
+            }
+            
+            headers.forEach(header => {
+                const dirSpan = header.querySelector('.sort-direction');
+                if (dirSpan) {
+                    if (header.getAttribute('data-sort') === currentSortColumn) {
+                        dirSpan.innerText = currentSortDirection === 'asc' ? ' ▲' : ' ▼';
+                        header.style.color = 'var(--neon-blue)';
+                    } else {
+                        dirSpan.innerText = '';
+                        header.style.color = '';
+                    }
+                }
+            });
+            
+            if (activeStockProfile && activeStockProfile.peers) {
+                renderPeersTable(activeStockProfile.peers);
+            }
+        };
+    });
+}
+
+// Render the sector peers comparison table with sorted sorting and heatmapped cells
+function renderPeersTable(peersList) {
+    const peerBody = document.getElementById('peer-table-body');
+    if (!peerBody) return;
+    peerBody.innerHTML = '';
+    
+    if (!peersList || peersList.length === 0) {
+        peerBody.innerHTML = `<tr><td colspan="12" class="center-text text-muted">No peer companies retrieved from Screener.</td></tr>`;
+        return;
+    }
+    
+    const cleanNum = (val) => {
+        if (val === null || val === undefined) return NaN;
+        const clean = val.toString().replace('%', '').replace(/,/g, '').trim();
+        const num = parseFloat(clean);
+        return isNaN(num) ? NaN : num;
+    };
+    
+    const sortedPeers = [...peersList].sort((a, b) => {
+        let valA, valB;
+        switch (currentSortColumn) {
+            case 'company':
+                valA = a["Name"] || a["Company"] || "";
+                valB = b["Name"] || b["Company"] || "";
+                return currentSortDirection === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+            case 'pe':
+                valA = cleanNum(a["P/E"]);
+                valB = cleanNum(b["P/E"]);
+                break;
+            case 'marcap':
+                valA = cleanNum(a["Mar Cap"]);
+                valB = cleanNum(b["Mar Cap"]);
+                break;
+            case 'pb':
+                valA = cleanNum(a["P/B"] || a["PB"]);
+                valB = cleanNum(b["P/B"] || b["PB"]);
+                break;
+            case 'debteq':
+                valA = cleanNum(a["Debt to Equity"] || a["Debt/Equity"] || a["Debt/Eq"]);
+                valB = cleanNum(b["Debt to Equity"] || b["Debt/Equity"] || b["Debt/Eq"]);
+                break;
+            case 'roce':
+                valA = cleanNum(a["ROCE %"] || a["ROCE"]);
+                valB = cleanNum(b["ROCE %"] || b["ROCE"]);
+                break;
+            case 'roe':
+                valA = cleanNum(a["ROE %"] || a["ROE"]);
+                valB = cleanNum(b["ROE %"] || b["ROE"]);
+                break;
+            case 'npm':
+                valA = cleanNum(a["NPM %"] || a["NPM"]);
+                valB = cleanNum(b["NPM %"] || b["NPM"]);
+                break;
+            case 'profitQtr':
+                valA = cleanNum(a["Profit Qtr YoY %"] || a["Profit Qtr YoY"] || a["Qtr Profit Var %"]);
+                valB = cleanNum(b["Profit Qtr YoY %"] || b["Profit Qtr YoY"] || b["Qtr Profit Var %"]);
+                break;
+            case 'divYield':
+                valA = cleanNum(a["Div Yield %"] || a["Div Yield"]);
+                valB = cleanNum(b["Div Yield %"] || b["Div Yield"]);
+                break;
+            case 'salesQtr':
+                valA = cleanNum(a["Sales Qtr YoY %"] || a["Sales Qtr YoY"]);
+                valB = cleanNum(b["Sales Qtr YoY %"] || b["Sales Qtr YoY"]);
+                break;
+            default:
+                return 0;
+        }
+        
+        const isNA_A = isNaN(valA);
+        const isNA_B = isNaN(valB);
+        if (isNA_A && isNA_B) return 0;
+        if (isNA_A) return 1;
+        if (isNA_B) return -1;
+        
+        return currentSortDirection === 'asc' ? valA - valB : valB - valA;
+    });
+    
+    const getMinMax = (keyNames) => {
+        const vals = peersList.map(p => {
+            for (let key of keyNames) {
+                const num = cleanNum(p[key]);
+                if (!isNaN(num)) return num;
+            }
+            return NaN;
+        }).filter(v => !isNaN(v));
+        return { min: Math.min(...vals), max: Math.max(...vals) };
+    };
+    
+    const peBounds = getMinMax(["P/E"]);
+    const pbBounds = getMinMax(["P/B", "PB"]);
+    const debtBounds = getMinMax(["Debt to Equity", "Debt/Equity", "Debt/Eq"]);
+    const roceBounds = getMinMax(["ROCE %", "ROCE"]);
+    const roeBounds = getMinMax(["ROE %", "ROE"]);
+    const npmBounds = getMinMax(["NPM %", "NPM"]);
+    const profitQtrBounds = getMinMax(["Profit Qtr YoY %", "Profit Qtr YoY", "Qtr Profit Var %"]);
+    const divYieldBounds = getMinMax(["Div Yield %", "Div Yield"]);
+    const salesQtrBounds = getMinMax(["Sales Qtr YoY %", "Sales Qtr YoY"]);
+    
+    const getCellColor = (valStr, bounds, reverse = false) => {
+        const val = cleanNum(valStr);
+        if (isNaN(val) || bounds.min === bounds.max) return '';
+        
+        const ratio = (val - bounds.min) / (bounds.max - bounds.min);
+        const finalRatio = reverse ? (1 - ratio) : ratio;
+        
+        if (finalRatio > 0.6) {
+            const alpha = 0.05 + 0.15 * ((finalRatio - 0.6) / 0.4);
+            return `background: rgba(16, 185, 129, ${alpha.toFixed(2)}) !important; color: var(--color-emerald) !important; font-weight: 700;`;
+        } else if (finalRatio < 0.4) {
+            const alpha = 0.05 + 0.12 * ((0.4 - finalRatio) / 0.4);
+            return `background: rgba(239, 68, 68, ${alpha.toFixed(2)}) !important; color: var(--color-crimson) !important; font-weight: 700;`;
+        }
+        return '';
+    };
+    
+    const activeTicker = activeStockProfile ? activeStockProfile.ticker.split('.')[0].toUpperCase() : '';
+    
+    sortedPeers.forEach(peer => {
+        const tr = document.createElement('tr');
+        
+        const name = peer["Name"] || peer["Company"] || "Peer";
+        const pe = peer["P/E"] || "N/A";
+        const marcap = peer["Mar Cap"] || "N/A";
+        const pb = (peer["P/B"] || peer["PB"] || "N/A").toString().replace('%', '');
+        const debteq = (peer["Debt to Equity"] || peer["Debt/Equity"] || peer["Debt/Eq"] || "N/A").toString().replace('%', '');
+        const roce = (peer["ROCE %"] || peer["ROCE"] || "N/A").toString().replace('%', '');
+        const roe = (peer["ROE %"] || peer["ROE"] || "N/A").toString().replace('%', '');
+        const npm = (peer["NPM %"] || peer["NPM"] || "N/A").toString().replace('%', '');
+        const profitQtr = (peer["Profit Qtr YoY %"] || peer["Profit Qtr YoY"] || peer["Qtr Profit Var %"] || "N/A").toString().replace('%', '');
+        const divYield = (peer["Div Yield %"] || peer["Div Yield"] || "N/A").toString().replace('%', '');
+        const salesQtr = (peer["Sales Qtr YoY %"] || peer["Sales Qtr YoY"] || "N/A").toString().replace('%', '');
+        
+        const cleanPeerName = name.split('.')[0].trim().toUpperCase();
+        
+        // Active stock row visual anchor styling
+        const isTarget = name.toLowerCase().includes('target') || 
+                         cleanPeerName === activeTicker ||
+                         name.toUpperCase() === activeTicker ||
+                         (activeStockProfile && name.toLowerCase().includes(activeStockProfile.company_name.toLowerCase()));
+        
+        if (isTarget) {
+            tr.className = 'active-peer-row';
+        }
+        
+        tr.innerHTML = `
+            <td style="text-align: center; width: 50px;">
+                <input type="checkbox" class="peer-select-checkbox" data-ticker="${name}" checked style="cursor: pointer; transform: scale(1.15);">
+            </td>
+            <td><strong class="peer-name-click" style="color: var(--neon-blue); cursor: pointer;" title="Click to load workspace for this peer company">${name}</strong></td>
+            <td style="${getCellColor(pe, peBounds, true)}">${pe}</td>
+            <td>${marcap}</td>
+            <td style="${getCellColor(pb, pbBounds, true)}">${pb}</td>
+            <td style="${getCellColor(debteq, debtBounds, true)}">${debteq}</td>
+            <td style="${getCellColor(roce, roceBounds, false)}">${roce}${roce !== 'N/A' ? '%' : ''}</td>
+            <td style="${getCellColor(roe, roeBounds, false)}">${roe}${roe !== 'N/A' ? '%' : ''}</td>
+            <td style="${getCellColor(npm, npmBounds, false)}">${npm}${npm !== 'N/A' ? '%' : ''}</td>
+            <td style="${getCellColor(profitQtr, profitQtrBounds, false)}">${profitQtr}${profitQtr !== 'N/A' ? '%' : ''}</td>
+            <td style="${getCellColor(divYield, divYieldBounds, false)}">${divYield}${divYield !== 'N/A' ? '%' : ''}</td>
+            <td style="${getCellColor(salesQtr, salesQtrBounds, false)}">${salesQtr}${salesQtr !== 'N/A' ? '%' : ''}</td>
+        `;
+        
+        const checkbox = tr.querySelector('.peer-select-checkbox');
+        if (checkbox) {
+            checkbox.onclick = (e) => e.stopPropagation();
+        }
+        
+        const nameClick = tr.querySelector('.peer-name-click');
+        if (nameClick) {
+            nameClick.onclick = (e) => {
+                e.stopPropagation();
+                if (name) {
+                    const cleanName = name.replace(/\(Target\)/gi, '').trim();
+                    loadStockAnalyzer(cleanName);
+                }
+            };
+        }
+        
+        peerBody.appendChild(tr);
+    });
+
+    // Helper to extract rankings for active stock
+    const getTargetRank = (metricName, isAscending = false) => {
+        const list = peersList.map(p => {
+            let val;
+            switch (metricName) {
+                case 'pe': val = cleanNum(p["P/E"]); break;
+                case 'pb': val = cleanNum(p["P/B"] || p["PB"]); break;
+                case 'debteq': val = cleanNum(p["Debt to Equity"] || p["Debt/Equity"] || p["Debt/Eq"]); break;
+                case 'roce': val = cleanNum(p["ROCE %"] || p["ROCE"]); break;
+                case 'roe': val = cleanNum(p["ROE %"] || p["ROE"]); break;
+                case 'npm': val = cleanNum(p["NPM %"] || p["NPM"]); break;
+                case 'profitQtr': val = cleanNum(p["Profit Qtr YoY %"] || p["Profit Qtr YoY"] || p["Qtr Profit Var %"]); break;
+                case 'divYield': val = cleanNum(p["Div Yield %"] || p["Div Yield"]); break;
+                case 'salesQtr': val = cleanNum(p["Sales Qtr YoY %"] || p["Sales Qtr YoY"]); break;
+            }
+            return { name: p["Name"] || p["Company"] || "", value: val };
+        }).filter(item => !isNaN(item.value));
+        
+        if (list.length === 0) return null;
+        
+        list.sort((a, b) => isAscending ? a.value - b.value : b.value - a.value);
+        const targetIdx = list.findIndex(item => {
+            const cleanItemName = item.name.split('.')[0].toUpperCase();
+            return item.name.toLowerCase().includes('target') || 
+                   cleanItemName === activeTicker ||
+                   item.name.toUpperCase() === activeTicker ||
+                   (activeStockProfile && item.name.toLowerCase().includes(activeStockProfile.company_name.toLowerCase()));
+        });
+        
+        if (targetIdx === -1) return null;
+        return { rank: targetIdx + 1, total: list.length };
+    };
+
+    const roceRank = getTargetRank('roce', false);
+    const npmRank = getTargetRank('npm', false);
+    const peRank = getTargetRank('pe', true);
+    const debtRank = getTargetRank('debteq', true);
+    const salesRank = getTargetRank('salesQtr', false);
+
+    // Update Leaderboard Ranking UI
+    const lbContainer = document.getElementById('peers-leaderboard-container');
+    if (lbContainer) {
+        lbContainer.innerHTML = '';
+        
+        const makePill = (label, rankObj) => {
+            if (!rankObj) return '';
+            const { rank, total } = rankObj;
+            let rankClass = 'rank-normal';
+            let icon = '📊';
+            if (rank === 1) { rankClass = 'rank-1'; icon = '🏆'; }
+            else if (rank === 2) { rankClass = 'rank-2'; icon = '🥈'; }
+            else if (rank === 3) { rankClass = 'rank-3'; icon = '🥉'; }
+            return `<div class="ranking-pill ${rankClass}" title="Target stock ranks #${rank} out of ${total} peers for ${label}">${icon} #${rank} in ${label}</div>`;
+        };
+        
+        let lbHtml = '';
+        if (roceRank) lbHtml += makePill('ROCE', roceRank);
+        if (npmRank) lbHtml += makePill('NPM', npmRank);
+        if (peRank) lbHtml += makePill('Value (P/E)', peRank);
+        if (debtRank) lbHtml += makePill('Low Leverage', debtRank);
+        if (salesRank) lbHtml += makePill('Sales Growth', salesRank);
+        
+        if (lbHtml) {
+            lbContainer.style.display = 'flex';
+            lbContainer.innerHTML = lbHtml;
+        } else {
+            lbContainer.style.display = 'none';
+        }
+    }
+
+    // Dynamic Analyst Opinion Update
+    const peValues = peersList.map(p => cleanNum(p["P/E"])).filter(v => !isNaN(v));
+    const targetPe = activeStockProfile && activeStockProfile.fundamentals ? activeStockProfile.fundamentals.pe_ratio : null;
+    
+    let sectorMedianPe = null;
+    if (peValues.length > 0) {
+        peValues.sort((a, b) => a - b);
+        const half = Math.floor(peValues.length / 2);
+        if (peValues.length % 2 !== 0) {
+            sectorMedianPe = peValues[half];
+        } else {
+            sectorMedianPe = (peValues[half - 1] + peValues[half]) / 2.0;
+        }
+    }
+
+    const peersSummaryBlock = document.getElementById('peers-summary-block');
+    const peersSummaryText = document.getElementById('peers-summary-text');
+    if (peersSummaryBlock && peersSummaryText) {
+        if (targetPe && !isNaN(targetPe) && sectorMedianPe && !isNaN(sectorMedianPe)) {
+            peersSummaryBlock.style.display = 'block';
+            const peDiff = ((targetPe - sectorMedianPe) / sectorMedianPe) * 100.0;
+            let rating = "aligned with sector averages";
+            let premiumAnalogy = `trading completely in-line with the sector peer median of **${sectorMedianPe.toFixed(1)}** (current P/E of **${targetPe.toFixed(1)}**). Think of this as purchasing standard premium merchandise at its fair market list price.`;
+            
+            if (peDiff >= 15.0) {
+                rating = "trading at a relative premium";
+                premiumAnalogy = `trading at a **${peDiff.toFixed(1)}% premium** compared to its sector peers (active P/E of **${targetPe.toFixed(1)}** vs peer median of **${sectorMedianPe.toFixed(1)}**). Think of this as paying a markup for a certified brand-name phone compared to generic competitors—investors are bidding up the price, expecting superior earnings quality to justify the premium cost.`;
+            } else if (peDiff <= -15.0) {
+                rating = "trading at a relative discount";
+                premiumAnalogy = `trading at a **${Math.abs(peDiff).toFixed(1)}% discount** compared to its sector peers (active P/E of **${targetPe.toFixed(1)}** vs peer median of **${sectorMedianPe.toFixed(1)}**). Think of this as purchasing high-quality merchandise during a premium clearance sale—paying lower prices for standard operational earnings power.`;
+            }
+            
+            let details = '';
+            if (roceRank) {
+                details += `<li><strong>Profitability (ROCE)</strong>: Ranks <strong>#${roceRank.rank} of ${roceRank.total}</strong> in ROCE.</li>`;
+            }
+            if (debtRank) {
+                const targetDebt = activeStockProfile.fundamentals.debt_equity || 0;
+                details += `<li><strong>Leverage (Debt/Eq)</strong>: Ranks <strong>#${debtRank.rank} of ${debtRank.total}</strong> (current: ${targetDebt.toFixed(2)}).</li>`;
+            }
+            if (npmRank) {
+                details += `<li><strong>Net Profit Margin (NPM)</strong>: Ranks <strong>#${npmRank.rank} of ${npmRank.total}</strong> in Net Profit Margin.</li>`;
+            }
+            
+            peersSummaryText.innerHTML = `
+                <div style="font-weight: 700; color: var(--text-primary); margin-bottom: 6px; font-size: 11.5px;">⚔️ Sector Valuation Assessment:</div>
+                <div style="margin-bottom: 8px;">The stock is <strong>${rating}</strong> relative to its peer group.</div>
+                <div style="margin-bottom: 12px; font-style: italic; color: var(--text-muted);"><strong>Analogy</strong>: ${premiumAnalogy}</div>
+                <div style="border-top: 1px dashed rgba(255,255,255,0.06); padding-top: 8px;">
+                    <span style="font-size: 9px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; display: block; margin-bottom: 4px; letter-spacing: 0.05em;">Key Relative Standings:</span>
+                    <ul style="margin: 0; padding-left: 16px; font-size: 11px; line-height: 1.5; color: var(--text-muted);">
+                        ${details || '<li>Valuation ratios are fully verified relative to all listed peers.</li>'}
+                    </ul>
+                </div>
+            `;
+        } else {
+            peersSummaryBlock.style.display = 'none';
+        }
+    }
+}
+
 // Particle burst on Analyze button click
 function fireAnalyzeParticles(e) {
     const container = document.getElementById('analyze-btn-particles');
@@ -1689,6 +2036,7 @@ async function loadStockAnalyzer(query) {
         setupPeersControls();
         setupCapturePeriodControl();
         setupPEBandsTimeframes();
+        setupPeersSorting();
         triggerLiveCompoundingCalculation();
         if (window.resetAnalyzerSubtabs) window.resetAnalyzerSubtabs();
         setAnalyzeBtnLoading(false);
@@ -2234,111 +2582,9 @@ function renderStockDashboard(p) {
     if (selectAllCheckbox) {
         selectAllCheckbox.checked = true;
     }
-    const peerBody = document.getElementById('peer-table-body');
-    peerBody.innerHTML = '';
-    if (p.peers && p.peers.length > 0) {
-        p.peers.forEach(peer => {
-            const tr = document.createElement('tr');
-            
-            // Safe string clean and formatting for percentages
-            const divYield = (peer["Div Yield %"] || peer["Div Yield"] || "N/A").toString().replace('%', '');
-            const pbRatio = (peer["P/B"] || peer["PB"] || "N/A").toString().replace('%', '');
-            const debtEquity = (peer["Debt to Equity"] || peer["Debt/Equity"] || peer["Debt/Eq"] || "N/A").toString().replace('%', '');
-            const roce = (peer["ROCE %"] || peer["ROCE"] || "N/A").toString().replace('%', '');
-            const roe = (peer["ROE %"] || peer["ROE"] || "N/A").toString().replace('%', '');
-            const npm = (peer["NPM %"] || peer["NPM"] || "N/A").toString().replace('%', '');
-            const profitQtr = (peer["Profit Qtr YoY %"] || peer["Profit Qtr YoY"] || peer["Qtr Profit Var %"] || "N/A").toString().replace('%', '');
-            const salesQtr = (peer["Sales Qtr YoY %"] || peer["Sales Qtr YoY"] || "N/A").toString().replace('%', '');
-            
-            tr.innerHTML = `
-                <td style="text-align: center; width: 50px;">
-                    <input type="checkbox" class="peer-select-checkbox" data-ticker="${peer["Name"] || peer["Company"]}" checked style="cursor: pointer; transform: scale(1.15);">
-                </td>
-                <td><strong class="peer-name-click" style="color: var(--neon-blue); cursor: pointer;" title="Click to load workspace for this peer company">${peer["Name"] || peer["Company"] || "Peer"}</strong></td>
-                <td>${peer["P/E"] || "N/A"}</td>
-                <td>${peer["Mar Cap"] || "N/A"}</td>
-                <td>${pbRatio}</td>
-                <td>${debtEquity}</td>
-                <td>${roce}${roce !== 'N/A' ? '%' : ''}</td>
-                <td>${roe}${roe !== 'N/A' ? '%' : ''}</td>
-                <td>${npm}${npm !== 'N/A' ? '%' : ''}</td>
-                <td>${profitQtr}${profitQtr !== 'N/A' ? '%' : ''}</td>
-                <td>${divYield}${divYield !== 'N/A' ? '%' : ''}</td>
-                <td>${salesQtr}${salesQtr !== 'N/A' ? '%' : ''}</td>
-            `;
-            
-            // Stop event propagation when clicking the checkbox to avoid workspace reload triggers
-            const checkbox = tr.querySelector('.peer-select-checkbox');
-            checkbox.addEventListener('click', (e) => {
-                e.stopPropagation();
-            });
-
-            // Bind click to company name row only
-            tr.querySelector('.peer-name-click').addEventListener('click', (e) => {
-                e.stopPropagation();
-                const peerName = peer["Name"] || peer["Company"];
-                if (peerName) {
-                    const cleanName = peerName.replace(/\(Target\)/gi, '').trim();
-                    loadStockAnalyzer(cleanName);
-                }
-            });
-
-            peerBody.appendChild(tr);
-        });
-    } else {
-        peerBody.innerHTML = `<tr><td colspan="12" class="center-text text-muted">No peer companies retrieved from Screener.</td></tr>`;
-    }
+    renderPeersTable(p.peers);
     
-    // Dynamically calculate Sector Median P/E and relative premium/discount summaries
-    const peValues = [];
-    const targetPe = p.fundamentals.pe_ratio;
-    if (targetPe) {
-        peValues.push(targetPe);
-    }
-    if (p.peers && p.peers.length > 0) {
-        p.peers.forEach(peer => {
-            const peRaw = peer["P/E"] || peer["PE"];
-            if (peRaw && peRaw !== "N/A" && peRaw !== "--") {
-                const peVal = parseFloat(peRaw);
-                if (!isNaN(peVal)) {
-                    peValues.push(peVal);
-                }
-            }
-        });
-    }
-    
-    let sectorMedianPe = null;
-    if (peValues.length > 0) {
-        peValues.sort((a, b) => a - b);
-        const half = Math.floor(peValues.length / 2);
-        if (peValues.length % 2 !== 0) {
-            sectorMedianPe = peValues[half];
-        } else {
-            sectorMedianPe = (peValues[half - 1] + peValues[half]) / 2.0;
-        }
-    }
-    
-    const peersSummaryBlock = document.getElementById('peers-summary-block');
-    const peersSummaryText = document.getElementById('peers-summary-text');
-    if (peersSummaryBlock && peersSummaryText) {
-        if (targetPe && sectorMedianPe) {
-            peersSummaryBlock.style.display = 'block';
-            const peDiff = ((targetPe - sectorMedianPe) / sectorMedianPe) * 100.0;
-            let rating = "aligned with sector averages";
-            let premiumAnalogy = `trading completely in-line with the sector peer median of **${sectorMedianPe.toFixed(1)}** (current P/E of **${targetPe.toFixed(1)}**). Think of this as purchasing standard premium merchandise at its fair market list price.`;
-            
-            if (peDiff >= 15.0) {
-                rating = "trading at a relative premium";
-                premiumAnalogy = `trading at a **${peDiff.toFixed(1)}% premium** compared to its sector peers (active P/E of **${targetPe.toFixed(1)}** vs peer median of **${sectorMedianPe.toFixed(1)}**). Think of this as paying a markup for a certified brand-name phone compared to generic competitors—investors are bidding up the price, expecting superior earnings quality to justify the premium cost.`;
-            } else if (peDiff <= -15.0) {
-                rating = "trading at a relative discount";
-                premiumAnalogy = `trading at a **${Math.abs(peDiff).toFixed(1)}% discount** compared to its sector peers (active P/E of **${targetPe.toFixed(1)}** vs peer median of **${sectorMedianPe.toFixed(1)}**). Think of this as purchasing high-quality merchandise during a premium clearance sale—paying lower prices for standard operational earnings power.`;
-            }
-            peersSummaryText.innerHTML = `⚔️ **Sector Valuation Assessment:** The stock is **${rating}** relative to its peer group.<br><br>💡 **Layman Analogy:** ${premiumAnalogy}`;
-        } else {
-            peersSummaryBlock.style.display = 'none';
-        }
-    }
+    // Dynamic calculations for Median PE and Analyst Opinion are handled within renderPeersTable
     
     // Populate shareholding statistics grid pills
     const promoterVal = p.shareholding.Promoter || p.shareholding["Promoters"] || 50.0;
