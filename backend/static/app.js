@@ -5618,9 +5618,13 @@ async function runDynamicSandboxAI() {
         
         activeStockProfile = updatedProfile;
         
-        document.getElementById('target-buy-range').innerText = updatedProfile.analysis.suggested_buy_price_range;
-        document.getElementById('target-sell-range').innerText = updatedProfile.analysis.suggested_sell_price_range;
-        document.getElementById('cio-investment-thesis').innerText = updatedProfile.analysis.investment_thesis;
+        const specBuyEl = document.getElementById('cio-spectrum-buy');
+        const specSellEl = document.getElementById('cio-spectrum-sell');
+        if (specBuyEl) specBuyEl.innerText = updatedProfile.analysis.suggested_buy_price_range || 'Rs. --';
+        if (specSellEl) specSellEl.innerText = updatedProfile.analysis.suggested_sell_price_range || 'Rs. --';
+        
+        const cioThesisEl = document.getElementById('cio-investment-thesis');
+        if (cioThesisEl) cioThesisEl.innerText = updatedProfile.analysis.investment_thesis || '...';
         
         const techAISummaryEl = document.getElementById('tech-timing-ai-summary-text');
         if (techAISummaryEl) {
