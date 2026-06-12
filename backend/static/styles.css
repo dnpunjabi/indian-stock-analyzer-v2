@@ -8888,6 +8888,102 @@ tr.active-peer-row td:first-child {
     }
 }
 
+/* --- RULE SCANNER ENTERPRISE TELEMETRY GRID --- */
+.rs-telemetry-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+    margin-bottom: 20px;
+    width: 100%;
+}
+
+.rs-chart-card {
+    background: rgba(15, 23, 42, 0.4) !important;
+    border: 1px solid var(--border-glass) !important;
+    border-radius: 12px !important;
+    padding: 18px !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2) !important;
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+[data-theme="light"] .rs-chart-card {
+    background: rgba(255, 255, 255, 0.45) !important;
+    box-shadow: 0 4px 20px rgba(31, 38, 135, 0.05) !important;
+}
+
+.rs-chart-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(168, 85, 247, 0.3) !important;
+    box-shadow: 0 8px 30px rgba(168, 85, 247, 0.08) !important;
+}
+
+/* Formula syntax validator badge */
+.rs-validator-badge {
+    font-size: 9px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    display: inline-block;
+    transition: all 0.25s ease;
+}
+
+.rs-validator-badge.syntax-valid {
+    background: rgba(16, 185, 129, 0.15);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    color: var(--neon-green);
+}
+
+.rs-validator-badge.syntax-invalid {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: var(--neon-red);
+}
+
+/* Syntax formula helper variable chips */
+.formula-helper-chip {
+    background: rgba(255, 255, 255, 0.03) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 15px !important;
+    padding: 4px 10px !important;
+    font-size: 10px !important;
+    color: var(--text-secondary) !important;
+    cursor: pointer !important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    font-weight: 600 !important;
+    display: inline-block !important;
+    user-select: none !important;
+}
+
+.formula-helper-chip:hover {
+    background: rgba(168, 85, 247, 0.12) !important;
+    border-color: rgba(168, 85, 247, 0.4) !important;
+    color: #c084fc !important;
+    transform: scale(1.05) !important;
+}
+
+[data-theme="light"] .formula-helper-chip {
+    background: rgba(0, 0, 0, 0.02) !important;
+    border-color: rgba(0, 0, 0, 0.06) !important;
+}
+
+[data-theme="light"] .formula-helper-chip:hover {
+    background: rgba(168, 85, 247, 0.08) !important;
+    color: #7c3aed !important;
+}
+
+/* Responsive grid collapsing for scanner grid */
+@media (max-width: 950px) {
+    .rs-telemetry-grid {
+        grid-template-columns: 1fr !important;
+        gap: 15px !important;
+    }
+}
+
 
 
 

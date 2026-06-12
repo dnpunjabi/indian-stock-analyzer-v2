@@ -2973,10 +2973,24 @@
                                     <div class="form-group" style="margin: 0;">
                                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                                             <label for="custom-screener-formula-input" style="margin: 0;">Paste Formula Code</label>
-                                            <span style="font-size: 10px; color: #10b981; font-weight: 700; cursor: pointer; text-decoration: underline;" id="custom-screener-load-example-link">Load Example Formula</span>
+                                            <div style="display: flex; gap: 8px; align-items: center;">
+                                                <div id="formula-syntax-badge" class="rs-validator-badge syntax-valid">VALID SYNTAX 🟢</div>
+                                                <span style="font-size: 10px; color: #10b981; font-weight: 700; cursor: pointer; text-decoration: underline;" id="custom-screener-load-example-link">Load Example Formula</span>
+                                            </div>
                                         </div>
                                         <div class="formula-terminal-editor">
                                             <textarea id="custom-screener-formula-input" rows="8" placeholder="e.g.&#10;Daily Close * 1.05 > Daily Max ( 200 , Daily High )&#10;Daily Close > 90" style="width: 100%; font-family: 'Courier New', Courier, monospace; font-size: 11px; background: #0f172a; color: #38bdf8; border: 1px solid #334155; border-radius: 4px; padding: 10px; box-sizing: border-box; resize: vertical; line-height: 1.5; font-weight: 600;"></textarea>
+                                        </div>
+                                        <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; margin-bottom: 8px; max-width: 100%;">
+                                            <span style="font-size: 8px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em; display: flex; align-items: center; margin-right: 4px;">Insert:</span>
+                                            <div class="formula-helper-chip" data-insert="Daily Close">Daily Close</div>
+                                            <div class="formula-helper-chip" data-insert="Daily High">Daily High</div>
+                                            <div class="formula-helper-chip" data-insert="Daily Low">Daily Low</div>
+                                            <div class="formula-helper-chip" data-insert="Daily Volume">Daily Volume</div>
+                                            <div class="formula-helper-chip" data-insert="Daily RSI">Daily RSI</div>
+                                            <div class="formula-helper-chip" data-insert="Daily MACD">Daily MACD</div>
+                                            <div class="formula-helper-chip" data-insert="Daily Sma ( Daily Close , 50 )">SMA 50</div>
+                                            <div class="formula-helper-chip" data-insert="Daily Sma ( Daily Close , 200 )">SMA 200</div>
                                         </div>
                                         <div id="custom-screener-formula-error" style="color: #ef4444; font-family: monospace; font-size: 10.5px; margin-top: 5px; display: none; padding: 8px; border-radius: 4px; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.2); white-space: pre-wrap;"></div>
                                         <div style="display: flex; gap: 10px; margin-top: 8px; margin-bottom: 5px;">
@@ -3109,6 +3123,31 @@
                                 <button class="btn-secondary" id="rule-scanner-copy-btn" style="font-size: 11px; padding: 6px 12px; height: 32px; border-radius: 6px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">📋 Copy Table</button>
                                 <button class="btn-secondary" id="rule-scanner-print-btn" style="font-size: 11px; padding: 6px 12px; height: 32px; border-radius: 6px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">🖨️ Print Report</button>
                                 <button class="btn-secondary" id="rule-scanner-export-csv-btn" style="font-size: 11px; padding: 6px 12px; height: 32px; border-radius: 6px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">📥 Export CSV</button>
+                            </div>
+                        </div>
+
+                        <!-- Rule Scanner Telemetry Dashboard Grid -->
+                        <div class="rs-telemetry-grid no-print" id="rule-scanner-telemetry-grid" style="display: none; margin-top: 5px; margin-bottom: 25px;">
+                            <!-- Card A: Hit Rate Radial Gauge -->
+                            <div class="rs-chart-card">
+                                <h4 style="margin: 0 0 12px 0; font-size: 11px; text-transform: uppercase; font-family: 'Outfit', sans-serif; color: var(--text-secondary); width: 100%; text-align: left; letter-spacing: 0.05em;">📡 Constituent Hit Rate</h4>
+                                <div id="rs-radial-match-gauge-container" style="width: 100%; height: 160px; display: flex; align-items: center; justify-content: center; position: relative;">
+                                    <!-- Dynamic SVG injected by app.js -->
+                                </div>
+                            </div>
+                            <!-- Card B: Sector Dispersion Donut -->
+                            <div class="rs-chart-card">
+                                <h4 style="margin: 0 0 12px 0; font-size: 11px; text-transform: uppercase; font-family: 'Outfit', sans-serif; color: var(--text-secondary); width: 100%; text-align: left; letter-spacing: 0.05em;">🍰 Sector Distribution</h4>
+                                <div id="rs-sector-donut-container" style="width: 100%; height: 160px; display: flex; align-items: center; justify-content: center; position: relative;">
+                                    <!-- Dynamic SVG injected by app.js -->
+                                </div>
+                            </div>
+                            <!-- Card C: Value vs. Quality Scatter -->
+                            <div class="rs-chart-card">
+                                <h4 style="margin: 0 0 12px 0; font-size: 11px; text-transform: uppercase; font-family: 'Outfit', sans-serif; color: var(--text-secondary); width: 100%; text-align: left; letter-spacing: 0.05em;">🎯 Score vs. P/E Spectrum</h4>
+                                <div id="rs-value-quality-scatter-container" style="width: 100%; height: 160px; display: flex; align-items: center; justify-content: center; position: relative;">
+                                    <!-- Dynamic SVG injected by app.js -->
+                                </div>
                             </div>
                         </div>
 

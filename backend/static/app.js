@@ -18639,14 +18639,109 @@ function setupRuleScanner() {
     if (printBtn) printBtn.addEventListener('click', printRuleScanReport);
     if (csvBtn) csvBtn.addEventListener('click', exportRuleScanCSV);
     if (watchlistBtn) watchlistBtn.addEventListener('click', saveRuleScanAsWatchlist);
+
+    // Formula helper chips click bindings
+    document.querySelectorAll('.formula-helper-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+            const textarea = document.getElementById('custom-screener-formula-input');
+            if (!textarea) return;
+            const insertVal = chip.getAttribute('data-insert') || '';
+            
+            // Insert at cursor position or append
+            const startPos = textarea.selectionStart;
+            const endPos = textarea.selectionEnd;
+            const text = textarea.value;
+            
+            if (startPos !== undefined) {
+                textarea.value = text.substring(0, startPos) + insertVal + text.substring(endPos);
+                textarea.selectionStart = startPos + insertVal.length;
+                textarea.selectionEnd = startPos + insertVal.length;
+            } else {
+                textarea.value += (textarea.value ? " " : "") + insertVal;
+            }
+            textarea.focus();
+            validateFormulaSyntax(textarea.value);
+        });
+    });
+
+    // Live syntax validation
+    const formulaInput = document.getElementById('custom-screener-formula-input');
+    if (formulaInput) {
+        formulaInput.addEventListener('input', (e) => {
+            validateFormulaSyntax(e.target.value);
+        });
+        // Run initial validation on load
+        validateFormulaSyntax(formulaInput.value);
+    }
+}
+
+function validateFormulaSyntax(text) {
+    const badge = document.getElementById('formula-syntax-badge');
+    if (!badge) return;
+
+    const trimmed = text.trim();
+    if (!trimmed) {
+        badge.innerText = 'EMPTY CODE ⚪';
+        badge.className = 'rs-validator-badge';
+        badge.style.background = 'rgba(255,255,255,0.05)';
+        badge.style.border = '1px solid rgba(255,255,255,0.1)';
+        badge.style.color = 'var(--text-muted)';
+        return;
+    }
+
+    // Check parentheses matching
+    let openCount = 0;
+    for (let char of trimmed) {
+        if (char === '(') openCount++;
+        else if (char === ')') openCount--;
+        if (openCount < 0) {
+            badge.innerText = 'SYNTAX ERROR 🔴';
+            badge.className = 'rs-validator-badge syntax-invalid';
+            return;
+        }
+    }
+
+    if (openCount !== 0) {
+        badge.innerText = 'UNBALANCED PARENS 🔴';
+        badge.className = 'rs-validator-badge syntax-invalid';
+        return;
+    }
+
+    // Split into lines and check comparison syntax
+    const lines = trimmed.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('//') && !l.startsWith('#'));
+    let hasComparison = false;
+    const operatorRegex = />|<|>=|<=|==|!=/;
+
+    for (let line of lines) {
+        if (operatorRegex.test(line)) {
+            hasComparison = true;
+        }
+    }
+
+    if (lines.length > 0 && !hasComparison) {
+        badge.innerText = 'MISSING OPERATOR 🔴';
+        badge.className = 'rs-validator-badge syntax-invalid';
+        return;
+    }
+
+    badge.innerText = 'VALID SYNTAX 🟢';
+    badge.className = 'rs-validator-badge syntax-valid';
 }
 
 async function executeNLRuleScan() {
     const prompt = document.getElementById('rule-scanner-nl-prompt')?.value?.trim();
     if (!prompt) return;
 
-    const loader = document.getElementById('rule-scanner-nl-loader');
-    if (loader) loader.style.display = 'flex';
+    showLoader(
+        "AI Scan Command Radar",
+        "Groq Copilot is parsing prompt requirements and compiling logic conditions...",
+        true,
+        [
+            { threshold: 15, msg: `[INFO] Sending query prompt to Groq LLM: "${prompt}"...`, color: '#38bdf8' },
+            { threshold: 30, msg: "[INFO] Parsing NLP tokens and mapping fields...", color: '#f59e0b' },
+            { threshold: 45, msg: "[INFO] Resolving cap type and logic parameters...", color: '#a855f7' }
+        ]
+    );
 
     try {
         const res = await fetch('/api/screener/parse-nl-scan', {
@@ -18656,19 +18751,27 @@ async function executeNLRuleScan() {
         });
         const data = await res.json();
         if (data.status === 'success') {
-            // Auto-execute directly without populating parametric fields or updating strategy guide text
-            await executeRuleScan(data.condition_type, data.operator, data.value, data.universe);
+            // Update loader step, then continue to run scan
+            const progressConsole = document.getElementById('global-loader-progress-console');
+            if (progressConsole) {
+                const line = document.createElement('div');
+                line.style.color = '#c084fc';
+                line.innerText = `[INFO] Resolved AI conditions: ${data.condition_type} ${data.operator} ${data.value} on ${data.universe}`;
+                progressConsole.appendChild(line);
+                progressConsole.scrollTop = progressConsole.scrollHeight;
+            }
+            await executeRuleScan(data.condition_type, data.operator, data.value, data.universe, true);
         } else {
+            hideLoader();
             showToast('AI parsing failed: ' + (data.detail || 'Unknown error'), 'error');
         }
     } catch (err) {
+        hideLoader();
         showToast('Failed to parse scan prompt: ' + err.message, 'error');
-    } finally {
-        if (loader) loader.style.display = 'none';
     }
 }
 
-async function executeRuleScan(cond, op, val, uni) {
+async function executeRuleScan(cond, op, val, uni, isAIScan = false) {
     const condition = cond || document.getElementById('rule-scanner-condition')?.value || 'RSI';
     const operator = op || document.getElementById('rule-scanner-operator')?.value || '<';
     const value = val !== undefined ? val : (document.getElementById('rule-scanner-value')?.value || '30');
@@ -18707,6 +18810,35 @@ async function executeRuleScan(cond, op, val, uni) {
     const activeCond = document.getElementById('rule-scanner-active-condition');
     if (activeCond) activeCond.textContent = detailText;
 
+    if (isAIScan) {
+        // Append additional telemetry steps to existing AI loader
+        const progressConsole = document.getElementById('global-loader-progress-console');
+        if (progressConsole) {
+            const line1 = document.createElement('div');
+            line1.style.color = '#e2e8f0';
+            line1.innerText = `[INFO] Querying Screener SQLite index partitions...`;
+            progressConsole.appendChild(line1);
+            
+            const line2 = document.createElement('div');
+            line2.style.color = '#e2e8f0';
+            line2.innerText = `[INFO] Sweeping universe for matching indicators...`;
+            progressConsole.appendChild(line2);
+            progressConsole.scrollTop = progressConsole.scrollHeight;
+        }
+    } else {
+        // Show new parametric loader
+        showLoader(
+            `Executing Parametric Scan: ${readableCond}`,
+            `Searching the stock universe for equities matching filter logic.`,
+            true,
+            [
+                { threshold: 15, msg: "[INFO] Compiling rule parameters and logic gates...", color: '#38bdf8' },
+                { threshold: 40, msg: `[INFO] Targeting universe index partition: ${universe.toUpperCase()}...`, color: '#f59e0b' },
+                { threshold: 65, msg: `[INFO] Loading pre-calculated technical profiles for ${condition}...`, color: '#a855f7' },
+                { threshold: 85, msg: `[INFO] Evaluating 380+ stock rows against filter criteria...`, color: '#10b981' }
+            ]
+        );
+    }
 
     try {
         const params = new URLSearchParams({ condition_type: condition, operator, value, universe });
@@ -18738,15 +18870,41 @@ async function executeRuleScan(cond, op, val, uni) {
             renderRuleScanResults();
             renderRuleScanSectorConcentration(ruleScanAllResults);
 
+            // Draw dynamic SVG charts
+            const telGrid = document.getElementById('rule-scanner-telemetry-grid');
+            if (telGrid) telGrid.style.display = 'grid';
+            drawRSRadialMatchGauge(data.matched, data.scanned);
+            drawRSSectorDonut(ruleScanAllResults);
+            drawRSValueQualityScatter(ruleScanAllResults);
+
             // Trigger AI synthesis
             if (ruleScanAllResults.length > 0) {
                 requestRuleScanSynthesis(ruleScanAllResults, `${condition} ${operator} ${value} (Universe: ${universe})`);
             }
+
+            // Complete loader progress bar
+            const progressBar = document.getElementById('global-loader-progress-bar');
+            const progressConsole = document.getElementById('global-loader-progress-console');
+            if (progressBar) progressBar.style.width = '100%';
+            if (progressConsole) {
+                const line = document.createElement('div');
+                line.style.color = 'var(--color-emerald)';
+                line.style.fontWeight = 'bold';
+                line.innerText = `[SUCCESS] Scan execution complete! Found ${data.matched} matching candidates.`;
+                progressConsole.appendChild(line);
+                progressConsole.scrollTop = progressConsole.scrollHeight;
+            }
+
+            setTimeout(() => {
+                hideLoader();
+            }, 650);
         } else {
+            hideLoader();
             showToast('Scan failed: ' + (data.detail || 'Unknown error'), 'error');
             if (engineStatus) { engineStatus.textContent = 'ERROR'; engineStatus.style.color = '#ef4444'; }
         }
     } catch (err) {
+        hideLoader();
         showToast('Rule scan failed: ' + err.message, 'error');
         if (engineStatus) { engineStatus.textContent = 'ERROR'; engineStatus.style.color = '#ef4444'; }
     }
@@ -19346,6 +19504,19 @@ async function executeCustomScreenerScan() {
             `Custom Screen (${logicGate}) with ${rules.length} Rules`;
     }
 
+    showLoader(
+        isFormulaMode ? "Compiling Custom Formula Scan..." : "Executing Multi-Parametric Screen...",
+        "Sweeping indices using custom relational expressions.",
+        true,
+        [
+            { threshold: 10, msg: "[INFO] Initializing custom grammar compiler...", color: '#38bdf8' },
+            { threshold: 25, msg: "[INFO] Parsing rules token streams and logic gates...", color: '#38bdf8' },
+            { threshold: 45, msg: `[INFO] Targeting universe partition: ${universe.toUpperCase()}...`, color: '#f59e0b' },
+            { threshold: 65, msg: `[INFO] Sweeping SQLite cache registers over ${range}-day window...`, color: '#a855f7' },
+            { threshold: 85, msg: `[INFO] Evaluating custom logic gates against fundamental and momentum metrics...`, color: '#10b981' }
+        ]
+    );
+
     try {
         const payload = {
             universe: universe,
@@ -19375,6 +19546,7 @@ async function executeCustomScreenerScan() {
         }
 
         if (res.status === 400 && isFormulaMode) {
+            hideLoader();
             const errDiv = document.getElementById('custom-screener-formula-error');
             if (errDiv) {
                 errDiv.textContent = data.detail || 'Parser error occurred.';
@@ -19410,6 +19582,13 @@ async function executeCustomScreenerScan() {
             renderRuleScanResults();
             renderRuleScanSectorConcentration(ruleScanAllResults);
 
+            // Draw dynamic SVG charts
+            const telGrid = document.getElementById('rule-scanner-telemetry-grid');
+            if (telGrid) telGrid.style.display = 'grid';
+            drawRSRadialMatchGauge(data.matched, data.scanned);
+            drawRSSectorDonut(ruleScanAllResults);
+            drawRSValueQualityScatter(ruleScanAllResults);
+
             // Display Historical matches trend chart
             const chartCard = document.getElementById('rule-scanner-historical-chart-card');
             if (chartCard) {
@@ -19423,11 +19602,30 @@ async function executeCustomScreenerScan() {
             if (ruleScanAllResults.length > 0) {
                 requestRuleScanSynthesis(ruleScanAllResults, isFormulaMode ? 'Custom Formula Scan' : `Custom Stacked Scan (${logicGate})`);
             }
+
+            // Complete loader progress bar
+            const progressBar = document.getElementById('global-loader-progress-bar');
+            const progressConsole = document.getElementById('global-loader-progress-console');
+            if (progressBar) progressBar.style.width = '100%';
+            if (progressConsole) {
+                const line = document.createElement('div');
+                line.style.color = 'var(--color-emerald)';
+                line.style.fontWeight = 'bold';
+                line.innerText = `[SUCCESS] Custom screen compilation and sweep complete! Found ${data.matched} candidates.`;
+                progressConsole.appendChild(line);
+                progressConsole.scrollTop = progressConsole.scrollHeight;
+            }
+
+            setTimeout(() => {
+                hideLoader();
+            }, 650);
         } else {
+            hideLoader();
             showToast('Scan failed: ' + (data.detail || 'Unknown error'), 'error');
             if (engineStatus) { engineStatus.textContent = 'ERROR'; engineStatus.style.color = '#ef4444'; }
         }
     } catch (err) {
+        hideLoader();
         showToast('Custom scan failed: ' + err.message, 'error');
         if (engineStatus) { engineStatus.textContent = 'ERROR'; engineStatus.style.color = '#ef4444'; }
     } finally {
@@ -19809,6 +20007,212 @@ function renderRuleScannerHistoricalChart(matchesData) {
         chart.resize(width, height);
     });
     resizeObserver.observe(container);
+}
+
+function drawRSRadialMatchGauge(matched, scanned) {
+    const container = document.getElementById('rs-radial-match-gauge-container');
+    if (!container) return;
+    
+    const total = scanned || 1;
+    const count = matched || 0;
+    const pct = Math.min(100, Math.max(0, (count / total) * 100));
+    
+    const isDark = document.body.getAttribute('data-theme') !== 'light';
+    const trackColor = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)';
+    const strokeColor = 'url(#rs-gauge-gradient)';
+    const textColor = isDark ? '#ffffff' : '#0f172a';
+    const mutedColor = isDark ? '#94a3b8' : '#64748b';
+
+    const r = 54;
+    const circ = 2 * Math.PI * r;
+    const strokeOffset = circ - (pct / 100) * circ;
+
+    container.innerHTML = `
+        <svg width="150" height="150" viewBox="0 0 160 160" style="transform: rotate(-90deg);">
+            <defs>
+                <linearGradient id="rs-gauge-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#a855f7" />
+                    <stop offset="100%" stop-color="#4f46e5" />
+                </linearGradient>
+            </defs>
+            <!-- Background circle -->
+            <circle cx="80" cy="80" r="${r}" fill="transparent" stroke="${trackColor}" stroke-width="12" />
+            <!-- Foreground match arc -->
+            <circle cx="80" cy="80" r="${r}" fill="transparent" stroke="${strokeColor}" stroke-width="12" 
+                stroke-dasharray="${circ}" stroke-dashoffset="${strokeOffset}" stroke-linecap="round"
+                style="transition: stroke-dashoffset 0.8s ease-in-out;" />
+        </svg>
+        <div style="position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; pointer-events: none;">
+            <span style="font-family: 'Outfit', sans-serif; font-size: 20px; font-weight: 800; color: ${textColor}; line-height: 1;">${pct.toFixed(1)}%</span>
+            <span style="font-size: 9px; color: ${mutedColor}; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 3px;">Hit Rate</span>
+            <span style="font-size: 9px; color: ${mutedColor}; margin-top: 2px;">${count} of ${total}</span>
+        </div>
+    `;
+}
+
+function drawRSSectorDonut(results) {
+    const container = document.getElementById('rs-sector-donut-container');
+    if (!container) return;
+    
+    if (!results || results.length === 0) {
+        container.innerHTML = `<span style="font-size: 11px; color: var(--text-muted);">No candidates to map</span>`;
+        return;
+    }
+
+    // Group candidates by sector
+    const sectorCounts = {};
+    results.forEach(item => {
+        const sector = item.sector || 'Unclassified';
+        sectorCounts[sector] = (sectorCounts[sector] || 0) + 1;
+    });
+
+    const sectorsSorted = Object.entries(sectorCounts).sort((a, b) => b[1] - a[1]);
+    const totalCount = results.length;
+    
+    const palette = ['#a855f7', '#6366f1', '#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#14b8a6', '#f43f5e'];
+    
+    const r = 50;
+    const circ = 2 * Math.PI * r;
+    let accumulatedPercent = 0;
+    
+    let svgContent = `<svg width="120" height="120" viewBox="0 0 160 160" style="transform: rotate(-90deg);">`;
+    
+    sectorsSorted.forEach(([sector, count], idx) => {
+        const pct = (count / totalCount) * 100;
+        const strokeOffset = circ - (pct / 100) * circ;
+        const rotation = accumulatedPercent * 3.6;
+        const color = palette[idx % palette.length];
+        
+        svgContent += `
+            <circle cx="80" cy="80" r="${r}" fill="transparent" stroke="${color}" stroke-width="12"
+                stroke-dasharray="${circ}" stroke-dashoffset="${strokeOffset}"
+                transform="rotate(${rotation} 80 80)"
+                style="transition: stroke-dashoffset 0.8s ease-in-out;"
+                title="${sector}: ${count} (${pct.toFixed(0)}%)" />
+        `;
+        
+        accumulatedPercent += pct;
+    });
+    
+    svgContent += `</svg>`;
+
+    // Add legend text on the right or overlay
+    const isDark = document.body.getAttribute('data-theme') !== 'light';
+    const labelColor = isDark ? '#ffffff' : '#0f172a';
+    
+    let legendHtml = `<div style="display:flex; align-items:center; gap: 8px; width: 100%; height: 100%;">`;
+    legendHtml += `<div style="width: 50%; height: 100%; display: flex; align-items: center; justify-content: center; position: relative;">${svgContent}</div>`;
+    legendHtml += `<div style="width: 50%; display: flex; flex-direction: column; gap: 6px; overflow-y: auto; max-height: 140px; padding-right: 4px; justify-content: center;">`;
+    
+    sectorsSorted.slice(0, 4).forEach(([sector, count], idx) => {
+        const pct = (count / totalCount) * 100;
+        const color = palette[idx % palette.length];
+        legendHtml += `
+            <div style="display: flex; align-items: center; gap: 6px; font-size: 9.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: ${labelColor};" title="${sector}: ${count}">
+                <span style="width: 7px; height: 7px; border-radius: 50%; background: ${color}; flex-shrink: 0;"></span>
+                <span style="overflow: hidden; text-overflow: ellipsis; max-width: 60px;">${sector}</span>
+                <strong style="margin-left: auto;">${count}</strong>
+            </div>
+        `;
+    });
+    
+    if (sectorsSorted.length > 4) {
+        const otherCount = sectorsSorted.slice(4).reduce((sum, item) => sum + item[1], 0);
+        legendHtml += `
+            <div style="display: flex; align-items: center; gap: 6px; font-size: 9.5px; color: var(--text-muted);">
+                <span style="width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,0.15); flex-shrink: 0;"></span>
+                <span>Other</span>
+                <strong style="margin-left: auto;">${otherCount}</strong>
+            </div>
+        `;
+    }
+
+    legendHtml += `</div></div>`;
+    container.innerHTML = legendHtml;
+}
+
+function drawRSValueQualityScatter(results) {
+    const container = document.getElementById('rs-value-quality-scatter-container');
+    if (!container) return;
+
+    if (!results || results.length === 0) {
+        container.innerHTML = `<span style="font-size: 11px; color: var(--text-muted);">No candidates to map</span>`;
+        return;
+    }
+
+    const isDark = document.body.getAttribute('data-theme') !== 'light';
+    const gridColor = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)';
+    const textColor = isDark ? '#94a3b8' : '#64748b';
+
+    // Extract values and bounds
+    const dataPoints = results.map(item => {
+        let rawPe = parseFloat(item.pe) || 0;
+        let score = parseInt(item.score) || parseInt(item.rating_score) || 50;
+        return {
+            symbol: item.symbol || 'Stock',
+            pe: rawPe,
+            score: score
+        };
+    }).filter(d => d.pe > 0);
+
+    if (dataPoints.length === 0) {
+        container.innerHTML = `<span style="font-size: 11px; color: var(--text-muted);">Missing P/E metrics to chart</span>`;
+        return;
+    }
+
+    const maxPe = Math.max(...dataPoints.map(d => d.pe), 50);
+    const minPe = Math.min(...dataPoints.map(d => d.pe), 5);
+    const peRange = maxPe - minPe || 10;
+
+    const scoreRange = 100;
+
+    const width = 160;
+    const height = 130;
+    const padding = 15;
+
+    let svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${width} ${height}">`;
+    
+    // Draw grid bounds
+    svgContent += `<line x1="${padding}" y1="${padding}" x2="${padding}" y2="${height - padding}" stroke="${gridColor}" stroke-width="1" />`;
+    svgContent += `<line x1="${padding}" y1="${height - padding}" x2="${width - padding}" y2="${height - padding}" stroke="${gridColor}" stroke-width="1" />`;
+
+    // Draw midpoint grid lines
+    const midX = width / 2;
+    const midY = height / 2;
+    svgContent += `<line x1="${midX}" y1="${padding}" x2="${midX}" y2="${height - padding}" stroke="${gridColor}" stroke-dasharray="2,2" stroke-width="1" />`;
+    svgContent += `<line x1="${padding}" y1="${midY}" x2="${width - padding}" y2="${midY}" stroke="${gridColor}" stroke-dasharray="2,2" stroke-width="1" />`;
+
+    // Map data points
+    dataPoints.forEach(point => {
+        const x = padding + ((point.pe - minPe) / peRange) * (width - 2 * padding);
+        const y = (height - padding) - (point.score / scoreRange) * (height - 2 * padding);
+        
+        // Color dot: Green for high score, purple for others
+        const color = point.score >= 70 ? 'var(--neon-green)' : '#a855f7';
+        
+        svgContent += `
+            <circle cx="${x}" cy="${y}" r="3.5" fill="${color}" stroke="rgba(255,255,255,0.2)" stroke-width="1"
+                style="cursor: pointer; transition: r 0.2s;"
+                onmouseover="this.setAttribute('r', '5.5');"
+                onmouseout="this.setAttribute('r', '3.5');"
+                title="${point.symbol} | P/E: ${point.pe.toFixed(1)} | Score: ${point.score}" />
+        `;
+    });
+
+    svgContent += `</svg>`;
+
+    // Add small axis labels overlay
+    container.innerHTML = `
+        <div style="position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
+            ${svgContent}
+            <!-- X Axis Label -->
+            <span style="position: absolute; bottom: 0px; font-size: 8px; color: ${textColor}; font-weight: 700; text-transform: uppercase;">P/E Ratio →</span>
+            <!-- Y Axis Label -->
+            <span style="position: absolute; left: 0px; top: 50%; transform: translateY(-50%) rotate(-90deg); font-size: 8px; color: ${textColor}; font-weight: 700; text-transform: uppercase;">Quality Score →</span>
+            
+            <div style="position: absolute; top: 0px; right: 8px; font-size: 8px; color: var(--neon-green); font-weight: bold; text-transform: uppercase;">High Quality</div>
+        </div>
+    `;
 }
 
 // Initialize on DOMContentLoaded
