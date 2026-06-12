@@ -4676,6 +4676,20 @@ tr:hover .champion-cell {
     gap: 6px !important;
 }
 
+/* --- PEER BENCHMARKING TELEMETRY GRID --- */
+.peer-telemetry-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+@media (max-width: 900px) {
+    .peer-telemetry-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 /* --- WATCHLIST REGISTRY PREMIUM STYLES --- */
 
 /* Sidebar active watchlist buttons */

@@ -90,6 +90,7 @@ let activeTab = 'analyzer';
 let activeScreenerStrategy = 'hybrid';
 let activeStockProfile = null;
 let activeChartInstance = null;
+let activeCompareRadarChart = null;
 let activeVolumePriceChart = null;
 let activeVolumeDeliveryChart = null;
 let activeRiskChartInstance = null;
@@ -5956,8 +5957,30 @@ function renderComparisonArena(data) {
         }
     });
     
+    // Render the radar chart
+    drawCompareRadarChart(matrix);
+    
+    // Render the playoff champion showcase
+    renderCompareChampionShowcase(matrix, bestIndex);
+    
     const metrics = [
-        { label: 'AI Advisory Score', key: 'score', icon: '📊', format: v => v !== null && v !== undefined ? `<strong>${v}/100</strong>` : 'N/A' },
+        { label: 'AI Advisory Score', key: 'score', icon: '📊', format: v => {
+            if (v === null || v === undefined) return 'N/A';
+            const percent = Math.max(0, Math.min(100, v));
+            let color = 'var(--color-emerald)';
+            if (v < 45) color = 'var(--color-crimson)';
+            else if (v < 70) color = 'var(--color-amber)';
+            return `
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px;">
+                        <strong>${v}/100</strong>
+                    </div>
+                    <div style="width: 100%; height: 5px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; position: relative;">
+                        <div style="width: ${percent}%; height: 100%; background: ${color}; border-radius: 3px; box-shadow: 0 0 4px ${color};"></div>
+                    </div>
+                </div>
+            `;
+        }},
         { label: 'AI Analyst Action', key: 'action', icon: '💎', format: v => {
             if (!v) return 'N/A';
             let cls = 'badge-hold';
@@ -5967,10 +5990,65 @@ function renderComparisonArena(data) {
         }},
         { label: 'Current Price', key: 'price', icon: '💰', format: v => v !== null && v !== undefined ? `Rs. ${v.toLocaleString('en-IN')}` : 'N/A' },
         { label: 'Stock Trailing P/E', key: 'pe', icon: '⚙️', format: v => v !== null && v !== undefined ? (typeof v === 'number' ? v.toFixed(1) : v) : 'N/A' },
-        { label: 'Return on Equity (ROE)', key: 'roe', icon: '📈', format: v => v !== null && v !== undefined ? (typeof v === 'number' ? `${v.toFixed(1)}%` : `${v}%`) : 'N/A' },
-        { label: 'Return on Capital (ROCE)', key: 'roce', icon: '📈', format: v => v !== null && v !== undefined ? (typeof v === 'number' ? `${v.toFixed(1)}%` : `${v}%`) : 'N/A' },
-        { label: 'Debt to Equity', key: 'debt_eq', icon: '🛡️', format: v => v !== null && v !== undefined ? (typeof v === 'number' ? v.toFixed(2) : v) : 'N/A' },
-        { label: 'DCF Margin of Safety', key: 'margin_of_safety', icon: '🛡️', format: v => v !== null && v !== undefined ? (typeof v === 'number' ? `${v > 0 ? '+' : ''}${v.toFixed(1)}%` : `${v}%`) : 'N/A' },
+        { label: 'Return on Equity (ROE)', key: 'roe', icon: '📈', format: v => {
+            if (v === null || v === undefined) return 'N/A';
+            const val = typeof v === 'number' ? v : parseFloat(v);
+            const percent = Math.max(0, Math.min(100, (val / 40) * 100));
+            return `
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                    <div>${val.toFixed(1)}%</div>
+                    <div style="width: 100%; height: 4px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden;">
+                        <div style="width: ${percent}%; height: 100%; background: var(--color-emerald); border-radius: 2px;"></div>
+                    </div>
+                </div>
+            `;
+        }},
+        { label: 'Return on Capital (ROCE)', key: 'roce', icon: '📈', format: v => {
+            if (v === null || v === undefined) return 'N/A';
+            const val = typeof v === 'number' ? v : parseFloat(v);
+            const percent = Math.max(0, Math.min(100, (val / 40) * 100));
+            return `
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                    <div>${val.toFixed(1)}%</div>
+                    <div style="width: 100%; height: 4px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden;">
+                        <div style="width: ${percent}%; height: 100%; background: var(--color-emerald); border-radius: 2px;"></div>
+                    </div>
+                </div>
+            `;
+        }},
+        { label: 'Debt to Equity', key: 'debt_eq', icon: '🛡️', format: v => {
+            if (v === null || v === undefined) return 'N/A';
+            const val = typeof v === 'number' ? v : parseFloat(v);
+            let color = 'var(--color-emerald)';
+            if (val > 1.5) color = 'var(--color-crimson)';
+            else if (val > 1.0) color = 'var(--color-amber)';
+            const percent = Math.max(0, Math.min(100, (val / 2) * 100));
+            return `
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                    <div>${val.toFixed(2)}</div>
+                    <div style="width: 100%; height: 4px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden;">
+                        <div style="width: ${percent}%; height: 100%; background: ${color}; border-radius: 2px;"></div>
+                    </div>
+                </div>
+            `;
+        }},
+        { label: 'DCF Margin of Safety', key: 'margin_of_safety', icon: '🛡️', format: v => {
+            if (v === null || v === undefined) return 'N/A';
+            const val = typeof v === 'number' ? v : parseFloat(v);
+            let color = 'var(--color-emerald)';
+            if (val < 0) color = 'var(--color-crimson)';
+            const clampedVal = Math.max(-50, Math.min(50, val));
+            const width = Math.abs(clampedVal) * 2;
+            const left = clampedVal < 0 ? (50 - width) : 50;
+            return `
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                    <span class="${val >= 0 ? 'green-text' : 'red-text'}">${val > 0 ? '+' : ''}${val.toFixed(1)}%</span>
+                    <div style="width: 100%; height: 4px; background: rgba(255,255,255,0.06); border-radius: 2px; position: relative; overflow: hidden;">
+                        <div style="position: absolute; left: ${left}%; width: ${width}%; height: 100%; background: ${color}; border-radius: 2px;"></div>
+                    </div>
+                </div>
+            `;
+        }},
         { label: 'RSI-14 Momentum', key: 'rsi', icon: '⚡', format: v => v !== null && v !== undefined ? (typeof v === 'number' ? v.toFixed(1) : v) : 'N/A' },
         { label: 'Moving Average Trend', key: 'trend', icon: '⚡', format: v => v || 'N/A' }
     ];
@@ -6067,6 +6145,175 @@ function renderComparisonArena(data) {
     
     const compareBox = document.getElementById('comparison-results-box');
     if (compareBox) compareBox.style.display = 'block';
+}
+
+function drawCompareRadarChart(matrix) {
+    const canvas = document.getElementById('compare-radar-chart');
+    if (!canvas) return;
+
+    if (activeCompareRadarChart) {
+        activeCompareRadarChart.destroy();
+        activeCompareRadarChart = null;
+    }
+
+    const isLightMode = document.documentElement.getAttribute('data-theme') === 'light' || document.documentElement.getAttribute('data-mode') === 'light';
+    const gridColor = isLightMode ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.08)';
+    const textColor = isLightMode ? '#374151' : '#d1d5db';
+
+    const datasets = matrix.map((item, idx) => {
+        const peVal = typeof item.pe === 'number' ? item.pe : 30;
+        const peScore = Math.max(0, Math.min(100, (100 - peVal * 1.5)));
+        const roceScore = Math.max(0, Math.min(100, typeof item.roce === 'number' ? item.roce : 0));
+        const roeScore = Math.max(0, Math.min(100, typeof item.roe === 'number' ? item.roe : 0));
+        const mosScore = Math.max(0, Math.min(100, (typeof item.margin_of_safety === 'number' ? item.margin_of_safety : 0) + 50));
+        const deVal = typeof item.debt_eq === 'number' ? item.debt_eq : 0;
+        const deScore = Math.max(0, Math.min(100, (2 - deVal) * 50));
+
+        const colors = [
+            { border: '#3b82f6', bg: 'rgba(59, 130, 246, 0.12)' },
+            { border: '#10b981', bg: 'rgba(16, 185, 129, 0.12)' },
+            { border: '#f59e0b', bg: 'rgba(245, 158, 11, 0.12)' },
+            { border: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.12)' },
+            { border: '#ec4899', bg: 'rgba(236, 72, 153, 0.12)' }
+        ];
+        const color = colors[idx % colors.length];
+
+        return {
+            label: item.company_name,
+            data: [peScore, roceScore, roeScore, deScore, mosScore],
+            borderColor: color.border,
+            backgroundColor: color.bg,
+            borderWidth: 2,
+            pointRadius: 3,
+            pointBackgroundColor: color.border,
+            pointBorderColor: '#fff',
+            pointHoverRadius: 5
+        };
+    });
+
+    activeCompareRadarChart = new Chart(canvas, {
+        type: 'radar',
+        data: {
+            labels: ['Value (P/E)', 'Efficiency (ROCE)', 'Return (ROE)', 'Solvency (D/E)', 'Safety Margin'],
+            datasets: datasets
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        color: textColor,
+                        font: {
+                            family: "'Outfit', sans-serif",
+                            size: 10
+                        },
+                        boxWidth: 10
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.dataset.label}: ${context.raw.toFixed(1)}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                r: {
+                    angleLines: {
+                        color: gridColor
+                    },
+                    grid: {
+                        color: gridColor
+                    },
+                    pointLabels: {
+                        color: textColor,
+                        font: {
+                            family: "'Outfit', sans-serif",
+                            size: 9,
+                            weight: '600'
+                        }
+                    },
+                    ticks: {
+                        display: false,
+                        stepSize: 20
+                    },
+                    min: 0,
+                    max: 100
+                }
+            }
+        }
+    });
+}
+
+function renderCompareChampionShowcase(matrix, bestIndex) {
+    const showcaseBox = document.getElementById('compare-champion-showcase-box');
+    if (!showcaseBox) return;
+
+    if (bestIndex === -1 || !matrix[bestIndex]) {
+        showcaseBox.innerHTML = `<div style="color: var(--text-muted); font-size: 12px; text-align: center; width: 100%;">No champion crowned yet. Run benchmarking comparison first.</div>`;
+        return;
+    }
+
+    const champ = matrix[bestIndex];
+    const finalScore = champ.score || 0;
+    const recAction = champ.action || 'HOLD';
+    let recClass = 'rec-hold';
+    let recEmoji = '🟡';
+    if (recAction.toUpperCase().includes('BUY')) {
+        recClass = 'rec-buy';
+        recEmoji = '🟢';
+    } else if (recAction.toUpperCase().includes('SELL') || recAction.toUpperCase().includes('AVOID')) {
+        recClass = 'rec-sell';
+        recEmoji = '🔴';
+    }
+
+    let gaugeColor = 'var(--color-emerald)';
+    if (finalScore < 45) gaugeColor = 'var(--color-crimson)';
+    else if (finalScore < 70) gaugeColor = 'var(--color-amber)';
+
+    showcaseBox.innerHTML = `
+        <div class="synthesis-score-gauge-wrap no-print" style="flex: 0 0 130px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(30, 41, 59, 0.25); border: 1px solid var(--border-glass); border-radius: 10px; padding: 15px; box-shadow: inset 0 1px 1px rgba(255,255,255,0.05); height: 100%; box-sizing: border-box;">
+            <div class="synthesis-gauge-container" style="width: 76px; height: 76px; position: relative;">
+                <svg viewBox="0 0 36 36" class="synthesis-gauge-svg" style="width: 100%; height: 100%; transform: rotate(-90deg);">
+                    <path class="synthesis-gauge-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" style="fill: none; stroke: rgba(255, 255, 255, 0.04); stroke-width: 3.2;" />
+                    <path id="compare-gauge-fill" class="synthesis-gauge-fill" stroke-dasharray="${finalScore}, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" style="fill: none; stroke: ${gaugeColor}; stroke-width: 3.2; stroke-linecap: round; filter: drop-shadow(0 0 3px ${gaugeColor}); transition: stroke-dasharray 1s ease-out;" />
+                </svg>
+                <div class="synthesis-gauge-text" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                    <span style="font-family: 'Outfit', sans-serif; font-size: 18px; font-weight: 800; color: var(--text-primary);">${finalScore}</span>
+                    <span style="font-size: 7px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: -3px;">Score</span>
+                </div>
+            </div>
+            <div style="margin-top: 10px; text-align: center; width: 100%;">
+                <span style="font-size: 7px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 2px;">CROWNED CHAMP</span>
+                <span class="badge-rec ${recClass}" style="font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 4px; display: inline-block;">${recAction} ${recEmoji}</span>
+            </div>
+        </div>
+        <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 8px; justify-content: center; height: 100%; box-sizing: border-box;">
+            <h4 style="font-family: 'Outfit', sans-serif; font-size: 11px; font-weight: 700; text-transform: uppercase; margin: 0 0 2px 0; color: var(--text-primary); display: flex; align-items: center; gap: 6px;">
+                🏆 CROWNED SECTOR CHAMPION
+            </h4>
+            <div style="font-size: 16px; font-weight: 800; font-family: 'Outfit', sans-serif; color: var(--color-primary-light);">
+                ${champ.company_name}
+            </div>
+            <div class="playoff-bracket-bracket" style="border-left: 2px solid var(--border-glass); padding-left: 10px; display: flex; flex-direction: column; gap: 4px; margin-top: 2px;">
+                <div style="font-size: 10.5px; display: flex; align-items: center; justify-content: space-between;">
+                    <span style="color: var(--text-muted);">Offensive Strength (ROE / ROCE)</span>
+                    <strong style="color: var(--neon-green);">${typeof champ.roce === 'number' ? champ.roce.toFixed(1) : 'N/A'}%</strong>
+                </div>
+                <div style="font-size: 10.5px; display: flex; align-items: center; justify-content: space-between;">
+                    <span style="color: var(--text-muted);">Defensive Line (D/E Ratio)</span>
+                    <strong style="color: ${champ.debt_eq > 1.0 ? 'var(--neon-red)' : 'var(--neon-green)'};">${typeof champ.debt_eq === 'number' ? champ.debt_eq.toFixed(2) : 'N/A'}</strong>
+                </div>
+                <div style="font-size: 10.5px; display: flex; align-items: center; justify-content: space-between;">
+                    <span style="color: var(--text-muted);">Valuation Margin (MOS %)</span>
+                    <strong style="color: ${champ.margin_of_safety > 0 ? 'var(--neon-green)' : 'var(--neon-red)'};">${typeof champ.margin_of_safety === 'number' ? (champ.margin_of_safety > 0 ? '+' : '') + champ.margin_of_safety.toFixed(1) : 'N/A'}%</strong>
+                </div>
+            </div>
+        </div>
+    `;
 }
 
 // 8. Automated Alert Center
