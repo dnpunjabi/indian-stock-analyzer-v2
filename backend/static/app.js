@@ -2696,6 +2696,21 @@ async function loadStockAnalyzer(query) {
     
     setAnalyzeBtnLoading(true);
     
+    showLoader(
+        `Synthesizing Equity Diagnostics: ${query.toUpperCase()}`,
+        "Orchestrating mathematical subagents, evaluating balance sheets, scanning technical lines, and generating custom advisory consensus.",
+        true,
+        [
+            { threshold: 12, msg: `[INFO] Connecting to yfinance feeds for ${query.toUpperCase()}...`, color: '#38bdf8' },
+            { threshold: 24, msg: "[INFO] Compiling fundamental records (PE ratio, Book Value, debt-to-equity)...", color: '#f59e0b' },
+            { threshold: 36, msg: "[INFO] Estimating intrinsic value with dual-growth DCF parameters...", color: '#10b981' },
+            { threshold: 48, msg: "[INFO] Spawning governance scanner (audit files & pledging status)...", color: '#a855f7' },
+            { threshold: 60, msg: "[INFO] Fetching institutional analyst target price updates...", color: '#34d399' },
+            { threshold: 72, msg: "[INFO] Synthesizing sentiment feeds and technical swing matrix...", color: '#38bdf8' },
+            { threshold: 84, msg: "[INFO] Assembling final advisory consensus model...", color: '#10b981' }
+        ]
+    );
+    
     // Switch to analyzer tab immediately and load skeletons for instant feedback
     const emptyStateEl = document.getElementById('analyzer-empty-state');
     if (emptyStateEl) emptyStateEl.style.display = 'none';
@@ -2730,8 +2745,26 @@ async function loadStockAnalyzer(query) {
         setupPeersSorting();
         triggerLiveCompoundingCalculation();
         if (window.resetAnalyzerSubtabs) window.resetAnalyzerSubtabs();
-        setAnalyzeBtnLoading(false);
+        
+        // Complete the loader animation and console text
+        const progressBar = document.getElementById('global-loader-progress-bar');
+        const progressConsole = document.getElementById('global-loader-progress-console');
+        if (progressBar) progressBar.style.width = '100%';
+        if (progressConsole) {
+            const line = document.createElement('div');
+            line.style.color = 'var(--color-emerald)';
+            line.style.fontWeight = 'bold';
+            line.innerText = `[SUCCESS] Profile diagnostics generated successfully for ${profile.symbol}!`;
+            progressConsole.appendChild(line);
+            progressConsole.scrollTop = progressConsole.scrollHeight;
+        }
+        
+        setTimeout(() => {
+            hideLoader();
+            setAnalyzeBtnLoading(false);
+        }, 650);
     } catch (e) {
+        hideLoader();
         applyCardSkeletons(false);
         setAnalyzeBtnLoading(false);
         showToast("Analysis error: " + e.message, 'error');
@@ -5549,7 +5582,14 @@ async function runDynamicSandboxAI() {
     
     showLoader(
         "Recalculating Valuation Model...",
-        "Feeding modified discount rates and revenue schedules back to the active CIO parent agent. Spawns specialized CFAs to update target buy/sell price boundaries..."
+        "Feeding modified discount rates and revenue schedules back to the active CIO parent agent. Spawns specialized CFAs to update target buy/sell price boundaries...",
+        true,
+        [
+            { threshold: 20, msg: "[INFO] Parsing user discount rates (WACC) and revenue growth vectors...", color: '#38bdf8' },
+            { threshold: 45, msg: "[INFO] Running multi-variable Monte Carlo scenarios on cash flows...", color: '#f59e0b' },
+            { threshold: 70, msg: "[INFO] Updating intrinsic valuation floors and ceilings...", color: '#10b981' },
+            { threshold: 90, msg: "[INFO] Restructuring qualitative investment thesis and timing rules...", color: '#a855f7' }
+        ]
     );
     
     const query = activeStockProfile.company_name;
@@ -5605,11 +5645,27 @@ async function runDynamicSandboxAI() {
         // Re-render the Sensitivity Matrix with newly calculated scenarios
         renderDCFSensitivityMatrix(updatedProfile);
         
-        showToast("Valuation model successfully updated. CIO has aligned target prices and investment thesis.", 'success');
+        // Complete progress
+        const progressBar = document.getElementById('global-loader-progress-bar');
+        const progressConsole = document.getElementById('global-loader-progress-console');
+        if (progressBar) progressBar.style.width = '100%';
+        if (progressConsole) {
+            const line = document.createElement('div');
+            line.style.color = 'var(--color-emerald)';
+            line.style.fontWeight = 'bold';
+            line.innerText = `[SUCCESS] DCF custom valuation parameters recalculated successfully!`;
+            progressConsole.appendChild(line);
+            progressConsole.scrollTop = progressConsole.scrollHeight;
+        }
+        
+        setTimeout(() => {
+            hideLoader();
+            showToast("Valuation model successfully updated. CIO has aligned target prices and investment thesis.", 'success');
+        }, 650);
+        
     } catch (e) {
-        showToast("Failed to update sandbox thesis: " + e.message, 'error');
-    } finally {
         hideLoader();
+        showToast("Failed to update sandbox thesis: " + e.message, 'error');
     }
 }
 
