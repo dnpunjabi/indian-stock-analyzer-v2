@@ -3816,17 +3816,34 @@ function renderSWOTAndPerformance(p) {
             const newHeader = header.cloneNode(true);
             header.parentNode.replaceChild(newHeader, header);
             
-            // Set initial state
+            // Set initial state: fully open, dynamic height, overflow visible to prevent cutting off text
             content.style.transition = 'max-height 0.3s ease-out, padding 0.3s ease-out';
-            content.style.maxHeight = '350px';
-            content.style.overflow = 'hidden';
+            content.style.maxHeight = 'none';
+            content.style.overflow = 'visible';
             
             newHeader.addEventListener('click', () => {
-                if (content.style.maxHeight === '0px' || content.style.maxHeight === '0') {
-                    content.style.maxHeight = '350px';
+                const isCollapsed = content.style.maxHeight === '0px' || content.style.maxHeight === '0';
+                
+                if (isCollapsed) {
+                    content.style.maxHeight = content.scrollHeight + 'px';
                     content.style.padding = '15px';
                     if (card) card.style.opacity = '1';
+                    
+                    // Reset to none and overflow visible after the transition completes
+                    setTimeout(() => {
+                        if (content.style.maxHeight !== '0px') {
+                            content.style.maxHeight = 'none';
+                            content.style.overflow = 'visible';
+                        }
+                    }, 300);
                 } else {
+                    // Set from none to scrollHeight to start transition
+                    content.style.maxHeight = content.scrollHeight + 'px';
+                    content.style.overflow = 'hidden';
+                    
+                    // Force a reflow
+                    content.offsetHeight;
+                    
                     content.style.maxHeight = '0px';
                     content.style.padding = '0px 15px';
                     if (card) card.style.opacity = '0.85';
