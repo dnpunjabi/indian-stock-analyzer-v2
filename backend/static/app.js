@@ -21610,6 +21610,13 @@ function populateVoiceList() {
 function setupAudioConsoleBindings() {
     const playPauseBtn = document.getElementById('audio-play-pause-btn');
     const stopBtn = document.getElementById('audio-stop-btn');
+    const audioConsole = document.getElementById('synthesis-audio-console');
+    
+    if (audioConsole) {
+        audioConsole.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+    }
     
     // Bind dynamic voice loader
     populateVoiceList();
@@ -21620,7 +21627,8 @@ function setupAudioConsoleBindings() {
     }
     
     if (playPauseBtn) {
-        playPauseBtn.addEventListener('click', () => {
+        playPauseBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
             if (isSpeechPlaying) {
                 pauseAudioPlayback();
             } else {
@@ -21630,7 +21638,8 @@ function setupAudioConsoleBindings() {
     }
     
     if (stopBtn) {
-        stopBtn.addEventListener('click', () => {
+        stopBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
             stopAudioPlayback();
         });
     }
