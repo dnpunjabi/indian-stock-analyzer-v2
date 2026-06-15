@@ -8192,6 +8192,11 @@ function setupChatDrawer() {
 async function loadStockSynthesis(symbol) {
     if (!symbol) return;
     
+    // Stop any active audio playback when switching/reloading stock synthesis
+    if (typeof stopAudioPlayback === 'function') {
+        stopAudioPlayback();
+    }
+    
     const horizon = document.getElementById('profile-horizon')?.value || 'Long-term (3+ years)';
     const risk = document.getElementById('profile-risk')?.value || 'Moderate';
     
@@ -8220,6 +8225,17 @@ async function loadStockSynthesis(symbol) {
         const response = await fetch(`/api/synthesis?symbol=${encodeURIComponent(symbol)}&horizon=${encodeURIComponent(horizon)}&risk=${encodeURIComponent(risk)}`);
         if (!response.ok) throw new Error("Synthesis failed.");
         const data = await response.json();
+        
+        // Cache conviction metrics in active stock profile for dashboard sync
+        if (activeStockProfile) {
+            activeStockProfile.fundamental_conviction = data.fundamental_conviction;
+            activeStockProfile.technical_conviction = data.technical_conviction;
+            activeStockProfile.sentiment_conviction = data.sentiment_conviction;
+            activeStockProfile.synthesis_friction_points = data.friction_points;
+            
+            // Refresh dashboard debate block headers with active conviction badges
+            renderAIDebate(activeStockProfile);
+        }
         
         // Update top banner trigger badge
         if (triggerText) {
@@ -8332,8 +8348,61 @@ async function loadStockSynthesis(symbol) {
             `;
         }
 
+        // 1b. Build Dialectic Conflict Highlight Banner if present
+        let conflictHtml = '';
+        if (data.friction_points && data.friction_points.length > 0) {
+            conflictHtml = `
+                <div class="synthesis-conflict-banner">
+                    <div class="synthesis-conflict-title">
+                        ⚖️ DIALECTIC ANALYSIS: FRICTION & CONFLICT POINTS
+                    </div>
+                    <ul class="synthesis-conflict-list">
+                        ${data.friction_points.map(pt => `<li>${pt}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+
         // 2. Build Glassmorphic Header blocks dynamically by parsing synthesis text
         let formattedText = data.synthesis_text;
+
+        // Inject individual sub-agent conviction scores as badges inside their headers
+        if (data.fundamental_conviction !== undefined) {
+            formattedText = formattedText.replace(
+                /<div class="agent-header">📊 Fundamental &amp; Valuation Analyst<\/div>/gi,
+                `<div class="agent-header">📊 Fundamental &amp; Valuation Analyst <span class="agent-conviction-badge">Conviction: ${data.fundamental_conviction}%</span></div>`
+            ).replace(
+                /<div class="agent-header">📊 Fundamental & Valuation Analyst<\/div>/gi,
+                `<div class="agent-header">📊 Fundamental & Valuation Analyst <span class="agent-conviction-badge">Conviction: ${data.fundamental_conviction}%</span></div>`
+            );
+        }
+        if (data.technical_conviction !== undefined) {
+            formattedText = formattedText.replace(
+                /<div class="agent-header">📈 Technical &amp; VSA Tactician<\/div>/gi,
+                `<div class="agent-header">📈 Technical &amp; VSA Tactician <span class="agent-conviction-badge">Conviction: ${data.technical_conviction}%</span></div>`
+            ).replace(
+                /<div class="agent-header">📈 Technical & VSA Tactician<\/div>/gi,
+                `<div class="agent-header">📈 Technical & VSA Tactician <span class="agent-conviction-badge">Conviction: ${data.technical_conviction}%</span></div>`
+            );
+        }
+        if (data.sentiment_conviction !== undefined) {
+            formattedText = formattedText.replace(
+                /<div class="agent-header">🛡️ Sentiment &amp; Smart Money Auditor<\/div>/gi,
+                `<div class="agent-header">🛡️ Sentiment &amp; Smart Money Auditor <span class="agent-conviction-badge">Conviction: ${data.sentiment_conviction}%</span></div>`
+            ).replace(
+                /<div class="agent-header">🛡️ Sentiment & Smart Money Auditor<\/div>/gi,
+                `<div class="agent-header">🛡️ Sentiment & Smart Money Auditor <span class="agent-conviction-badge">Conviction: ${data.sentiment_conviction}%</span></div>`
+            );
+        }
+        if (data.final_score !== undefined) {
+            formattedText = formattedText.replace(
+                /<div class="agent-header">⚖️ Lead CIO Referee \(Consensus Moderator\)<\/div>/gi,
+                `<div class="agent-header">⚖️ Lead CIO Referee (Consensus Moderator) <span class="agent-conviction-badge">Conviction: ${data.final_score}%</span></div>`
+            ).replace(
+                /<div class="agent-header">⚖️ Lead CIO Referee \(Consensus Moderator\)<\/div>/gi,
+                `<div class="agent-header">⚖️ Lead CIO Referee (Consensus Moderator) <span class="agent-conviction-badge">Conviction: ${data.final_score}%</span></div>`
+            );
+        }
 
         const solvencyBadge = `<span class="header-badge" style="margin-left: auto; font-size: 9px; padding: 2px 8px; border-radius: 99px; font-weight: 700; background: ${data.piotroski_score >= 7 ? 'rgba(16, 185, 129, 0.12)' : 'rgba(245, 158, 11, 0.12)'}; color: ${data.piotroski_score >= 7 ? '#10b981' : '#f59e0b'}; border: 1px solid ${data.piotroski_score >= 7 ? 'rgba(16, 185, 129, 0.25)' : 'rgba(245, 158, 11, 0.25)'};">F-Score: ${data.piotroski_score}/9</span>`;
         formattedText = formattedText.replace(/### I\. Operational Quality & Solvency Scorecard/g, 
@@ -8453,7 +8522,8 @@ async function loadStockSynthesis(symbol) {
         }
         
         if (reportTextEl) {
-            reportTextEl.innerHTML = `${warningHtml}${finalHtml}`;
+            const combinedHtml = `${warningHtml}${conflictHtml}${finalHtml}`;
+            reportTextEl.innerHTML = typeof injectMetricTooltips === 'function' ? injectMetricTooltips(combinedHtml) : combinedHtml;
         }
     } catch (e) {
         console.error("Synthesis load error:", e);
@@ -11482,6 +11552,20 @@ function renderAIDebate(p) {
         }
     ];
     
+    const scoring = p.score_metrics || {};
+    const f_score_val = scoring.fundamental_score !== undefined ? scoring.fundamental_score : 15.0;
+    const v_score_val = scoring.valuation_score !== undefined ? scoring.valuation_score : 12.0;
+    const g_score_val = scoring.growth_score !== undefined ? scoring.growth_score : 7.0;
+    const fundamentalConv = p.fundamental_conviction !== undefined ? p.fundamental_conviction : Math.min(100, Math.max(0, Math.round(((f_score_val + v_score_val + g_score_val) / 70.0) * 100.0)));
+
+    const t_score_val = scoring.technical_score !== undefined ? scoring.technical_score : 12.0;
+    const technicalConv = p.technical_conviction !== undefined ? p.technical_conviction : Math.min(100, Math.max(0, Math.round((t_score_val / 25.0) * 100.0)));
+
+    const s_score_val = scoring.sentiment_score !== undefined ? scoring.sentiment_score : 2.0;
+    const deliveryZVal = p.technicals ? (p.technicals.delivery_z_score || 0.0) : 0.0;
+    const sentiment_bonus = deliveryZVal >= 1.0 ? 1.0 : 0.0;
+    const sentimentConv = p.sentiment_conviction !== undefined ? p.sentiment_conviction : Math.min(100, Math.max(0, Math.round(((s_score_val + sentiment_bonus) / 6.0) * 100.0)));
+
     speeches.forEach(speech => {
         const bubble = document.createElement('div');
         bubble.className = `agent-debate-block ${speech.class}`;
@@ -11494,7 +11578,26 @@ function renderAIDebate(p) {
         
         const sender = document.createElement('span');
         sender.className = 'agent-header';
-        sender.innerText = speech.role;
+        sender.style.display = 'flex';
+        sender.style.justifyContent = 'space-between';
+        sender.style.alignItems = 'center';
+        sender.style.width = '100%';
+        
+        const roleSpan = document.createElement('span');
+        roleSpan.innerText = speech.role;
+        sender.appendChild(roleSpan);
+        
+        const badge = document.createElement('span');
+        badge.className = 'agent-conviction-badge';
+        
+        let convictionVal = 0;
+        if (speech.class === 'fundamental') convictionVal = fundamentalConv;
+        else if (speech.class === 'technical') convictionVal = technicalConv;
+        else if (speech.class === 'sentiment') convictionVal = sentimentConv;
+        else if (speech.class === 'cio') convictionVal = score;
+        
+        badge.innerText = `Conviction: ${convictionVal}%`;
+        sender.appendChild(badge);
         
         const message = document.createElement('p');
         message.className = 'agent-comment';
@@ -21232,7 +21335,247 @@ function drawRSKPIHeatmap(results) {
     `;
 }
 
+// ==========================================
+// ENTERPRISE DIALECTIC AUDIO & TOOLTIP MODULES
+// ==========================================
+
+function injectMetricTooltips(htmlText) {
+    const terms = [
+        { phrase: "Altman Z-Score", def: "Altman Z-Score: Solvency formula predicting bankruptcy risk. Score > 2.99 is 'Safe', 1.81-2.99 is 'Grey', < 1.81 is 'Distress'." },
+        { phrase: "Altman Z", def: "Altman Z-Score: Solvency formula predicting bankruptcy risk. Score > 2.99 is 'Safe', 1.81-2.99 is 'Grey', < 1.81 is 'Distress'." },
+        { phrase: "Piotroski F-Score", def: "Piotroski F-Score: 9-point score evaluating financial strength based on profitability, leverage, and operating efficiency. 7-9 is strong." },
+        { phrase: "F-Score", def: "Piotroski F-Score: 9-point score evaluating financial strength based on profitability, leverage, and operating efficiency. 7-9 is strong." },
+        { phrase: "PEG ratio", def: "Price/Earnings-to-Growth Ratio: P/E ratio divided by expected earnings growth rate. Under 1.0 signals undervaluation." },
+        { phrase: "PEG Ratio", def: "Price/Earnings-to-Growth Ratio: P/E ratio divided by expected earnings growth rate. Under 1.0 signals undervaluation." },
+        { phrase: "P/E ratio", def: "Price-to-Earnings Ratio: Compares share price to earnings per share. High values indicate premium valuation." },
+        { phrase: "P/E Ratio", def: "Price-to-Earnings Ratio: Compares share price to earnings per share. High values indicate premium valuation." },
+        { phrase: "Debt-to-Equity", def: "Debt-to-Equity Ratio: Total liabilities divided by shareholder equity. Measures solvency leverage." },
+        { phrase: "CFO-to-PAT", def: "Cash Flow from Operations to Profit After Tax: Checks earnings quality; scores > 1.0 signal strong cash conversion." },
+        { phrase: "CFO to PAT", def: "Cash Flow from Operations to Profit After Tax: Checks earnings quality; scores > 1.0 signal strong cash conversion." },
+        { phrase: "50-day SMA", def: "50-day Simple Moving Average: Short-to-medium-term trend indicator representing the average closing price." },
+        { phrase: "200-day SMA", def: "200-day Simple Moving Average: Long-term structural health trend line. Price above represents primary bullish trend." },
+        { phrase: "RSI (14)", def: "Relative Strength Index: Momentum indicator measuring speed and change of price movements between 0 and 100." },
+        { phrase: "RSI", def: "Relative Strength Index: Momentum indicator measuring speed and change of price movements between 0 and 100." },
+        { phrase: "POC floor", def: "Point of Control Floor: Volume-profile level with the highest volume traded, acting as institutional support." },
+        { phrase: "POC price", def: "Point of Control Floor: Volume-profile level with the highest volume traded, acting as institutional support." },
+        { phrase: "POC", def: "Point of Control: Volume-profile level with the highest volume traded, acting as institutional support." },
+        { phrase: "margin of safety", def: "Margin of Safety: Discount of market price to DCF intrinsic value. Provides capital cushion." },
+        { phrase: "Margin of Safety", def: "Margin of Safety: Discount of market price to DCF intrinsic value. Provides capital cushion." }
+    ];
+
+    let placeholders = {};
+    let placeholderCounter = 0;
+
+    const parts = htmlText.split(/(<[^>]+>)/g);
+    for (let i = 0; i < parts.length; i++) {
+        if (parts[i].startsWith('<')) continue;
+        
+        for (let term of terms) {
+            const escapedPhrase = term.phrase.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+            const regex = new RegExp(`\\b${escapedPhrase}\\b`, 'g');
+            
+            parts[i] = parts[i].replace(regex, (match) => {
+                const placeholder = `__METRIC_TOOLTIP_PH_${placeholderCounter}__`;
+                placeholders[placeholder] = `<span class="metric-tooltip-trigger" data-tooltip="${term.def}">${match}</span>`;
+                placeholderCounter++;
+                return placeholder;
+            });
+        }
+    }
+
+    let recombined = parts.join('');
+    
+    // Restore placeholders
+    for (let key in placeholders) {
+        recombined = recombined.replace(key, placeholders[key]);
+    }
+    return recombined;
+}
+
+let speechQueue = [];
+let currentSpeechIndex = -1;
+let isSpeechPlaying = false;
+let currentUtterance = null;
+
+function stopAudioPlayback() {
+    const playPauseBtn = document.getElementById('audio-play-pause-btn');
+    const statusText = document.getElementById('audio-playback-status');
+    
+    if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+    }
+    isSpeechPlaying = false;
+    currentSpeechIndex = -1;
+    currentUtterance = null;
+    
+    if (playPauseBtn) {
+        playPauseBtn.innerHTML = '<span>▶️</span> Play';
+        playPauseBtn.classList.remove('active');
+    }
+    if (statusText) {
+        statusText.innerText = 'Playback stopped';
+    }
+}
+
+function pauseAudioPlayback() {
+    const playPauseBtn = document.getElementById('audio-play-pause-btn');
+    const statusText = document.getElementById('audio-playback-status');
+    
+    if (window.speechSynthesis) {
+        window.speechSynthesis.pause();
+    }
+    isSpeechPlaying = false;
+    
+    if (playPauseBtn) {
+        playPauseBtn.innerHTML = '<span>▶️</span> Resume';
+    }
+    if (statusText) {
+        statusText.innerText = 'Playback paused';
+    }
+}
+
+function speakNextSegment() {
+    if (!isSpeechPlaying) return;
+    
+    currentSpeechIndex++;
+    const statusText = document.getElementById('audio-playback-status');
+    
+    if (currentSpeechIndex >= speechQueue.length) {
+        stopAudioPlayback();
+        if (statusText) {
+            statusText.innerText = 'Playback completed';
+        }
+        return;
+    }
+    
+    const segment = speechQueue[currentSpeechIndex];
+    if (statusText) {
+        statusText.innerText = `Speaking: ${segment.agentName}`;
+    }
+    
+    currentUtterance = new SpeechSynthesisUtterance(segment.text);
+    currentUtterance.pitch = segment.pitch;
+    currentUtterance.rate = 1.0;
+    
+    currentUtterance.onend = () => {
+        speakNextSegment();
+    };
+    
+    currentUtterance.onerror = (e) => {
+        console.error("Speech synthesis error:", e);
+        speakNextSegment();
+    };
+    
+    window.speechSynthesis.speak(currentUtterance);
+}
+
+function startAudioPlayback() {
+    const playPauseBtn = document.getElementById('audio-play-pause-btn');
+    const statusText = document.getElementById('audio-playback-status');
+    
+    if (!window.speechSynthesis) {
+        showToast("Web Speech API is not supported in this browser.", "warning");
+        return;
+    }
+    
+    // If paused, resume
+    if (window.speechSynthesis.paused && currentSpeechIndex !== -1) {
+        window.speechSynthesis.resume();
+        isSpeechPlaying = true;
+        if (playPauseBtn) {
+            playPauseBtn.innerHTML = '<span>⏸️</span> Pause';
+            playPauseBtn.classList.add('active');
+        }
+        if (statusText) {
+            statusText.innerText = `Speaking: ${speechQueue[currentSpeechIndex].agentName}`;
+        }
+        return;
+    }
+    
+    // Build speech queue from active synthesis report
+    const reportTextEl = document.getElementById('synthesis-report-text');
+    if (!reportTextEl) return;
+    
+    const debateBlocks = reportTextEl.querySelectorAll('.agent-debate-block');
+    if (debateBlocks.length === 0) {
+        showToast("No AI agent debate comments found to play.", "warning");
+        return;
+    }
+    
+    speechQueue = [];
+    debateBlocks.forEach(block => {
+        const commentEl = block.querySelector('.agent-comment');
+        if (!commentEl) return;
+        
+        let pitch = 1.0;
+        let agentName = "Agent";
+        
+        if (block.classList.contains('fundamental')) {
+            pitch = 0.85;
+            agentName = "Fundamental Analyst";
+        } else if (block.classList.contains('technical')) {
+            pitch = 1.15;
+            agentName = "Technical Tactician";
+        } else if (block.classList.contains('sentiment')) {
+            pitch = 1.0;
+            agentName = "Sentiment Auditor";
+        } else if (block.classList.contains('cio')) {
+            pitch = 0.9;
+            agentName = "Lead CIO Referee";
+        }
+        
+        speechQueue.push({
+            text: commentEl.innerText,
+            pitch: pitch,
+            agentName: agentName
+        });
+    });
+    
+    if (speechQueue.length === 0) {
+        showToast("No agent comments compiled.", "warning");
+        return;
+    }
+    
+    isSpeechPlaying = true;
+    currentSpeechIndex = -1;
+    
+    if (playPauseBtn) {
+        playPauseBtn.innerHTML = '<span>⏸️</span> Pause';
+        playPauseBtn.classList.add('active');
+    }
+    
+    speakNextSegment();
+}
+
+function setupAudioConsoleBindings() {
+    const playPauseBtn = document.getElementById('audio-play-pause-btn');
+    const stopBtn = document.getElementById('audio-stop-btn');
+    
+    if (playPauseBtn) {
+        playPauseBtn.addEventListener('click', () => {
+            if (isSpeechPlaying) {
+                pauseAudioPlayback();
+            } else {
+                startAudioPlayback();
+            }
+        });
+    }
+    
+    if (stopBtn) {
+        stopBtn.addEventListener('click', () => {
+            stopAudioPlayback();
+        });
+    }
+    
+    // Stop speaking when search results or active profile changes
+    const searchBtn = document.getElementById('search-btn');
+    if (searchBtn) {
+        searchBtn.addEventListener('click', () => stopAudioPlayback());
+    }
+}
+
 // Initialize on DOMContentLoaded
 document.addEventListener('DOMContentLoaded', () => {
     setupRuleScanner();
+    setupAudioConsoleBindings();
 });

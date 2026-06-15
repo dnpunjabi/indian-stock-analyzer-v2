@@ -2213,6 +2213,38 @@ async def get_synthesis(
             )
             synthesis_text = f"{p1}\n\n{p2}\n\n{p3}\n\n{p4}\n\n{p5}"
 
+        # Compute individual agent conviction scores out of 100
+        f_score_val = scoring.get("fundamental_score", 15.0)
+        v_score_val = scoring.get("valuation_score", 12.0)
+        g_score_val = scoring.get("growth_score", 7.0)
+        fundamental_conviction = int(((f_score_val + v_score_val + g_score_val) / 70.0) * 100.0)
+        fundamental_conviction = min(100, max(0, fundamental_conviction))
+        
+        t_score_val = scoring.get("technical_score", 12.0)
+        technical_conviction = int((t_score_val / 25.0) * 100.0)
+        technical_conviction = min(100, max(0, technical_conviction))
+        
+        s_score_val = scoring.get("sentiment_score", 2.0)
+        sentiment_bonus = 1.0 if delivery_z_score >= 1.0 else 0.0
+        sentiment_conviction = int(((s_score_val + sentiment_bonus) / 6.0) * 100.0)
+        sentiment_conviction = min(100, max(0, sentiment_conviction))
+        
+        friction_points = []
+        if pe_diff_pct > 20.0:
+            friction_points.append(f"Valuation Friction: Trades at a high P/E multiple premium of {pe_diff_pct:+.1f}% compared to peers.")
+        if margin_of_safety < 0.0:
+            friction_points.append(f"Margin of Safety Deficit: Current market price trades at a {-margin_of_safety:.1f}% valuation premium over DCF Fair Value (Rs. {dcf_intrinsic_value:.2f}).")
+        if current_price < sma_200:
+            friction_points.append(f"Bearish Trend Alignment: Price is structurally locked below its long-term 200-day SMA of Rs. {sma_200:.2f}.")
+        if promoter_pledge_pct > 15.0:
+            friction_points.append(f"Governance Drag: Promoter share pledging is elevated at {promoter_pledge_pct:.1f}% representing capital collateral risk.")
+        if fundamentals.get("debt_to_equity", 0.0) > 1.2:
+            friction_points.append(f"Balance Sheet Friction: Elevated Debt-to-Equity ratio of {fundamentals.get('debt_to_equity', 0.0):.2f}x restricts fiscal leverage.")
+        if rsi > 70.0:
+            friction_points.append(f"Overbought Friction: Daily RSI (14) at {rsi:.1f} signals short-term momentum overextension.")
+        elif rsi < 30.0:
+            friction_points.append(f"Oversold Momentum: Daily RSI (14) at {rsi:.1f} signals steep downward capitalization trends.")
+
         return {
             "synthesis_text": synthesis_text,
             "final_score": final_score,
@@ -2234,7 +2266,11 @@ async def get_synthesis(
             "vsa_pattern": vsa_pattern,
             "vsa_type": vsa_type,
             "poc_price": poc_price,
-            "real_deals": real_deals_list
+            "real_deals": real_deals_list,
+            "friction_points": friction_points,
+            "fundamental_conviction": fundamental_conviction,
+            "technical_conviction": technical_conviction,
+            "sentiment_conviction": sentiment_conviction
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"AI Synthesis compilation failed: {str(e)}")
