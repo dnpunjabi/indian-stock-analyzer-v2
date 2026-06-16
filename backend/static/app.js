@@ -2805,37 +2805,25 @@ function renderStockDashboard(p) {
     const corpSectorEl = document.getElementById('corp-sector');
     const corpCapEl = document.getElementById('corp-cap');
     const corpTickerEl = document.getElementById('corp-ticker');
+    const corpWebsiteEl = document.getElementById('corp-website');
     
     if (corpSectorEl) corpSectorEl.innerText = sectorVal;
     if (corpCapEl) corpCapEl.innerText = capVal;
     if (corpTickerEl) corpTickerEl.innerText = tickerVal;
+    if (corpWebsiteEl) {
+        if (p.website && p.website !== 'N/A') {
+            corpWebsiteEl.innerHTML = `<a href="${p.website}" target="_blank" style="color: var(--color-primary, #60a5fa); text-decoration: underline; font-weight: 600;">Visit Website ↗</a>`;
+        } else {
+            corpWebsiteEl.innerText = 'N/A';
+        }
+    }
     
     const summaryText = document.getElementById('business-summary-text');
     if (summaryText) {
         const text = p.business_summary || "No corporate business summary details returned from Yahoo Finance.";
-        let laymanSummary = "";
-        
-        const textLower = text.toLowerCase();
-        if (textLower.includes("software") || textLower.includes("technology") || textLower.includes("information technology") || textLower.includes("consulting")) {
-            laymanSummary = `**In plain terms:** ${p.company_name} is like a **digital helper for large businesses**. They build software, manage computer systems, and help global companies run their systems online. Think of them as the high-tech engineers who make sure your favorite digital services stay fast, safe, and up and running around the clock.`;
-        } else if (textLower.includes("bank") || textLower.includes("financial") || textLower.includes("lending") || textLower.includes("insurance") || textLower.includes("nbfc")) {
-            laymanSummary = `**In plain terms:** ${p.company_name} acts as a **financial engine**. They take in deposits and lend money to families and businesses to buy homes, cars, or expand operations. Think of them as the vital circulatory system of the economy, pumping money to where it is needed most.`;
-        } else if (textLower.includes("power") || textLower.includes("electricity") || textLower.includes("energy") || textLower.includes("solar") || textLower.includes("wind") || textLower.includes("coal")) {
-            laymanSummary = `**In plain terms:** ${p.company_name} acts as a **power station**. They generate and distribute the electricity that lights up homes, keeps factories running, and powers cities. Think of them as the silent engine room of the country, keeping the lights on everywhere.`;
-        } else if (textLower.includes("defense") || textLower.includes("aerospace") || textLower.includes("aircraft") || textLower.includes("ship")) {
-            laymanSummary = `**In plain terms:** ${p.company_name} is a **national shield builder**. They manufacture advanced aircraft, ships, and defense equipment used by the military to secure the nation. Think of them as high-precision engineers building advanced armor and transport systems for domestic defense.`;
-        } else if (textLower.includes("infrastructure") || textLower.includes("rail") || textLower.includes("construction") || textLower.includes("engineering") || textLower.includes("port")) {
-            laymanSummary = `**In plain terms:** ${p.company_name} is a **heavy-duty builder**. They construct massive public works, railways, highways, ports, and industrial structures that shape the nation's backbone. Think of them as the structural muscle turning blueprints into massive physical realities.`;
-        } else {
-            laymanSummary = `**In plain terms:** ${p.company_name} is a **specialized provider of goods and services**. They operate in the ${p.sector || 'domestic market'} sector, serving institutional and retail customers across the country. Think of them as a primary engine driving products to commercial markets.`;
-        }
-        
         summaryText.innerHTML = `
-            <div style="font-size:12.5px; line-height:1.6; color:var(--text-secondary); margin-bottom:12px; font-weight:400;">
+            <div style="font-size:12.5px; line-height:1.6; color:var(--text-secondary); font-weight:400;">
                 ${text}
-            </div>
-            <div style="margin-top:12px; padding:10px 12px; background:rgba(59, 130, 246, 0.03); border-left:2.5px solid var(--color-primary); border-radius:0 6px 6px 0; font-size:11.5px; line-height:1.5; color:var(--text-muted);">
-                ${laymanSummary}
             </div>
         `;
     }

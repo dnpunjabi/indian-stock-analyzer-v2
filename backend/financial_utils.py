@@ -2563,6 +2563,49 @@ def _build_financial_profile(ticker_query: str) -> dict:
 
     performance_metrics = calculate_price_performance(stock)
 
+    # Look up cap_type from screener_universe or compute dynamically
+    cap_type = "small"
+    try:
+        import sqlite3
+        import os
+        DATABASE_DIR_LOCAL = os.environ.get(
+            "DATABASE_DIR",
+            os.path.join(os.path.dirname(__file__), "data")
+        )
+        DATABASE_PATH_LOCAL = os.path.join(DATABASE_DIR_LOCAL, "watchlist_database.db")
+        if os.path.exists(DATABASE_PATH_LOCAL):
+            conn = sqlite3.connect(DATABASE_PATH_LOCAL)
+            cursor = conn.cursor()
+            cursor.execute("SELECT cap_type FROM screener_universe WHERE symbol = ? OR base_symbol = ?", (yf_ticker, base_symbol))
+            db_row = cursor.fetchone()
+            conn.close()
+            if db_row:
+                cap_type = db_row[0]
+            else:
+                mcap_val = float(market_cap)
+                if mcap_val >= 20000:
+                    cap_type = "large"
+                elif mcap_val >= 5000:
+                    cap_type = "mid"
+                else:
+                    cap_type = "small"
+        else:
+            mcap_val = float(market_cap)
+            if mcap_val >= 20000:
+                cap_type = "large"
+            elif mcap_val >= 5000:
+                cap_type = "mid"
+            else:
+                cap_type = "small"
+    except Exception:
+        mcap_val = float(market_cap)
+        if mcap_val >= 20000:
+            cap_type = "large"
+        elif mcap_val >= 5000:
+            cap_type = "mid"
+        else:
+            cap_type = "small"
+
     unified_profile = {
         "ticker": yf_ticker,
         "base_symbol": base_symbol,
@@ -2570,6 +2613,8 @@ def _build_financial_profile(ticker_query: str) -> dict:
         "sector": info.get("sector") or "N/A",
         "industry": info.get("industry") or "N/A",
         "business_summary": info.get("longBusinessSummary") or f"Indian company {resolution['name']} listed on the National Stock Exchange.",
+        "cap_type": cap_type,
+        "website": info.get("website") or "N/A",
         "fundamentals": {
             "market_cap_cr": float(market_cap),
             "current_price": float(current_price),
