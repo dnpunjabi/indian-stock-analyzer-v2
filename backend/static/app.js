@@ -10562,8 +10562,8 @@ function renderWatchlistItems() {
             <td class="wl-day-low" style="text-align: right; font-size: 11.5px; color: var(--text-secondary);">
                 <span style="display:inline-block; width:55px; height:14px; border-radius:3px; background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite;"></span>
             </td>
-            <td>
-                <button class="btn-secondary remove-watchlist-item-btn" data-ticker="${item.symbol}" style="font-size: 11px; padding: 4px 10px; cursor:pointer;">Remove 🗑️</button>
+            <td style="white-space: nowrap;">
+                <button class="btn-secondary remove-watchlist-item-btn" data-ticker="${item.symbol}" style="font-size: 10px; padding: 3px 8px; cursor:pointer; white-space: nowrap;" title="Remove ${item.symbol}">🗑️</button>
             </td>
         `;
         
