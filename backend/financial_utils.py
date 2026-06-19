@@ -110,8 +110,18 @@ def resolve_company_ticker(query: str) -> dict:
     # Clean common search annotations and suffixes first
     cleaned = query.strip()
     cleaned = re.sub(r'\s*\(\s*(Target|Peer)\s*\)\s*', '', cleaned, flags=re.IGNORECASE)
-    cleaned = re.sub(r'\s+(ltd|limited|corp|co|corporation)\.?\s*$', '', cleaned, flags=re.IGNORECASE).strip()
+    cleaned = re.sub(r'\s+(ltd|limited|corp|co|corporation|stock|stocks|share|shares)\.?\s*$', '', cleaned, flags=re.IGNORECASE).strip()
     
+    # Store original suffix if it ends with .NS or .BO
+    suffix = ""
+    cleaned_upper = cleaned.upper()
+    if cleaned_upper.endswith('.NS'):
+        suffix = ".NS"
+        cleaned = cleaned[:-3].strip()
+    elif cleaned_upper.endswith('.BO'):
+        suffix = ".BO"
+        cleaned = cleaned[:-3].strip()
+
     # Clean spacing inside abbreviation names (e.g. "A B B" -> "ABB", "B H E L" -> "BHEL")
     if re.match(r'^([a-zA-Z]\s)+[a-zA-Z]$', cleaned):
         cleaned = cleaned.replace(" ", "")
@@ -120,6 +130,9 @@ def resolve_company_ticker(query: str) -> dict:
     cleaned = re.sub(r'\b& ind\.?\b', 'and Industrial', cleaned, flags=re.IGNORECASE)
     cleaned = re.sub(r'\bener\.ind\.?\b', 'Energy India', cleaned, flags=re.IGNORECASE)
     
+    # Clean suffixes again just in case they were after abbreviations or inside after suffix stripping
+    cleaned = re.sub(r'\s+(ltd|limited|corp|co|corporation|stock|stocks|share|shares)\.?\s*$', '', cleaned, flags=re.IGNORECASE).strip()
+
     # 0. Check local SQLite database screener_universe first for high-speed offline resolution
     import sqlite3
     import os
@@ -163,12 +176,15 @@ def resolve_company_ticker(query: str) -> dict:
             print(f"Error resolving offline ticker in database: {db_err}")
     
     # Direct short-circuit check if query is already a standard NSE/BSE ticker symbol
-    if cleaned.upper().endswith('.NS') or cleaned.upper().endswith('.BO'):
-        base = cleaned[:-3].upper()
-        base_clean = re.sub(r'[^A-Z0-9\-\&]', '', base)
+    orig_upper = query.strip().upper()
+    if orig_upper.endswith('.NS') or orig_upper.endswith('.BO') or orig_upper.startswith('^'):
+        base = orig_upper
+        if orig_upper.endswith('.NS') or orig_upper.endswith('.BO'):
+            base = orig_upper[:-3]
+        base_clean = re.sub(r'[^A-Z0-9\-\&\^]', '', base)
         return {
             "base_symbol": base_clean,
-            "yf_ticker": f"{base_clean}.NS" if cleaned.upper().endswith('.NS') else f"{base_clean}.BO",
+            "yf_ticker": f"{base_clean}.NS" if orig_upper.endswith('.NS') else (f"{base_clean}.BO" if orig_upper.endswith('.BO') else base_clean),
             "name": base_clean
         }
         
@@ -215,11 +231,13 @@ def resolve_company_ticker(query: str) -> dict:
         
     # 4. Fallback
     clean_sym = re.sub(r'[^a-zA-Z0-9\-\&]', '', cleaned).upper()
+    resolved_suffix = suffix if suffix else ".NS"
     return {
         "base_symbol": clean_sym,
-        "yf_ticker": f"{clean_sym}.NS",
+        "yf_ticker": f"{clean_sym}{resolved_suffix}",
         "name": cleaned.title()
     }
+
 
 def clean_scraped_number(text: str) -> float:
     """Cleans a scraped number string converting it to float."""
@@ -633,7 +651,28 @@ def calculate_technical_indicators(ticker_symbol: str, stock_obj=None) -> dict:
         "vpt": 0.0,
         "adx": 22.0,
         "volume_vs_avg20": 1.0,
-        "error": False
+        "error": False,
+        # New indicators
+        "ath": 0.0,
+        "atl": 0.0,
+        "stoch_k": 50.0,
+        "stoch_d": 50.0,
+        "stoch_status": "Neutral",
+        "roc_20": 0.0,
+        "roc_status": "Neutral",
+        "cci_20": 0.0,
+        "cci_status": "Neutral",
+        "will_r_14": -50.0,
+        "will_r_status": "Neutral",
+        "mfi_14": 50.0,
+        "mfi_status": "Neutral",
+        "adx_status": "Moderate Trend",
+        "atr_status": "Moderate Volatility",
+        "rsc_6m": 0.0,
+        "rsc_status": "Neutral",
+        "crossover_short": "Neutral",
+        "crossover_medium": "Neutral",
+        "crossover_long": "Neutral"
     }
     
     try:
@@ -675,10 +714,11 @@ def calculate_technical_indicators(ticker_symbol: str, stock_obj=None) -> dict:
         result["ema_200"] = float(df['EMA_200'].iloc[-1]) if not pd.isna(df['EMA_200'].iloc[-1]) else current_price
         result["sma_150"] = float(df['SMA_150'].iloc[-1]) if not pd.isna(df['SMA_150'].iloc[-1]) or len(df) < 150 else float(df['Close'].rolling(window=min(len(df), 150)).mean().iloc[-1])
         
-        if result["sma_50"] > result["sma_200"]:
-            result["trend_50_vs_200"] = "Bullish"
-        else:
-            result["trend_50_vs_200"] = "Bearish"
+        # Moving Average Crossovers
+        result["crossover_short"] = "Bullish" if result["ema_5"] > result["ema_20"] else "Bearish"
+        result["crossover_medium"] = "Bullish" if result["ema_20"] > result["ema_50"] else "Bearish"
+        result["crossover_long"] = "Bullish" if result["sma_50"] > result["sma_200"] else "Bearish"
+        result["trend_50_vs_200"] = result["crossover_long"]
             
         high_52w = float(df['High'].max())
         low_52w = float(df['Low'].min())
@@ -692,6 +732,19 @@ def calculate_technical_indicators(ticker_symbol: str, stock_obj=None) -> dict:
         result["daily_low"] = float(df['Low'].iloc[-1]) if not pd.isna(df['Low'].iloc[-1]) else current_price
         result["daily_close"] = float(df['Close'].iloc[-1]) if not pd.isna(df['Close'].iloc[-1]) else current_price
         
+        # All-Time High / All-Time Low
+        try:
+            df_max = stock.history(period="max")
+            if not df_max.empty:
+                result["ath"] = float(df_max['High'].max())
+                result["atl"] = float(df_max['Low'].min())
+            else:
+                result["ath"] = high_52w
+                result["atl"] = low_52w
+        except Exception:
+            result["ath"] = high_52w
+            result["atl"] = low_52w
+
         price_change_pct = 0.0
         if len(df) >= 2:
             price_change_pct = float(((df['Close'].iloc[-1] - df['Close'].iloc[-2]) / df['Close'].iloc[-2]) * 100.0)
@@ -796,6 +849,107 @@ def calculate_technical_indicators(ticker_symbol: str, stock_obj=None) -> dict:
         result["volume_vs_avg20"] = float(volume_vs_avg20)
         result["volume"] = float(latest_vol)
         result["volume_avg20"] = float(latest_vol_avg)
+        
+        # Calculate Additional Oscillators
+        # 1. Stochastic (20, 3)
+        df['L20'] = df['Low'].rolling(window=20).min()
+        df['H20'] = df['High'].rolling(window=20).max()
+        df['%K'] = 100 * ((df['Close'] - df['L20']) / (df['H20'] - df['L20']).replace(0, 1))
+        df['%D'] = df['%K'].rolling(window=3).mean()
+        result["stoch_k"] = float(df['%K'].iloc[-1]) if not pd.isna(df['%K'].iloc[-1]) else 50.0
+        result["stoch_d"] = float(df['%D'].iloc[-1]) if not pd.isna(df['%D'].iloc[-1]) else 50.0
+        if result["stoch_k"] > 80:
+            result["stoch_status"] = "Overbought"
+        elif result["stoch_k"] < 20:
+            result["stoch_status"] = "Oversold"
+        else:
+            result["stoch_status"] = "Neutral"
+
+        # 2. ROC (20)
+        df['ROC_20'] = 100 * ((df['Close'] - df['Close'].shift(20)) / df['Close'].shift(20).replace(0, 1))
+        result["roc_20"] = float(df['ROC_20'].iloc[-1]) if not pd.isna(df['ROC_20'].iloc[-1]) else 0.0
+        result["roc_status"] = "Bullish" if result["roc_20"] > 0 else "Bearish"
+
+        # 3. CCI (20)
+        df['TP'] = (df['High'] + df['Low'] + df['Close']) / 3
+        df['SMA_TP'] = df['TP'].rolling(window=20).mean()
+        df['MAD_TP'] = df['TP'].rolling(window=20).apply(lambda x: np.abs(x - x.mean()).mean(), raw=True)
+        df['CCI'] = (df['TP'] - df['SMA_TP']) / (0.015 * df['MAD_TP'].replace(0, 1))
+        result["cci_20"] = float(df['CCI'].iloc[-1]) if not pd.isna(df['CCI'].iloc[-1]) else 0.0
+        if result["cci_20"] > 100:
+            result["cci_status"] = "Overbought"
+        elif result["cci_20"] < -100:
+            result["cci_status"] = "Oversold"
+        else:
+            result["cci_status"] = "Neutral"
+
+        # 4. Williams %R (14)
+        df['L14'] = df['Low'].rolling(window=14).min()
+        df['H14'] = df['High'].rolling(window=14).max()
+        df['WillR'] = -100 * ((df['H14'] - df['Close']) / (df['H14'] - df['L14']).replace(0, 1))
+        result["will_r_14"] = float(df['WillR'].iloc[-1]) if not pd.isna(df['WillR'].iloc[-1]) else -50.0
+        if result["will_r_14"] > -20:
+            result["will_r_status"] = "Overbought"
+        elif result["will_r_14"] < -80:
+            result["will_r_status"] = "Oversold"
+        else:
+            result["will_r_status"] = "Neutral"
+
+        # 5. MFI (14)
+        df['TypicalPrice'] = (df['High'] + df['Low'] + df['Close']) / 3
+        df['RawMoneyFlow'] = df['TypicalPrice'] * df['Volume']
+        df['PriceDiff'] = df['TypicalPrice'].diff()
+        df['PosMF'] = np.where(df['PriceDiff'] > 0, df['RawMoneyFlow'], 0)
+        df['NegMF'] = np.where(df['PriceDiff'] < 0, df['RawMoneyFlow'], 0)
+        df['PosMF_sum'] = df['PosMF'].rolling(window=14).sum()
+        df['NegMF_sum'] = df['NegMF'].rolling(window=14).sum()
+        df['MFR'] = df['PosMF_sum'] / df['NegMF_sum'].replace(0, 1)
+        df['MFI'] = 100 - (100 / (1 + df['MFR']))
+        result["mfi_14"] = float(df['MFI'].iloc[-1]) if not pd.isna(df['MFI'].iloc[-1]) else 50.0
+        if result["mfi_14"] > 80:
+            result["mfi_status"] = "Overbought"
+        elif result["mfi_14"] < 20:
+            result["mfi_status"] = "Oversold"
+        else:
+            result["mfi_status"] = "Neutral"
+
+        # Volatility Ratings
+        volatility_ratio = (result["atr"] / current_price * 100) if current_price > 0 else 0.0
+        if volatility_ratio > 3.0:
+            result["atr_status"] = "High Volatility"
+        elif volatility_ratio < 1.5:
+            result["atr_status"] = "Low Volatility"
+        else:
+            result["atr_status"] = "Moderate Volatility"
+
+        # Trend Strength
+        if result["adx"] > 25:
+            result["adx_status"] = "Strong Trend"
+        elif result["adx"] < 20:
+            result["adx_status"] = "Weak Trend"
+        else:
+            result["adx_status"] = "Moderate Trend"
+
+        # RSC 6M vs Nifty 50 Benchmark
+        rsc_val = 0.0
+        try:
+            bench_sym = "^BSESN" if ticker_symbol.upper().endswith(".BO") else "^NSEI"
+            bench_stock = yf.Ticker(bench_sym)
+            df_bench = bench_stock.history(period="6mo")
+            if not df_bench.empty and len(df) >= 120 and len(df_bench) >= 120:
+                stock_start = float(df['Close'].iloc[-min(120, len(df))])
+                stock_end = float(df['Close'].iloc[-1])
+                stock_ret = ((stock_end - stock_start) / stock_start) * 100.0 if stock_start > 0 else 0.0
+                
+                bench_start = float(df_bench['Close'].iloc[-min(120, len(df_bench))])
+                bench_end = float(df_bench['Close'].iloc[-1])
+                bench_ret = ((bench_end - bench_start) / bench_start) * 100.0 if bench_start > 0 else 0.0
+                
+                rsc_val = stock_ret - bench_ret
+        except Exception:
+            pass
+        result["rsc_6m"] = rsc_val
+        result["rsc_status"] = "Outperformer" if rsc_val > 0 else "Underperformer"
 
         # Calculate ATR% (14-day ATR / Close)
         df['ATR_pct'] = (df['ATR'] / df['Close']) * 100.0

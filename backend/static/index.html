@@ -713,13 +713,13 @@
                                     </div>
                                 </div>
 
-                                <!-- Open & Previous Close -->
-                                <div class="meta-stat-card" title="Today's opening trade price compared to the last market session's official close price.">
+                                <!-- Financial Health -->
+                                <div class="meta-stat-card" title="Overall fundamental quality: Piotroski F-Score (0-9) and Altman Z-Score solvency indicator.">
                                     <div style="font-size: 9px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 4px;">
-                                        <span>🚪</span> Open / Close
+                                        <span>🩺</span> Financial Health
                                     </div>
-                                    <div style="font-size: 11px; font-weight: 700; color: var(--text-primary); margin-top: 2px;" id="meta-open-close-val">O: -- | C: --</div>
-                                    <div style="font-size: 8.5px; color: var(--text-muted); text-transform: uppercase;">Prior Session Metrics</div>
+                                    <div style="font-size: 11px; font-weight: 700; color: var(--text-primary); margin-top: 2px;" id="meta-health-val">F-Score: -- | Z-Score: --</div>
+                                    <div style="font-size: 8.5px; color: var(--text-muted); text-transform: uppercase;" id="meta-health-status">Solvency Check</div>
                                 </div>
 
                                 <!-- Momentum (RSI) -->
@@ -744,13 +744,131 @@
                                 </div>
 
                                 <!-- Benchmarks -->
-                                <div class="meta-stat-card" title="Real-time performance of benchmark indices: Nifty 50 (^NSEI) and Sensex (^BSESN).">
+                                <div class="meta-stat-card" style="min-width: 175px;" title="Real-time performance of benchmark indices: Nifty 50 (^NSEI) and Sensex (^BSESN).">
                                     <div style="font-size: 9px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 4px; width: 100%;">
                                         <span>🎯</span> Benchmarks
                                     </div>
                                     <div style="display: flex; flex-direction: column; gap: 2px; width: 100%; margin-top: 2px;">
                                         <span id="meta-nifty-bench" style="font-size: 9.5px; font-weight: 600; color: var(--text-secondary); white-space: nowrap;">Nifty: --</span>
                                         <span id="meta-sensex-bench" style="font-size: 9.5px; font-weight: 600; color: var(--text-secondary); white-space: nowrap;">Sensex: --</span>
+                                    </div>
+                                </div>
+
+                                <!-- Systemic Risk -->
+                                <div class="meta-stat-card" title="Systematic market risk parameters: Beta volatility sensitivity and Correlation coefficient relative to Nifty 50 Index.">
+                                    <div style="font-size: 9px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 4px;">
+                                        <span>⚖️</span> Systemic Risk
+                                    </div>
+                                    <div style="font-size: 11px; font-weight: 700; color: var(--text-primary); margin-top: 2px;" id="meta-beta-val">Beta: -- | Corr: --</div>
+                                    <div style="font-size: 8.5px; color: var(--text-muted); text-transform: uppercase;" id="meta-beta-status">Beta Volatility</div>
+                                </div>
+
+                                <!-- All Time High/Low -->
+                                <div class="meta-stat-card" title="All-Time High and All-Time Low historical stock price limits.">
+                                    <div style="font-size: 9px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 4px;">
+                                        <span>🏔️</span> All-Time High/Low
+                                    </div>
+                                    <div style="font-size: 10px; font-weight: 700; color: var(--text-primary); margin-top: 2.5px; line-height: 1.3;" id="meta-ath-atl-val">ATH: --<br>ATL: --</div>
+                                    <div style="font-size: 8.5px; color: var(--text-muted); text-transform: uppercase;">Lifetime Limits</div>
+                                </div>
+
+                                <!-- Technical Indicators Dropdown Card -->
+                                <div class="meta-stat-card technical-indicators-card" title="Hover to view full Technical Indicators breakdown.">
+                                    <div style="font-size: 9px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 4px;">
+                                        <span>📊</span> Tech Oscillators
+                                    </div>
+                                    <div style="font-size: 11px; font-weight: 700; color: var(--text-primary); margin-top: 2px;" id="meta-tech-summary-val">-- Bullish</div>
+                                    <div style="font-size: 8.5px; color: var(--text-muted);" id="meta-tech-summary-lbl">-- Neutral | -- Bearish</div>
+                                    
+                                    <!-- Dropdown panel -->
+                                    <div class="meta-dropdown-panel" id="meta-tech-dropdown" style="right: 0;">
+                                        <table style="width: 100%; border-collapse: collapse;">
+                                            <thead>
+                                                <tr>
+                                                    <th>Indicator</th>
+                                                    <th>Level</th>
+                                                    <th style="text-align: right;">Indication</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="meta-tech-dropdown-body">
+                                                <tr><td colspan="3" style="text-align: center; color: var(--text-muted);">No stock loaded</td></tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                <!-- Moving Average Crossovers Card -->
+                                <div class="meta-stat-card crossovers-card" title="Hover to view Moving Average Crossovers details.">
+                                    <div style="font-size: 9px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 4px;">
+                                        <span>🔄</span> MA Crossovers
+                                    </div>
+                                    <div style="font-size: 11px; font-weight: 700; color: var(--text-primary); margin-top: 2px;" id="meta-cross-summary-val">-- Crossovers</div>
+                                    <div style="font-size: 8.5px; color: var(--text-muted);" id="meta-cross-summary-lbl">Moving Average Timing</div>
+                                    
+                                    <!-- Dropdown panel -->
+                                    <div class="meta-dropdown-panel" id="meta-cross-dropdown" style="right: 0;">
+                                        <table style="width: 100%; border-collapse: collapse;">
+                                            <thead>
+                                                <tr>
+                                                    <th>Period</th>
+                                                    <th>Crossover</th>
+                                                    <th style="text-align: right;">Indication</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="meta-cross-dropdown-body">
+                                                <tr><td colspan="3" style="text-align: center; color: var(--text-muted);">No stock loaded</td></tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                <!-- Valuation & Consensus Card -->
+                                <div class="meta-stat-card valuation-consensus-card" title="Hover to view Valuation Multiples & Analyst Consensus details.">
+                                    <div style="font-size: 9px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 4px;">
+                                        <span>💎</span> Valuation & Targets
+                                    </div>
+                                    <div style="font-size: 11px; font-weight: 700; color: var(--text-primary); margin-top: 2px;" id="meta-val-summary">PE: -- | DY: --%</div>
+                                    <div style="font-size: 8.5px; color: var(--text-muted);" id="meta-val-lbl">Consensus: --</div>
+                                    
+                                    <!-- Dropdown panel -->
+                                    <div class="meta-dropdown-panel" id="meta-val-dropdown" style="right: 0;">
+                                        <table style="width: 100%; border-collapse: collapse;">
+                                            <thead>
+                                                <tr>
+                                                    <th>Metric / Target</th>
+                                                    <th>Value</th>
+                                                    <th style="text-align: right;">Detail / Status</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="meta-val-dropdown-body">
+                                                <tr><td colspan="3" style="text-align: center; color: var(--text-muted);">No stock loaded</td></tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                <!-- Fibonacci Retracements Card -->
+                                <div class="meta-stat-card fibonacci-card" title="Hover to view key Fibonacci Retracement levels.">
+                                    <div style="font-size: 9px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 4px;">
+                                        <span>📐</span> Fibonacci Levels
+                                    </div>
+                                    <div style="font-size: 11px; font-weight: 700; color: var(--text-primary); margin-top: 2px;" id="meta-fib-summary">Fib 50.0%: --</div>
+                                    <div style="font-size: 8.5px; color: var(--text-muted);" id="meta-fib-lbl">Support / Resistance</div>
+                                    
+                                    <!-- Dropdown panel -->
+                                    <div class="meta-dropdown-panel" id="meta-fib-dropdown" style="right: 0;">
+                                        <table style="width: 100%; border-collapse: collapse;">
+                                            <thead>
+                                                <tr>
+                                                    <th>Ratio (%)</th>
+                                                    <th>Level</th>
+                                                    <th style="text-align: right;">Type / Zone</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="meta-fib-dropdown-body">
+                                                <tr><td colspan="3" style="text-align: center; color: var(--text-muted);">No stock loaded</td></tr>
+                                            </tbody>
+                                        </table>
                                     </div>
                                 </div>
                             </div>
@@ -1164,6 +1282,107 @@
                                     <div style="background: rgba(255, 255, 255, 0.015); border: 1px solid var(--border-glass); border-radius: 6px; padding: 6px 10px; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 45px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); box-sizing: border-box;">
                                         <span style="font-size: 8px; color: var(--text-secondary); text-transform: uppercase; font-weight: 600; letter-spacing: 0.03em; font-family: 'Outfit', sans-serif;">Close</span>
                                         <strong id="tech-daily-close" style="font-size: 11px; margin-top: 3px; color: var(--text-primary); font-family: 'Outfit', sans-serif;">Rs. 0.00</strong>
+                                    </div>
+                                </div>
+
+                                <!-- Row 4: Moving Average Crossovers & Oscillators (2 Columns) -->
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; box-sizing: border-box; margin-top: 15px;">
+                                    <!-- Column 1: Moving Average Crossovers -->
+                                    <div style="background: var(--bg-card-sub); border: 1px solid var(--border-sub); border-radius: 8px; padding: 12px; box-sizing: border-box;">
+                                        <h4 style="font-family: 'Outfit', sans-serif; font-size: 10px; font-weight: 700; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 10px 0; display: flex; align-items: center; gap: 6px;">
+                                            <span>📈</span> Moving Average Crossovers
+                                        </h4>
+                                        <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+                                            <thead>
+                                                <tr style="border-bottom: 1px solid rgba(255,255,255,0.06); text-align: left; font-size: 9px; text-transform: uppercase; color: var(--text-secondary);">
+                                                    <th style="padding: 6px 4px;">Timeframe</th>
+                                                    <th style="padding: 6px 4px;">DMA Crossover</th>
+                                                    <th style="padding: 6px 4px; text-align: right;">Indication</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr style="border-bottom: 1px dashed rgba(255,255,255,0.04);">
+                                                    <td style="padding: 8px 4px; font-weight: 600; color: var(--text-secondary);">Short Term</td>
+                                                    <td style="padding: 8px 4px;">5 & 20 DMA Crossover</td>
+                                                    <td style="padding: 8px 4px; text-align: right; font-weight: 700;" id="tech-cross-short">--</td>
+                                                </tr>
+                                                <tr style="border-bottom: 1px dashed rgba(255,255,255,0.04);">
+                                                    <td style="padding: 8px 4px; font-weight: 600; color: var(--text-secondary);">Medium Term</td>
+                                                    <td style="padding: 8px 4px;">20 & 50 DMA Crossover</td>
+                                                    <td style="padding: 8px 4px; text-align: right; font-weight: 700;" id="tech-cross-medium">--</td>
+                                                </tr>
+                                                <tr>
+                                                    <td style="padding: 8px 4px; font-weight: 600; color: var(--text-secondary);">Long Term</td>
+                                                    <td style="padding: 8px 4px;">50 & 200 DMA Crossover</td>
+                                                    <td style="padding: 8px 4px; text-align: right; font-weight: 700;" id="tech-cross-long">--</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    
+                                    <!-- Column 2: Advanced Oscillators & Performance -->
+                                    <div style="background: var(--bg-card-sub); border: 1px solid var(--border-sub); border-radius: 8px; padding: 12px; box-sizing: border-box;">
+                                        <h4 style="font-family: 'Outfit', sans-serif; font-size: 10px; font-weight: 700; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 10px 0; display: flex; align-items: center; gap: 6px;">
+                                            <span>📊</span> Momentum Oscillators
+                                        </h4>
+                                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 10.5px;">
+                                            <div style="display: flex; flex-direction: column; gap: 4px; background: rgba(255,255,255,0.015); border: 1px solid var(--border-glass); padding: 6px 10px; border-radius: 6px;">
+                                                <span style="font-size: 8px; color: var(--text-secondary); text-transform: uppercase; font-weight: 600; letter-spacing: 0.02em;">MACD (12,26,9)</span>
+                                                <div style="display: flex; justify-content: space-between; align-items: center; font-weight: 700; margin-top: 2px;">
+                                                    <span id="tech-macd-val">--</span>
+                                                    <span id="tech-macd-status" style="font-size: 8px; font-weight: 800; padding: 1px 4px; border-radius: 3px;">--</span>
+                                                </div>
+                                            </div>
+                                            <div style="display: flex; flex-direction: column; gap: 4px; background: rgba(255,255,255,0.015); border: 1px solid var(--border-glass); padding: 6px 10px; border-radius: 6px;">
+                                                <span style="font-size: 8px; color: var(--text-secondary); text-transform: uppercase; font-weight: 600; letter-spacing: 0.02em;">Stochastic (20,3)</span>
+                                                <div style="display: flex; justify-content: space-between; align-items: center; font-weight: 700; margin-top: 2px;">
+                                                    <span id="tech-stoch-val">--</span>
+                                                    <span id="tech-stoch-status" style="font-size: 8px; font-weight: 800; padding: 1px 4px; border-radius: 3px;">--</span>
+                                                </div>
+                                            </div>
+                                            <div style="display: flex; flex-direction: column; gap: 4px; background: rgba(255,255,255,0.015); border: 1px solid var(--border-glass); padding: 6px 10px; border-radius: 6px;">
+                                                <span style="font-size: 8px; color: var(--text-secondary); text-transform: uppercase; font-weight: 600; letter-spacing: 0.02em;">ROC (20)</span>
+                                                <div style="display: flex; justify-content: space-between; align-items: center; font-weight: 700; margin-top: 2px;">
+                                                    <span id="tech-roc-val">--</span>
+                                                    <span id="tech-roc-status" style="font-size: 8px; font-weight: 800; padding: 1px 4px; border-radius: 3px;">--</span>
+                                                </div>
+                                            </div>
+                                            <div style="display: flex; flex-direction: column; gap: 4px; background: rgba(255,255,255,0.015); border: 1px solid var(--border-glass); padding: 6px 10px; border-radius: 6px;">
+                                                <span style="font-size: 8px; color: var(--text-secondary); text-transform: uppercase; font-weight: 600; letter-spacing: 0.02em;">CCI (20)</span>
+                                                <div style="display: flex; justify-content: space-between; align-items: center; font-weight: 700; margin-top: 2px;">
+                                                    <span id="tech-cci-val">--</span>
+                                                    <span id="tech-cci-status" style="font-size: 8px; font-weight: 800; padding: 1px 4px; border-radius: 3px;">--</span>
+                                                </div>
+                                            </div>
+                                            <div style="display: flex; flex-direction: column; gap: 4px; background: rgba(255,255,255,0.015); border: 1px solid var(--border-glass); padding: 6px 10px; border-radius: 6px;">
+                                                <span style="font-size: 8px; color: var(--text-secondary); text-transform: uppercase; font-weight: 600; letter-spacing: 0.02em;">Williamson %R (14)</span>
+                                                <div style="display: flex; justify-content: space-between; align-items: center; font-weight: 700; margin-top: 2px;">
+                                                    <span id="tech-willr-val">--</span>
+                                                    <span id="tech-willr-status" style="font-size: 8px; font-weight: 800; padding: 1px 4px; border-radius: 3px;">--</span>
+                                                </div>
+                                            </div>
+                                            <div style="display: flex; flex-direction: column; gap: 4px; background: rgba(255,255,255,0.015); border: 1px solid var(--border-glass); padding: 6px 10px; border-radius: 6px;">
+                                                <span style="font-size: 8px; color: var(--text-secondary); text-transform: uppercase; font-weight: 600; letter-spacing: 0.02em;">MFI (14)</span>
+                                                <div style="display: flex; justify-content: space-between; align-items: center; font-weight: 700; margin-top: 2px;">
+                                                    <span id="tech-mfi-val">--</span>
+                                                    <span id="tech-mfi-status" style="font-size: 8px; font-weight: 800; padding: 1px 4px; border-radius: 3px;">--</span>
+                                                </div>
+                                            </div>
+                                            <div style="display: flex; flex-direction: column; gap: 4px; background: rgba(255,255,255,0.015); border: 1px solid var(--border-glass); padding: 6px 10px; border-radius: 6px;">
+                                                <span style="font-size: 8px; color: var(--text-secondary); text-transform: uppercase; font-weight: 600; letter-spacing: 0.02em;">ADX (14)</span>
+                                                <div style="display: flex; justify-content: space-between; align-items: center; font-weight: 700; margin-top: 2px;">
+                                                    <span id="tech-adx-val">--</span>
+                                                    <span id="tech-adx-status" style="font-size: 8px; font-weight: 800; padding: 1px 4px; border-radius: 3px;">--</span>
+                                                </div>
+                                            </div>
+                                            <div style="display: flex; flex-direction: column; gap: 4px; background: rgba(255,255,255,0.015); border: 1px solid var(--border-glass); padding: 6px 10px; border-radius: 6px;">
+                                                <span style="font-size: 8px; color: var(--text-secondary); text-transform: uppercase; font-weight: 600; letter-spacing: 0.02em;">Relative Strength (RSC)</span>
+                                                <div style="display: flex; justify-content: space-between; align-items: center; font-weight: 700; margin-top: 2px;">
+                                                    <span id="tech-rsc-val">--</span>
+                                                    <span id="tech-rsc-status" style="font-size: 8px; font-weight: 800; padding: 1px 4px; border-radius: 3px;">--</span>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

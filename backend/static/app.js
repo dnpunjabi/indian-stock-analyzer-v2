@@ -1210,6 +1210,34 @@ function resetWorkspace() {
     const change = document.getElementById('meta-change');
     if (change) change.innerText = '';
 
+    const techSummaryVal = document.getElementById('meta-tech-summary-val');
+    if (techSummaryVal) techSummaryVal.innerText = '-- Bullish';
+    const techSummaryLbl = document.getElementById('meta-tech-summary-lbl');
+    if (techSummaryLbl) techSummaryLbl.innerText = '-- Neutral | -- Bearish';
+    const techDropdownBody = document.getElementById('meta-tech-dropdown-body');
+    if (techDropdownBody) techDropdownBody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--text-muted);">No stock loaded</td></tr>';
+
+    const crossSummaryVal = document.getElementById('meta-cross-summary-val');
+    if (crossSummaryVal) crossSummaryVal.innerText = '-- Crossovers';
+    const crossSummaryLbl = document.getElementById('meta-cross-summary-lbl');
+    if (crossSummaryLbl) crossSummaryLbl.innerText = 'Moving Average Timing';
+    const crossDropdownBody = document.getElementById('meta-cross-dropdown-body');
+    if (crossDropdownBody) crossDropdownBody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--text-muted);">No stock loaded</td></tr>';
+
+    const valSummary = document.getElementById('meta-val-summary');
+    if (valSummary) valSummary.innerText = 'PE: -- | DY: --%';
+    const valLbl = document.getElementById('meta-val-lbl');
+    if (valLbl) valLbl.innerText = 'Consensus: --';
+    const valDropdownBody = document.getElementById('meta-val-dropdown-body');
+    if (valDropdownBody) valDropdownBody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--text-muted);">No stock loaded</td></tr>';
+
+    const fibSummary = document.getElementById('meta-fib-summary');
+    if (fibSummary) fibSummary.innerText = 'Fib 50.0%: --';
+    const fibLbl = document.getElementById('meta-fib-lbl');
+    if (fibLbl) fibLbl.innerText = 'Support / Resistance';
+    const fibDropdownBody = document.getElementById('meta-fib-dropdown-body');
+    if (fibDropdownBody) fibDropdownBody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--text-muted);">No stock loaded</td></tr>';
+
     const conviction = document.getElementById('meta-ai-conviction-text');
     if (conviction) conviction.innerText = 'Score: --/100';
 
@@ -3444,6 +3472,399 @@ async function loadStockAnalyzer(query) {
     }
 }
 
+function updateMetaBannerDetails(f, t, eq, capm, consensus) {
+    if (!f) return;
+
+    // 1. Live Price
+    const priceEl = document.getElementById('meta-price');
+    if (priceEl && f.current_price !== undefined) {
+        priceEl.innerText = safeFormatRupees(f.current_price, 2);
+    }
+
+    // 2. Day Range Low / High
+    const dayLowEl = document.getElementById('meta-day-low');
+    const dayHighEl = document.getElementById('meta-day-high');
+    if (dayLowEl && f.day_low !== undefined) {
+        dayLowEl.innerText = `L: ₹${f.day_low.toFixed(2)}`;
+    }
+    if (dayHighEl && f.day_high !== undefined) {
+        dayHighEl.innerText = `H: ₹${f.day_high.toFixed(2)}`;
+    }
+    if (f.current_price !== undefined && f.day_low !== undefined && f.day_high !== undefined) {
+        updateMetaRangeProgress(f.current_price, f.day_low, f.day_high, 'meta-day-bar');
+    }
+
+    // 3. 52-Week Range Low / High
+    const low52El = document.getElementById('meta-52w-low');
+    const high52El = document.getElementById('meta-52w-high');
+    if (low52El && f.low_52week !== undefined) {
+        low52El.innerText = `L: ₹${f.low_52week.toFixed(2)}`;
+    }
+    if (high52El && f.high_52week !== undefined) {
+        high52El.innerText = `H: ₹${f.high_52week.toFixed(2)}`;
+    }
+    if (f.current_price !== undefined && f.low_52week !== undefined && f.high_52week !== undefined) {
+        updateMetaRangeProgress(f.current_price, f.low_52week, f.high_52week, 'meta-52w-bar');
+    }
+
+    // 4. Financial Health (Piotroski & Altman Z-Score)
+    const healthValEl = document.getElementById('meta-health-val');
+    const healthStatusEl = document.getElementById('meta-health-status');
+    if (healthValEl && healthStatusEl) {
+        const pScore = eq && eq.piotroski_score !== undefined ? eq.piotroski_score : '--';
+        const zScore = eq && eq.altman_z_score !== undefined && eq.altman_z_score !== null ? eq.altman_z_score.toFixed(2) : '--';
+        healthValEl.innerText = `F-Score: ${pScore}/9 | Z-Score: ${zScore}`;
+        
+        let statusText = 'Solvency Check';
+        let statusColor = 'var(--text-muted)';
+        if (eq && eq.altman_zone) {
+            statusText = eq.altman_zone;
+            if (eq.altman_zone.toLowerCase().includes('safe')) {
+                statusColor = 'var(--neon-green)';
+            } else if (eq.altman_zone.toLowerCase().includes('distress')) {
+                statusColor = 'var(--neon-red)';
+            } else {
+                statusColor = 'var(--neon-blue)';
+            }
+        }
+        healthStatusEl.innerText = statusText;
+        healthStatusEl.style.color = statusColor;
+    }
+
+    // 5. RSI
+    const rsiValEl = document.getElementById('meta-rsi-val');
+    const rsiBadgeEl = document.getElementById('meta-rsi-badge');
+    const rsiContextEl = document.getElementById('meta-rsi-context');
+    const rsiVal = t && t.rsi !== undefined && t.rsi !== null ? t.rsi : 50;
+    if (rsiValEl) {
+        rsiValEl.innerText = rsiVal.toFixed(1);
+    }
+    if (rsiBadgeEl) {
+        let status = 'NEUTRAL';
+        let bg = 'rgba(255,255,255,0.08)';
+        let fg = 'var(--text-primary)';
+        if (rsiVal >= 70) {
+            status = 'OVERBOUGHT';
+            bg = 'rgba(239, 68, 68, 0.15)';
+            fg = '#ef4444';
+        } else if (rsiVal <= 30) {
+            status = 'OVERSOLD';
+            bg = 'rgba(16, 185, 129, 0.15)';
+            fg = '#10b981';
+        }
+        rsiBadgeEl.innerText = status;
+        rsiBadgeEl.style.backgroundColor = bg;
+        rsiBadgeEl.style.color = fg;
+    }
+    if (rsiContextEl) {
+        rsiContextEl.innerText = rsiVal >= 70 ? 'Correction Threat' : (rsiVal <= 30 ? 'Potential Buy Zone' : 'Relative Strength');
+    }
+
+    // 6. Volume & Volume Ratio
+    const volRatioEl = document.getElementById('meta-volume-ratio');
+    const volRawEl = document.getElementById('meta-volume-raw');
+    const volRatio = t && t.volume_vs_avg20 !== undefined && t.volume_vs_avg20 !== null ? t.volume_vs_avg20 : 1.0;
+    if (volRatioEl) {
+        volRatioEl.innerText = `${volRatio.toFixed(2)}x Avg Vol`;
+    }
+    const volVal = f.volume !== undefined && f.volume !== null ? f.volume : (t ? t.volume : null);
+    if (volRawEl) {
+        if (volVal !== undefined && volVal !== null && volVal > 0) {
+            let formattedVol = '';
+            if (volVal >= 10000000) {
+                formattedVol = `${(volVal / 10000000).toFixed(2)} Cr`;
+            } else if (volVal >= 100000) {
+                formattedVol = `${(volVal / 100000).toFixed(2)} L`;
+            } else {
+                formattedVol = volVal.toLocaleString('en-IN');
+            }
+            volRawEl.innerText = `Vol: ${formattedVol}`;
+        } else {
+            volRawEl.innerText = 'Vol: --';
+        }
+    }
+
+    // 7. Systemic Risk (Beta & Correlation)
+    const betaValEl = document.getElementById('meta-beta-val');
+    const betaStatusEl = document.getElementById('meta-beta-status');
+    if (betaValEl && betaStatusEl) {
+        const betaVal = capm && capm.beta !== undefined && capm.beta !== null ? capm.beta.toFixed(2) : '--';
+        const corrVal = capm && capm.correlation !== undefined && capm.correlation !== null ? capm.correlation.toFixed(2) : '--';
+        betaValEl.innerText = `Beta: ${betaVal} | Corr: ${corrVal}`;
+        
+        let statusText = 'Beta Volatility';
+        let statusColor = 'var(--text-muted)';
+        if (capm && capm.beta !== undefined && capm.beta !== null) {
+            if (capm.beta > 1.2) {
+                statusText = 'High Sensitivity';
+                statusColor = 'var(--neon-red)';
+            } else if (capm.beta < 0.8) {
+                statusText = 'Defensive Profile';
+                statusColor = 'var(--neon-green)';
+            } else {
+                statusText = 'Market Matching';
+                statusColor = 'var(--neon-blue)';
+            }
+        }
+        betaStatusEl.innerText = statusText;
+        betaStatusEl.style.color = statusColor;
+    }
+
+    // 8. All-Time High / Low
+    const athAtlEl = document.getElementById('meta-ath-atl-val');
+    if (athAtlEl) {
+        const ath = t && t.ath !== undefined && t.ath > 0 ? `₹${t.ath.toFixed(1)}` : '--';
+        const atl = t && t.atl !== undefined && t.atl > 0 ? `₹${t.atl.toFixed(1)}` : '--';
+        athAtlEl.innerHTML = `ATH: ${ath}<br>ATL: ${atl}`;
+    }
+
+    // 9. Technical Indicators Summary Card & Dropdown Table
+    const techSummaryValEl = document.getElementById('meta-tech-summary-val');
+    const techSummaryLblEl = document.getElementById('meta-tech-summary-lbl');
+    const techDropdownBodyEl = document.getElementById('meta-tech-dropdown-body');
+
+    if (t) {
+        let bullishCount = 0;
+        let bearishCount = 0;
+        let neutralCount = 0;
+
+        const macdHistVal = t.macd_hist !== undefined && t.macd_hist !== null ? t.macd_hist : 0;
+        const macdInd = macdHistVal > 0 ? "Bullish" : (macdHistVal < 0 ? "Bearish" : "Neutral");
+
+        const indicators = [
+            { name: "RSI (14)", val: t.rsi !== undefined && t.rsi !== null ? t.rsi.toFixed(2) : "--", status: t.rsi_status || "Neutral" },
+            { name: "MACD (12,26,9)", val: t.macd !== undefined && t.macd !== null ? t.macd.toFixed(2) : "--", status: macdInd },
+            { name: "Stochastic (20,3)", val: t.stoch_k !== undefined && t.stoch_k !== null ? t.stoch_k.toFixed(2) : "--", status: t.stoch_status || "Neutral" },
+            { name: "ROC (20)", val: t.roc_20 !== undefined && t.roc_20 !== null ? t.roc_20.toFixed(2) : "--", status: t.roc_status || "Neutral" },
+            { name: "CCI (20)", val: t.cci_20 !== undefined && t.cci_20 !== null ? t.cci_20.toFixed(2) : "--", status: t.cci_status || "Neutral" },
+            { name: "Williamson %R (14)", val: t.will_r_14 !== undefined && t.will_r_14 !== null ? t.will_r_14.toFixed(2) : "--", status: t.will_r_status || "Neutral" },
+            { name: "MFI (14)", val: t.mfi_14 !== undefined && t.mfi_14 !== null ? t.mfi_14.toFixed(2) : "--", status: t.mfi_status || "Neutral" },
+            { name: "ATR (14)", val: t.atr !== undefined && t.atr !== null ? t.atr.toFixed(2) : "--", status: t.atr_status || "Neutral" },
+            { name: "ADX (14)", val: t.adx !== undefined && t.adx !== null ? t.adx.toFixed(2) : "--", status: t.adx_status || "Neutral" },
+            { name: "RSC (6 months)", val: t.rsc_6m !== undefined && t.rsc_6m !== null ? t.rsc_6m.toFixed(2) : "--", status: t.rsc_status || "Neutral" }
+        ];
+
+        let rowsHtml = '';
+        indicators.forEach(ind => {
+            const statusClass = ind.status.toLowerCase();
+            let badgeClass = 'neutral';
+            if (statusClass.includes('bullish') || statusClass.includes('oversold') || statusClass.includes('outperformer') || statusClass.includes('strong trend') || statusClass.includes('low vol')) {
+                badgeClass = 'bullish';
+                if (statusClass.includes('bullish') || statusClass.includes('oversold') || statusClass.includes('outperformer')) {
+                    bullishCount++;
+                }
+            } else if (statusClass.includes('bearish') || statusClass.includes('overbought') || statusClass.includes('underperformer') || statusClass.includes('high vol')) {
+                badgeClass = 'bearish';
+                if (statusClass.includes('bearish') || statusClass.includes('overbought') || statusClass.includes('underperformer')) {
+                    bearishCount++;
+                }
+            } else {
+                neutralCount++;
+            }
+
+            // Specific classes for status styling
+            if (statusClass.includes('strong-trend') || statusClass === 'strong trend') {
+                badgeClass = 'strong-trend';
+            } else if (statusClass.includes('high volatility') || statusClass === 'high-vol' || statusClass.includes('high vol')) {
+                badgeClass = 'bearish';
+            } else if (statusClass.includes('low volatility') || statusClass === 'low-vol' || statusClass.includes('low vol')) {
+                badgeClass = 'bullish';
+            } else if (statusClass.includes('moderate') || statusClass.includes('mod-vol') || statusClass.includes('weak trend')) {
+                badgeClass = 'mod-vol';
+            }
+
+            rowsHtml += `
+                <tr>
+                    <td style="padding: 4px 6px; font-weight: 500;">${ind.name}</td>
+                    <td style="padding: 4px 6px; font-family: monospace;">${ind.val}</td>
+                    <td style="padding: 4px 6px; text-align: right;">
+                        <span class="meta-ind-badge ${badgeClass}">${ind.status}</span>
+                    </td>
+                </tr>
+            `;
+        });
+
+        if (techDropdownBodyEl) techDropdownBodyEl.innerHTML = rowsHtml;
+        if (techSummaryValEl) techSummaryValEl.innerText = `${bullishCount} Bullish | ${bearishCount} Bearish`;
+        if (techSummaryLblEl) techSummaryLblEl.innerText = `${neutralCount} Neutral Indicators`;
+
+        // 10. Moving Average Crossover Summary Card & Dropdown Table
+        const crossSummaryValEl = document.getElementById('meta-cross-summary-val');
+        const crossSummaryLblEl = document.getElementById('meta-cross-summary-lbl');
+        const crossDropdownBodyEl = document.getElementById('meta-cross-dropdown-body');
+
+        const crossovers = [
+            { term: "Short Term", name: "5 & 20 DMA Crossover", status: t.crossover_short || "Neutral" },
+            { term: "Medium Term", name: "20 & 50 DMA Crossover", status: t.crossover_medium || "Neutral" },
+            { term: "Long Term", name: "50 & 200 DMA Crossover", status: t.crossover_long || "Neutral" }
+        ];
+
+        let crossBullish = 0;
+        let crossBearish = 0;
+        let crossRowsHtml = '';
+
+        crossovers.forEach(cross => {
+            const statusClass = cross.status.toLowerCase();
+            let badgeClass = 'neutral';
+            if (statusClass.includes('bullish')) {
+                badgeClass = 'bullish';
+                crossBullish++;
+            } else if (statusClass.includes('bearish')) {
+                badgeClass = 'bearish';
+                crossBearish++;
+            }
+
+            crossRowsHtml += `
+                <tr>
+                    <td style="padding: 6px 8px; font-weight: 600;">${cross.term}</td>
+                    <td style="padding: 6px 8px;">${cross.name}</td>
+                    <td style="padding: 6px 8px; text-align: right;">
+                        <span class="meta-ind-badge ${badgeClass}">${cross.status}</span>
+                    </td>
+                </tr>
+            `;
+        });
+
+        if (crossDropdownBodyEl) crossDropdownBodyEl.innerHTML = crossRowsHtml;
+        if (crossSummaryValEl) crossSummaryValEl.innerText = `${crossBullish} Bullish Cross`;
+        if (crossSummaryLblEl) crossSummaryLblEl.innerText = `${crossBearish} Bearish Crossovers`;
+
+        // 11. Valuation & Consensus Card Dropdown Table
+        const valSummaryEl = document.getElementById('meta-val-summary');
+        const valLblEl = document.getElementById('meta-val-lbl');
+        const valDropdownBodyEl = document.getElementById('meta-val-dropdown-body');
+
+        if (valSummaryEl && valLblEl && valDropdownBodyEl) {
+            const pe = f.pe_ratio !== undefined && f.pe_ratio !== null ? `${f.pe_ratio.toFixed(1)}x` : '--';
+            const dy = f.dividend_yield_pct !== undefined && f.dividend_yield_pct !== null ? `${f.dividend_yield_pct.toFixed(2)}%` : '--%';
+            valSummaryEl.innerText = `PE: ${pe} | DY: ${dy}`;
+
+            let consensusRating = '--';
+            let targetMean = null;
+            let targetUpside = '--';
+            if (consensus) {
+                consensusRating = consensus.recommendation || '--';
+                targetMean = consensus.target_mean;
+                if (targetMean && f.current_price) {
+                    const upside = ((targetMean - f.current_price) / f.current_price) * 100;
+                    targetUpside = `${upside > 0 ? '+' : ''}${upside.toFixed(1)}%`;
+                }
+            }
+            valLblEl.innerText = `Consensus: ${consensusRating.toUpperCase()}`;
+
+            let rowsHtml = '';
+            rowsHtml += `
+                <tr>
+                    <td style="padding: 4px 6px; font-weight: 500;">P/E Ratio</td>
+                    <td style="padding: 4px 6px; font-family: monospace;">${pe}</td>
+                    <td style="padding: 4px 6px; text-align: right;"><span class="meta-ind-badge neutral">Valuation</span></td>
+                </tr>
+            `;
+            rowsHtml += `
+                <tr>
+                    <td style="padding: 4px 6px; font-weight: 500;">Div Yield</td>
+                    <td style="padding: 4px 6px; font-family: monospace;">${dy}</td>
+                    <td style="padding: 4px 6px; text-align: right;"><span class="meta-ind-badge neutral">Yield</span></td>
+                </tr>
+            `;
+            const pbVal = f.book_value && f.current_price ? (f.current_price / f.book_value).toFixed(2) : '--';
+            rowsHtml += `
+                <tr>
+                    <td style="padding: 4px 6px; font-weight: 500;">P/B Ratio</td>
+                    <td style="padding: 4px 6px; font-family: monospace;">${pbVal}x</td>
+                    <td style="padding: 4px 6px; text-align: right;"><span class="meta-ind-badge neutral">Book Value</span></td>
+                </tr>
+            `;
+            const formattedTarget = targetMean !== null ? `₹${targetMean.toFixed(1)}` : '--';
+            let badgeClass = 'neutral';
+            if (targetUpside.includes('+')) {
+                badgeClass = 'bullish';
+            } else if (targetUpside.includes('-')) {
+                badgeClass = 'bearish';
+            }
+            rowsHtml += `
+                <tr>
+                    <td style="padding: 4px 6px; font-weight: 500;">Consensus Target</td>
+                    <td style="padding: 4px 6px; font-family: monospace;">${formattedTarget}</td>
+                    <td style="padding: 4px 6px; text-align: right;"><span class="meta-ind-badge ${badgeClass}">${targetUpside} Upside</span></td>
+                </tr>
+            `;
+            if (consensus && consensus.target_high && consensus.target_low) {
+                rowsHtml += `
+                    <tr>
+                        <td style="padding: 4px 6px; font-weight: 500;">Target High / Low</td>
+                        <td style="padding: 4px 6px; font-family: monospace; font-size: 10px;">H: ₹${consensus.target_high.toFixed(0)} <br> L: ₹${consensus.target_low.toFixed(0)}</td>
+                        <td style="padding: 4px 6px; text-align: right; font-size: 9px; color: var(--text-muted);">Range limits</td>
+                    </tr>
+                `;
+            }
+            const analystCnt = consensus && consensus.analyst_count ? consensus.analyst_count : '--';
+            rowsHtml += `
+                <tr>
+                    <td style="padding: 4px 6px; font-weight: 500;">Covering Analysts</td>
+                    <td style="padding: 4px 6px; font-family: monospace;">${analystCnt}</td>
+                    <td style="padding: 4px 6px; text-align: right; font-size: 9px; color: var(--text-muted);">Total polls</td>
+                </tr>
+            `;
+            valDropdownBodyEl.innerHTML = rowsHtml;
+        }
+
+        // 12. Fibonacci Retracements Card Dropdown Table
+        const fibSummaryEl = document.getElementById('meta-fib-summary');
+        const fibLblEl = document.getElementById('meta-fib-lbl');
+        const fibDropdownBodyEl = document.getElementById('meta-fib-dropdown-body');
+
+        if (fibSummaryEl && fibLblEl && fibDropdownBodyEl) {
+            if (t.fib_levels) {
+                const fib = t.fib_levels;
+                const fib50 = fib.fib_500 !== undefined ? `₹${fib.fib_500.toFixed(1)}` : '--';
+                fibSummaryEl.innerText = `Fib 50%: ${fib50}`;
+                
+                let zoneText = 'Neutral Zone';
+                if (f.current_price && fib.fib_500) {
+                    zoneText = f.current_price >= fib.fib_500 ? 'Above 50% line' : 'Below 50% line';
+                }
+                fibLblEl.innerText = zoneText;
+
+                let rowsHtml = '';
+                const levels = [
+                    { pct: '0.0% (High)', val: fib.fib_0, type: 'Resistance (High)' },
+                    { pct: '23.6%', val: fib.fib_236, type: 'Minor Resistance' },
+                    { pct: '38.2%', val: fib.fib_382, type: 'Resistance/Support' },
+                    { pct: '50.0%', val: fib.fib_500, type: 'Median Line' },
+                    { pct: '61.8%', val: fib.fib_618, type: 'Golden Pocket' },
+                    { pct: '78.6%', val: fib.fib_786, type: 'Deep Support' },
+                    { pct: '100.0% (Low)', val: fib.fib_100, type: 'Support (Low)' }
+                ];
+
+                levels.forEach(lvl => {
+                    const formattedVal = lvl.val !== undefined && lvl.val !== null ? `₹${lvl.val.toFixed(1)}` : '--';
+                    let badgeClass = 'neutral';
+                    if (f.current_price && lvl.val) {
+                        badgeClass = f.current_price >= lvl.val ? 'bullish' : 'bearish';
+                    }
+                    const indicationText = f.current_price >= lvl.val ? 'Above Line' : 'Below Line';
+
+                    rowsHtml += `
+                        <tr>
+                            <td style="padding: 4px 6px; font-weight: 500;">${lvl.pct}</td>
+                            <td style="padding: 4px 6px; font-family: monospace;">${formattedVal}</td>
+                            <td style="padding: 4px 6px; text-align: right;">
+                                <span class="meta-ind-badge ${badgeClass}" title="${lvl.type}">${indicationText}</span>
+                            </td>
+                        </tr>
+                    `;
+                });
+                fibDropdownBodyEl.innerHTML = rowsHtml;
+            } else {
+                fibSummaryEl.innerText = 'Fib: N/A';
+                fibLblEl.innerText = 'No history data';
+                fibDropdownBodyEl.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--text-muted);">Fibonacci levels not calculated</td></tr>';
+            }
+        }
+    }
+}
+
 function renderStockDashboard(p) {
     const emptyStateEl = document.getElementById('analyzer-empty-state');
     if (emptyStateEl) emptyStateEl.style.display = 'none';
@@ -3467,8 +3888,6 @@ function renderStockDashboard(p) {
     if (sectorEl) sectorEl.innerText = p.sector;
     const industryEl = document.getElementById('meta-industry');
     if (industryEl) industryEl.innerText = p.industry;
-    const priceEl = document.getElementById('meta-price');
-    if (priceEl) priceEl.innerText = safeFormatRupees(p.fundamentals.current_price, 2);
 
     const trendEl = document.getElementById('meta-trend');
     if (trendEl) {
@@ -3481,19 +3900,8 @@ function renderStockDashboard(p) {
         trendEl.style.fontWeight = '700';
     }
 
-    // Update day range
-    const dayLowEl = document.getElementById('meta-day-low');
-    const dayHighEl = document.getElementById('meta-day-high');
-    if (dayLowEl && p.fundamentals.day_low) dayLowEl.innerText = `L: ₹${p.fundamentals.day_low.toFixed(2)}`;
-    if (dayHighEl && p.fundamentals.day_high) dayHighEl.innerText = `H: ₹${p.fundamentals.day_high.toFixed(2)}`;
-    updateMetaRangeProgress(p.fundamentals.current_price, p.fundamentals.day_low, p.fundamentals.day_high, 'meta-day-bar');
-
-    // Update 52-week range
-    const low52El = document.getElementById('meta-52w-low');
-    const high52El = document.getElementById('meta-52w-high');
-    if (low52El && p.fundamentals.low_52week) low52El.innerText = `L: ₹${p.fundamentals.low_52week.toFixed(2)}`;
-    if (high52El && p.fundamentals.high_52week) high52El.innerText = `H: ₹${p.fundamentals.high_52week.toFixed(2)}`;
-    updateMetaRangeProgress(p.fundamentals.current_price, p.fundamentals.low_52week, p.fundamentals.high_52week, 'meta-52w-bar');
+    // Update Day/52w/RSI/Volume/Health/Systemic/ATH via helper
+    updateMetaBannerDetails(p.fundamentals, p.technicals, p.earnings_quality, p.capm_risk_nifty50, p.consensus);
 
     // Start 2-second price refresh cycle for equity research terminal
     if (!window.stockPriceRefreshInterval) {
@@ -3505,21 +3913,22 @@ function renderStockDashboard(p) {
                     .then(updatedProfile => {
                         if (updatedProfile && updatedProfile.fundamentals) {
                             activeStockProfile.fundamentals = updatedProfile.fundamentals;
-                            // Update price display
-                            const priceEl = document.getElementById('meta-price');
-                            if (priceEl) priceEl.innerText = safeFormatRupees(updatedProfile.fundamentals.current_price, 2);
-                            // Update day range
-                            const dayLowEl = document.getElementById('meta-day-low');
-                            const dayHighEl = document.getElementById('meta-day-high');
-                            if (dayLowEl && updatedProfile.fundamentals.day_low) dayLowEl.innerText = `L: ₹${updatedProfile.fundamentals.day_low.toFixed(2)}`;
-                            if (dayHighEl && updatedProfile.fundamentals.day_high) dayHighEl.innerText = `H: ₹${updatedProfile.fundamentals.day_high.toFixed(2)}`;
-                            updateMetaRangeProgress(updatedProfile.fundamentals.current_price, updatedProfile.fundamentals.day_low, updatedProfile.fundamentals.day_high, 'meta-day-bar');
-                            // Update 52-week range
-                            const low52El = document.getElementById('meta-52w-low');
-                            const high52El = document.getElementById('meta-52w-high');
-                            if (low52El && updatedProfile.fundamentals.low_52week) low52El.innerText = `L: ₹${updatedProfile.fundamentals.low_52week.toFixed(2)}`;
-                            if (high52El && updatedProfile.fundamentals.high_52week) high52El.innerText = `H: ₹${updatedProfile.fundamentals.high_52week.toFixed(2)}`;
-                            updateMetaRangeProgress(updatedProfile.fundamentals.current_price, updatedProfile.fundamentals.low_52week, updatedProfile.fundamentals.high_52week, 'meta-52w-bar');
+                            if (updatedProfile.technicals) {
+                                activeStockProfile.technicals = updatedProfile.technicals;
+                            }
+                            if (updatedProfile.earnings_quality) {
+                                activeStockProfile.earnings_quality = updatedProfile.earnings_quality;
+                            }
+                            if (updatedProfile.capm_risk_nifty50) {
+                                activeStockProfile.capm_risk_nifty50 = updatedProfile.capm_risk_nifty50;
+                            }
+                            updateMetaBannerDetails(
+                                activeStockProfile.fundamentals,
+                                activeStockProfile.technicals,
+                                activeStockProfile.earnings_quality,
+                                activeStockProfile.capm_risk_nifty50,
+                                activeStockProfile.consensus
+                            );
                         }
                     })
                     .catch(e => console.log('Periodic price refresh failed:', e));
@@ -4076,6 +4485,128 @@ function renderStockDashboard(p) {
             breakoutBadge.classList.add('breakout-neutral');
         }
         breakoutDesc.innerText = p.technicals.breakout_desc;
+    }
+
+    // Render Moving Average Crossover Indicators table
+    const crossShortEl = document.getElementById('tech-cross-short');
+    const crossMediumEl = document.getElementById('tech-cross-medium');
+    const crossLongEl = document.getElementById('tech-cross-long');
+    if (crossShortEl && p.technicals.crossover_short) {
+        crossShortEl.innerText = p.technicals.crossover_short;
+        crossShortEl.style.color = p.technicals.crossover_short === "Bullish" ? "var(--neon-green)" : "var(--neon-red)";
+    }
+    if (crossMediumEl && p.technicals.crossover_medium) {
+        crossMediumEl.innerText = p.technicals.crossover_medium;
+        crossMediumEl.style.color = p.technicals.crossover_medium === "Bullish" ? "var(--neon-green)" : "var(--neon-red)";
+    }
+    if (crossLongEl && p.technicals.crossover_long) {
+        crossLongEl.innerText = p.technicals.crossover_long;
+        crossLongEl.style.color = p.technicals.crossover_long === "Bullish" ? "var(--neon-green)" : "var(--neon-red)";
+    }
+
+    // Render Momentum Oscillators dashboard
+    const macdValEl = document.getElementById('tech-macd-val');
+    const macdStatusEl = document.getElementById('tech-macd-status');
+    if (macdValEl && p.technicals.macd !== undefined) {
+        macdValEl.innerText = p.technicals.macd.toFixed(2);
+        if (macdStatusEl) {
+            macdStatusEl.innerText = p.technicals.macd_hist > 0 ? "BULLISH" : "BEARISH";
+            macdStatusEl.style.background = p.technicals.macd_hist > 0 ? "rgba(16, 185, 129, 0.15)" : "rgba(239, 68, 68, 0.15)";
+            macdStatusEl.style.color = p.technicals.macd_hist > 0 ? "#10b981" : "#ef4444";
+        }
+    }
+
+    const stochValEl = document.getElementById('tech-stoch-val');
+    const stochStatusEl = document.getElementById('tech-stoch-status');
+    if (stochValEl && p.technicals.stoch_k !== undefined) {
+        stochValEl.innerText = `${p.technicals.stoch_k.toFixed(1)} / ${p.technicals.stoch_d.toFixed(1)}`;
+        if (stochStatusEl) {
+            stochStatusEl.innerText = p.technicals.stoch_status.toUpperCase();
+            let bg = 'rgba(255,255,255,0.08)', fg = 'var(--text-primary)';
+            if (p.technicals.stoch_status === "Overbought") { bg = "rgba(239, 68, 68, 0.15)"; fg = "#ef4444"; }
+            else if (p.technicals.stoch_status === "Oversold") { bg = "rgba(16, 185, 129, 0.15)"; fg = "#10b981"; }
+            stochStatusEl.style.background = bg;
+            stochStatusEl.style.color = fg;
+        }
+    }
+
+    const rocValEl = document.getElementById('tech-roc-val');
+    const rocStatusEl = document.getElementById('tech-roc-status');
+    if (rocValEl && p.technicals.roc_20 !== undefined) {
+        rocValEl.innerText = `${p.technicals.roc_20.toFixed(2)}%`;
+        if (rocStatusEl) {
+            rocStatusEl.innerText = p.technicals.roc_status.toUpperCase();
+            rocStatusEl.style.background = p.technicals.roc_status === "Bullish" ? "rgba(16, 185, 129, 0.15)" : "rgba(239, 68, 68, 0.15)";
+            rocStatusEl.style.color = p.technicals.roc_status === "Bullish" ? "#10b981" : "#ef4444";
+        }
+    }
+
+    const cciValEl = document.getElementById('tech-cci-val');
+    const cciStatusEl = document.getElementById('tech-cci-status');
+    if (cciValEl && p.technicals.cci_20 !== undefined) {
+        cciValEl.innerText = p.technicals.cci_20.toFixed(1);
+        if (cciStatusEl) {
+            cciStatusEl.innerText = p.technicals.cci_status.toUpperCase();
+            let bg = 'rgba(255,255,255,0.08)', fg = 'var(--text-primary)';
+            if (p.technicals.cci_status === "Overbought") { bg = "rgba(239, 68, 68, 0.15)"; fg = "#ef4444"; }
+            else if (p.technicals.cci_status === "Oversold") { bg = "rgba(16, 185, 129, 0.15)"; fg = "#10b981"; }
+            cciStatusEl.style.background = bg;
+            cciStatusEl.style.color = fg;
+        }
+    }
+
+    const willrValEl = document.getElementById('tech-willr-val');
+    const willrStatusEl = document.getElementById('tech-willr-status');
+    if (willrValEl && p.technicals.will_r_14 !== undefined) {
+        willrValEl.innerText = p.technicals.will_r_14.toFixed(1);
+        if (willrStatusEl) {
+            willrStatusEl.innerText = p.technicals.will_r_status.toUpperCase();
+            let bg = 'rgba(255,255,255,0.08)', fg = 'var(--text-primary)';
+            if (p.technicals.will_r_status === "Overbought") { bg = "rgba(239, 68, 68, 0.15)"; fg = "#ef4444"; }
+            else if (p.technicals.will_r_status === "Oversold") { bg = "rgba(16, 185, 129, 0.15)"; fg = "#10b981"; }
+            willrStatusEl.style.background = bg;
+            willrStatusEl.style.color = fg;
+        }
+    }
+
+    const mfiValEl = document.getElementById('tech-mfi-val');
+    const mfiStatusEl = document.getElementById('tech-mfi-status');
+    if (mfiValEl && p.technicals.mfi_14 !== undefined) {
+        mfiValEl.innerText = p.technicals.mfi_14.toFixed(1);
+        if (mfiStatusEl) {
+            mfiStatusEl.innerText = p.technicals.mfi_status.toUpperCase();
+            let bg = 'rgba(255,255,255,0.08)', fg = 'var(--text-primary)';
+            if (p.technicals.mfi_status === "Overbought") { bg = "rgba(239, 68, 68, 0.15)"; fg = "#ef4444"; }
+            else if (p.technicals.mfi_status === "Oversold") { bg = "rgba(16, 185, 129, 0.15)"; fg = "#10b981"; }
+            mfiStatusEl.style.background = bg;
+            mfiStatusEl.style.color = fg;
+        }
+    }
+
+    const adxValEl = document.getElementById('tech-adx-val');
+    const adxStatusEl = document.getElementById('tech-adx-status');
+    if (adxValEl && p.technicals.adx !== undefined) {
+        adxValEl.innerText = p.technicals.adx.toFixed(1);
+        if (adxStatusEl) {
+            adxStatusEl.innerText = p.technicals.adx_status.toUpperCase();
+            let bg = 'rgba(255,255,255,0.08)', fg = 'var(--text-primary)';
+            if (p.technicals.adx_status.includes("Strong")) { bg = "rgba(16, 185, 129, 0.15)"; fg = "#10b981"; }
+            else if (p.technicals.adx_status.includes("Weak")) { bg = "rgba(239, 68, 68, 0.05)"; fg = "var(--text-muted)"; }
+            adxStatusEl.style.background = bg;
+            adxStatusEl.style.color = fg;
+        }
+    }
+
+    const rscValEl = document.getElementById('tech-rsc-val');
+    const rscStatusEl = document.getElementById('tech-rsc-status');
+    if (rscValEl && p.technicals.rsc_6m !== undefined) {
+        const sign = p.technicals.rsc_6m >= 0 ? "+" : "";
+        rscValEl.innerText = `${sign}${p.technicals.rsc_6m.toFixed(1)}%`;
+        if (rscStatusEl) {
+            rscStatusEl.innerText = p.technicals.rsc_status.toUpperCase();
+            rscStatusEl.style.background = p.technicals.rsc_6m >= 0 ? "rgba(16, 185, 129, 0.15)" : "rgba(239, 68, 68, 0.15)";
+            rscStatusEl.style.color = p.technicals.rsc_6m >= 0 ? "#10b981" : "#ef4444";
+        }
     }
 
     // Render Fibonacci Retracement Levels Chart

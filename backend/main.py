@@ -1390,7 +1390,10 @@ async def get_stock_profile_endpoint(symbol: str, cache: bool = True):
     return {
         "fundamentals": fundamentals,
         "technicals": profile.get("technicals", {}) if profile else {},
-        "analysis": profile.get("analysis", {}) if profile else {}
+        "analysis": profile.get("analysis", {}) if profile else {},
+        "earnings_quality": profile.get("earnings_quality", {}) if profile else {},
+        "capm_risk_nifty50": profile.get("capm_risk_nifty50", {}) if profile else {},
+        "capm_risk_sector": profile.get("capm_risk_sector", {}) if profile else {}
     }
 
 
