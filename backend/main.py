@@ -2,6 +2,7 @@ import os
 import json
 import sqlite3
 import asyncio
+import time
 import uuid
 import requests
 import yfinance as yf
@@ -25,6 +26,10 @@ DATABASE_DIR = os.environ.get(
 )
 os.makedirs(DATABASE_DIR, exist_ok=True)
 DATABASE_PATH = os.path.join(DATABASE_DIR, "watchlist_database.db")
+
+# In-memory rate-limiting cache for yfinance fallback quotes to prevent OOM spikes under high-frequency polling
+_YFINANCE_FALLBACK_CACHE = {}  # maps symbol -> (fundamentals_dict, timestamp)
+_YFINANCE_CACHE_TTL_SEC = 15.0
 
 @contextmanager
 def get_db():
@@ -1319,20 +1324,19 @@ async def get_stock_profile_endpoint(symbol: str, cache: bool = True):
     # Try tick store first
     tick = tick_store.get(plain) or tick_store.get(symbol)
     
-    # Try cached profiles if cache is True
+    # Always check cached profiles first to avoid expensive full scrapes on periodic polls
     profile = None
-    if cache:
-        try:
-            with get_db() as conn:
-                cursor = conn.cursor()
-                cursor.execute("SELECT profile_json FROM cached_profiles WHERE symbol = ?", (symbol,))
-                row = cursor.fetchone()
-                if row:
-                    profile = json.loads(row["profile_json"])
-        except Exception as e:
-            logger.error(f"Error reading cached profile: {e}")
+    try:
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT profile_json FROM cached_profiles WHERE symbol = ?", (symbol,))
+            row = cursor.fetchone()
+            if row:
+                profile = json.loads(row["profile_json"])
+    except Exception as e:
+        logger.error(f"Error reading cached profile: {e}")
         
-    # If not cached, fetch complete profile
+    # If not cached in DB, fetch complete profile
     if not profile:
         try:
             profile = await asyncio.to_thread(get_complete_financial_profile, symbol, bypass_db_cache=not cache)
@@ -1368,24 +1372,48 @@ async def get_stock_profile_endpoint(symbol: str, cache: bool = True):
         not fundamentals.get("low_52week") or 
         not fundamentals.get("high_52week") or
         "open" not in fundamentals or not fundamentals.get("open")):
-        try:
-            import yfinance as yf
-            ticker_obj = yf.Ticker(symbol if '.' in symbol or symbol.startswith('^') else f"{symbol}.NS")
-            info = ticker_obj.info
-            if info:
-                fundamentals["current_price"] = info.get("currentPrice") or info.get("regularMarketPrice") or info.get("navPrice") or fundamentals.get("current_price")
-                fundamentals["day_high"] = info.get("dayHigh") or info.get("regularMarketDayHigh") or fundamentals.get("current_price")
-                fundamentals["day_low"] = info.get("dayLow") or info.get("regularMarketDayLow") or fundamentals.get("current_price")
-                fundamentals["low_52week"] = info.get("fiftyTwoWeekLow") or info.get("regularMarketFiftyTwoWeekLow") or fundamentals.get("current_price")
-                fundamentals["high_52week"] = info.get("fiftyTwoWeekHigh") or info.get("regularMarketFiftyTwoWeekHigh") or fundamentals.get("current_price")
-                
-                # Fetch new metrics for the enterprise meta banner
-                fundamentals["open"] = info.get("open") or info.get("regularMarketOpen")
-                fundamentals["previous_close"] = info.get("previousClose") or info.get("regularMarketPreviousClose")
-                fundamentals["volume"] = info.get("volume") or info.get("regularMarketVolume")
-                fundamentals["average_volume"] = info.get("averageVolume") or info.get("averageVolume10Days")
-        except Exception as e:
-            print(f"Error fetching yfinance fallback quote for {symbol}: {e}")
+        
+        # Check in-memory rate-limiting cache first to prevent OOM spikes under high-frequency polling
+        now = time.time()
+        cached_quote, cached_time = _YFINANCE_FALLBACK_CACHE.get(symbol, (None, 0))
+        if cached_quote and (now - cached_time < _YFINANCE_CACHE_TTL_SEC):
+            # Merge cached quote details
+            for k, v in cached_quote.items():
+                if v is not None:
+                    fundamentals[k] = v
+        else:
+            try:
+                import yfinance as yf
+                ticker_obj = yf.Ticker(symbol if '.' in symbol or symbol.startswith('^') else f"{symbol}.NS")
+                info = ticker_obj.info
+                if info:
+                    fundamentals["current_price"] = info.get("currentPrice") or info.get("regularMarketPrice") or info.get("navPrice") or fundamentals.get("current_price")
+                    fundamentals["day_high"] = info.get("dayHigh") or info.get("regularMarketDayHigh") or fundamentals.get("current_price")
+                    fundamentals["day_low"] = info.get("dayLow") or info.get("regularMarketDayLow") or fundamentals.get("current_price")
+                    fundamentals["low_52week"] = info.get("fiftyTwoWeekLow") or info.get("regularMarketFiftyTwoWeekLow") or fundamentals.get("current_price")
+                    fundamentals["high_52week"] = info.get("fiftyTwoWeekHigh") or info.get("regularMarketFiftyTwoWeekHigh") or fundamentals.get("current_price")
+                    
+                    # Fetch new metrics for the enterprise meta banner
+                    fundamentals["open"] = info.get("open") or info.get("regularMarketOpen")
+                    fundamentals["previous_close"] = info.get("previousClose") or info.get("regularMarketPreviousClose")
+                    fundamentals["volume"] = info.get("volume") or info.get("regularMarketVolume")
+                    fundamentals["average_volume"] = info.get("averageVolume") or info.get("averageVolume10Days")
+                    
+                    # Update in-memory rate-limiting cache
+                    quote_data = {
+                        "current_price": fundamentals.get("current_price"),
+                        "day_high": fundamentals.get("day_high"),
+                        "day_low": fundamentals.get("day_low"),
+                        "low_52week": fundamentals.get("low_52week"),
+                        "high_52week": fundamentals.get("high_52week"),
+                        "open": fundamentals.get("open"),
+                        "previous_close": fundamentals.get("previous_close"),
+                        "volume": fundamentals.get("volume"),
+                        "average_volume": fundamentals.get("average_volume"),
+                    }
+                    _YFINANCE_FALLBACK_CACHE[symbol] = (quote_data, now)
+            except Exception as e:
+                print(f"Error fetching yfinance fallback quote for {symbol}: {e}")
             
     return {
         "fundamentals": fundamentals,
