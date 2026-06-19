@@ -154,7 +154,13 @@ function handleLiveTickMessage(ticksData) {
             const dailyHighEl = document.getElementById('tech-daily-high');
             const dailyLowEl = document.getElementById('tech-daily-low');
             if (dailyHighEl && q.high > 0) dailyHighEl.innerText = safeFormatRupees(q.high, 2);
-            if (dailyLowEl && q.low > 0) dailyLowEl.innerText = safeFormatRupees(q.low, 2);\n            \n            // Update day range in meta banner\n            const metaDayLowEl = document.getElementById('meta-day-low');\n            const metaDayHighEl = document.getElementById('meta-day-high');\n            if (metaDayLowEl && q.low > 0) metaDayLowEl.innerText = `Low: ₹${q.low.toFixed(2)}`;\n            if (metaDayHighEl && q.high > 0) metaDayHighEl.innerText = `High: ₹${q.high.toFixed(2)}`;
+            if (dailyLowEl && q.low > 0) dailyLowEl.innerText = safeFormatRupees(q.low, 2);
+            
+            // Update day range in meta banner
+            const metaDayLowEl = document.getElementById('meta-day-low');
+            const metaDayHighEl = document.getElementById('meta-day-high');
+            if (metaDayLowEl && q.low > 0) metaDayLowEl.innerText = `Low: ₹${q.low.toFixed(2)}`;
+            if (metaDayHighEl && q.high > 0) metaDayHighEl.innerText = `High: ₹${q.high.toFixed(2)}`;
 
             // Dynamically update SMA alignment stack if currently rendered in DOM
             const stackContainer = document.getElementById('tech-sma-stack-container');
