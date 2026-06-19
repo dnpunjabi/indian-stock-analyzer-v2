@@ -124,20 +124,113 @@ class AngelOneConnector:
 
     def load_instrument_master(self) -> int:
         """
-        Downloads and parses the Angel One Instrument Master JSON.
-        Builds an in-memory lookup: plain symbol → {token, exch_seg, name, ...}
+        Loads the Angel One Instrument Master. 
+        Tries to read cached instruments from local SQLite database (angel_instruments) first.
+        If cache is missing or older than 24 hours, downloads the 25 MB scrip master JSON from Angel One,
+        filters down to the relevant NSE/BSE equities, caches them in SQLite, and cleans up memory immediately.
 
         Returns the number of NSE equity instruments loaded.
         """
+        import sqlite3
+        from datetime import datetime, timezone
+        
+        # Path configurations
+        DATABASE_DIR = os.environ.get(
+            "DATABASE_DIR",
+            os.path.join(os.path.dirname(__file__), "data")
+        )
+        DATABASE_PATH = os.path.join(DATABASE_DIR, "watchlist_database.db")
+        
+        # Ensure directory exists
+        os.makedirs(DATABASE_DIR, exist_ok=True)
+        
+        cache_valid = False
+        nse_eq_count = 0
+        loaded_instruments = []
+        
+        # 1. Try reading from SQLite cache first
+        try:
+            conn = sqlite3.connect(DATABASE_PATH)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            # Create table if not exists
+            cursor.execute("""
+            CREATE TABLE IF NOT EXISTS angel_instruments (
+                token TEXT PRIMARY KEY,
+                symbol TEXT,
+                exch_seg TEXT,
+                name TEXT,
+                instrument_type TEXT,
+                plain_symbol TEXT,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """)
+            conn.commit()
+            
+            # Check count and age
+            cursor.execute("SELECT COUNT(*) as count, MAX(updated_at) as last_update FROM angel_instruments")
+            row = cursor.fetchone()
+            count = row["count"]
+            last_update_str = row["last_update"]
+            
+            if count > 0 and last_update_str:
+                try:
+                    # Parse last update in UTC
+                    last_update = datetime.strptime(last_update_str, "%Y-%m-%d %H:%M:%S")
+                    age_hours = (datetime.now(timezone.utc).replace(tzinfo=None) - last_update).total_seconds() / 3600.0
+                    if age_hours < 24.0:
+                        cache_valid = True
+                        logger.info(f"Angel One instruments cache is valid (Age: {age_hours:.1f} hours, Count: {count}). Loading from SQLite...")
+                except Exception as age_err:
+                    logger.warning(f"Error parsing instrument cache age: {age_err}")
+            
+            if cache_valid:
+                # Load cache from SQLite
+                cursor.execute("SELECT token, symbol, exch_seg, name, instrument_type, plain_symbol FROM angel_instruments")
+                loaded_instruments = [dict(r) for r in cursor.fetchall()]
+                
+            conn.close()
+        except Exception as db_err:
+            logger.warning(f"Error reading SQLite instrument cache: {db_err}")
+            
+        # 2. If cache is valid, build maps and return count
+        if cache_valid and loaded_instruments:
+            with self._instrument_lock:
+                self._instrument_map.clear()
+                self._token_to_symbol.clear()
+                
+                for inst in loaded_instruments:
+                    token = inst["token"]
+                    exch_seg = inst["exch_seg"]
+                    symbol = inst["symbol"]
+                    plain_symbol = inst["plain_symbol"]
+                    
+                    self._token_to_symbol[token] = plain_symbol
+                    
+                    if exch_seg == "NSE":
+                        self._instrument_map[plain_symbol] = inst
+                        nse_eq_count += 1
+                    else:
+                        # BSE fallback key
+                        self._instrument_map[f"BSE:{plain_symbol}"] = inst
+                        
+                self._instrument_loaded = True
+                logger.info(f"Loaded {nse_eq_count} NSE equities from SQLite instrument cache.")
+                return nse_eq_count
+                
+        # 3. If cache is invalid/missing, download the 25 MB JSON
         logger.info("Downloading Angel One Instrument Master (~25 MB)...")
         try:
             resp = http_requests.get(self.INSTRUMENT_MASTER_URL, timeout=60)
             resp.raise_for_status()
             instruments = resp.json()
         except Exception as e:
-            logger.error(f"Failed to download instrument master: {e}")
+            logger.error(f"Failed to download instrument master from Angel One: {e}")
             return 0
 
+        # Filter down and save in SQLite
+        filtered_records = []
         with self._instrument_lock:
             self._instrument_map.clear()
             self._token_to_symbol.clear()
@@ -157,35 +250,61 @@ class AngelOneConnector:
                 # Symbol format in master: "TCS-EQ", "RELIANCE-EQ", etc.
                 if exch_seg.upper() == "NSE" and symbol.endswith("-EQ"):
                     plain_symbol = symbol.replace("-EQ", "")
-                    self._instrument_map[plain_symbol] = {
+                    inst_record = {
                         "token": token,
-                        "exch_seg": exch_seg,
+                        "exch_seg": "NSE",
                         "symbol": symbol,
                         "name": name,
                         "instrument_type": instrument_type,
+                        "plain_symbol": plain_symbol
                     }
+                    self._instrument_map[plain_symbol] = inst_record
                     self._token_to_symbol[token] = plain_symbol
                     nse_eq_count += 1
+                    filtered_records.append((token, symbol, "NSE", name, instrument_type, plain_symbol))
 
                 # Also index BSE equity for fallback
                 elif exch_seg.upper() == "BSE" and instrument_type == "":
                     plain_symbol = symbol
                     # Only add if not already mapped via NSE
                     bse_key = f"BSE:{plain_symbol}"
-                    self._instrument_map[bse_key] = {
+                    inst_record = {
                         "token": token,
-                        "exch_seg": exch_seg,
+                        "exch_seg": "BSE",
                         "symbol": symbol,
                         "name": name,
                         "instrument_type": instrument_type,
+                        "plain_symbol": plain_symbol
                     }
+                    self._instrument_map[bse_key] = inst_record
+                    filtered_records.append((token, symbol, "BSE", name, instrument_type, plain_symbol))
 
             self._instrument_loaded = True
-            logger.info(
-                f"Instrument master loaded: {nse_eq_count} NSE equities, "
-                f"{len(self._instrument_map)} total entries."
-            )
-            return nse_eq_count
+            
+        # Free JSON memory immediately
+        instruments = None
+        
+        # Save the filtered records to SQLite in a single transaction
+        if filtered_records:
+            try:
+                conn = sqlite3.connect(DATABASE_PATH)
+                cursor = conn.cursor()
+                # Clear stale records
+                cursor.execute("DELETE FROM angel_instruments")
+                # Insert all new records
+                cursor.executemany("""
+                    INSERT OR REPLACE INTO angel_instruments 
+                    (token, symbol, exch_seg, name, instrument_type, plain_symbol, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                """, filtered_records)
+                conn.commit()
+                conn.close()
+                logger.info(f"Cached {len(filtered_records)} filtered instruments in SQLite.")
+            except Exception as save_err:
+                logger.warning(f"Failed to cache instruments in SQLite: {save_err}")
+                
+        logger.info(f"Instrument master loaded from download: {nse_eq_count} NSE equities.")
+        return nse_eq_count
 
     def resolve_token(self, symbol: str) -> Optional[Tuple[str, int]]:
         """
