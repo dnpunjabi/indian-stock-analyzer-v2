@@ -381,7 +381,7 @@ def run_sentiment_subagent(profile: dict) -> str:
     return call_groq_llm(system_prompt, user_prompt)
 
 # 4. Chief Investment Officer (CIO) Parent Orchestrator Agent
-async def run_cio_parent_agent(query: str, horizon: str, risk_profile: str, custom_dcf: dict = None) -> dict:
+async def run_cio_parent_agent(query: str, horizon: str, risk_profile: str, custom_dcf: dict = None, force_llm: bool = False) -> dict:
     """
     Orchestrates the entire single stock research pipeline using Google Antigravity SDK structure.
     Spawns subagents, gathers reports, compares broker targets, and formulates the ultimate unified Prospectus.
@@ -422,7 +422,7 @@ async def run_cio_parent_agent(query: str, horizon: str, risk_profile: str, cust
     
     # 3. Check for API key presence and run subagents or fall back to high-fidelity local simulator
     # This prevents NameError, 401 exceptions, and delivers an incredible out-of-the-box user experience
-    use_local_simulator = not groq_client
+    use_local_simulator = not groq_client or not force_llm
     fundamental_report = ""
     technical_report = ""
     sentiment_report = ""
@@ -465,6 +465,7 @@ async def run_cio_parent_agent(query: str, horizon: str, risk_profile: str, cust
     if use_local_simulator:
         print("Activating local high-fidelity fallback portfolio modeling...")
         decision = run_local_fallback_analysis(profile, horizon, risk_profile)
+        decision["is_simulated"] = True
         profile["analysis"] = decision
         return profile
         
@@ -518,6 +519,7 @@ async def run_cio_parent_agent(query: str, horizon: str, risk_profile: str, cust
         # Secondary API fail catcher
         print("Activating local high-fidelity fallback portfolio modeling (secondary)...")
         decision = run_local_fallback_analysis(profile, horizon, risk_profile)
+        decision["is_simulated"] = True
     else:
         try:
             clean_json = response_text.strip()
@@ -527,9 +529,11 @@ async def run_cio_parent_agent(query: str, horizon: str, risk_profile: str, cust
                 clean_json = clean_json[:-3]
             clean_json = clean_json.strip()
             decision = json.loads(clean_json)
+            decision["is_simulated"] = False
         except Exception as e:
             print(f"Error parsing CIO JSON response: {e}\nRaw: {response_text}")
             decision = run_local_fallback_analysis(profile, horizon, risk_profile)
+            decision["is_simulated"] = True
             
     # Fix #1: Profile-aware blended recommendation — profile adjusts BUY/STRONG BUY thresholds
     scoring = profile.get("score_metrics", {})

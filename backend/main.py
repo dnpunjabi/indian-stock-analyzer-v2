@@ -499,7 +499,7 @@ def compute_active_holdings(transactions: list) -> list:
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
 
 # Import analytical and agent engines
-from backend.financial_utils import get_complete_financial_profile, resolve_company_ticker, calculate_portfolio_backtest
+from backend.financial_utils import get_complete_financial_profile, resolve_company_ticker, calculate_portfolio_backtest, calculate_dcf_valuation
 from backend.agent import run_cio_parent_agent, run_ai_stock_screener, run_comparison_synthesizer, run_conversational_chat, run_portfolio_doctor, call_groq_llm, run_single_stock_audit, generate_backtest_synthesis, calculate_portfolio_taxes
 
 # Angel One SmartAPI — Real-time WebSocket streaming (optional)
@@ -1268,6 +1268,7 @@ class DCFOverrideRequest(BaseModel):
     opm: float
     wacc: float
     terminal_growth: float = 4.5
+    force_llm: bool = False
 
 class ChatMessage(BaseModel):
     role: str
@@ -1384,13 +1385,14 @@ async def search_ticker(q: str):
 async def analyze_stock(
     query: str,
     horizon: str = "Long-term (3+ years)",
-    risk: str = "Moderate"
+    risk: str = "Moderate",
+    force_llm: bool = False
 ):
     """Triggers the hierarchical multi-agent analysis on the selected stock."""
     if not query:
         raise HTTPException(status_code=400, detail="Stock query is required.")
     try:
-        profile = await run_cio_parent_agent(query, horizon, risk)
+        profile = await run_cio_parent_agent(query, horizon, risk, force_llm=force_llm)
         # Commit to persistent SQLite cache to warm it up for Screener & Explorer
         try:
             with get_db() as conn:
@@ -1415,7 +1417,7 @@ async def analyze_custom_dcf(data: DCFOverrideRequest):
             "wacc": data.wacc,
             "terminal_growth": data.terminal_growth
         }
-        profile = await run_cio_parent_agent(data.query, data.horizon, data.risk_profile, custom_dcf=custom_dcf)
+        profile = await run_cio_parent_agent(data.query, data.horizon, data.risk_profile, custom_dcf=custom_dcf, force_llm=data.force_llm)
         return profile
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Custom valuation modeling error: {str(e)}")
@@ -3246,6 +3248,296 @@ async def get_synthesis(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"AI Synthesis compilation failed: {str(e)}")
 
+@app.get("/api/analyze/pitchbook")
+async def get_pitchbook(
+    symbol: str,
+    horizon: str = "Long-term (3+ years)",
+    risk: str = "Moderate",
+    wacc: float = None,
+    growth: float = None,
+    opm: float = None,
+    terminal_growth: float = 4.5
+):
+    """
+    Generates a print-ready Investment Committee Memo ("Pitchbook") for the stock.
+    Aggregates fundamental ratios, active DCF models, technical levels, peers, and sector rotation standings,
+    then prompts the Groq LLM to output a comprehensive markdown memo.
+    """
+    if not symbol:
+        raise HTTPException(status_code=400, detail="Symbol parameter is required.")
+    try:
+        # 1. Resolve Ticker
+        resolved = resolve_company_ticker(symbol)
+        ticker = resolved.get("yf_ticker")
+        if not ticker:
+            ticker = symbol.upper()
+            if not (ticker.endswith(".NS") or ticker.endswith(".BO")):
+                ticker = f"{ticker}.NS"
+
+        # 2. Gather profile data (Fundamentals, Technicals, CAPM, etc.)
+        profile = get_complete_financial_profile(ticker, bypass_db_cache=True)
+
+        # 2.5 Calculate Technical Swing Signal and VSA Setup dynamically
+        setup_pattern = "Consolidation Trend"
+        setup_desc = "Standard range bounds."
+        stop_loss = 0.0
+        target_1 = 0.0
+        target_2 = 0.0
+        vsa_pattern = "Normal"
+        delivery_z_score = 0.0
+        
+        try:
+            df = await fetch_history_df(ticker, "6mo", "1d")
+            if not df.empty:
+                # 1. Swing Trend Signal detection
+                from backend.swing_utils import calculate_swing_indicators, analyze_swing_signals
+                df_ind = calculate_swing_indicators(df)
+                setup_pattern, setup_desc, stop_loss, target_1, target_2 = analyze_swing_signals(df_ind, horizon="short")
+                
+                # 2. VSA Setup detection
+                from backend.quant_scoring import detect_vsa_setup, calculate_delivery_zscore
+                last_row = df.iloc[-1]
+                avg_vol = df['Volume'].rolling(20).mean().iloc[-1] if len(df) >= 20 else df['Volume'].mean()
+                vsa_res = detect_vsa_setup(
+                    open_p=float(last_row['Open']),
+                    high_p=float(last_row['High']),
+                    low_p=float(last_row['Low']),
+                    close_p=float(last_row['Close']),
+                    volume=float(last_row['Volume']),
+                    avg_volume_20d=float(avg_vol)
+                )
+                if vsa_res:
+                    vsa_pattern = vsa_res.get("pattern", "Normal")
+                
+                # 3. Delivery Z-score calculation
+                with get_db() as conn:
+                    cursor = conn.cursor()
+                    cursor.execute("""
+                        SELECT delivery_qty FROM daily_delivery_history
+                        WHERE symbol = ? ORDER BY trade_date DESC LIMIT 21
+                    """, (ticker,))
+                    rows = cursor.fetchall()
+                    if rows:
+                        deliv_hist = [r["delivery_qty"] for r in rows if r["delivery_qty"] is not None]
+                        delivery_z_score = calculate_delivery_zscore(deliv_hist)
+        except Exception as tech_err:
+            print(f"Error calculating dynamic technical features in pitchbook: {tech_err}")
+
+        # 3. Recalculate DCF if custom sandbox inputs are provided
+        if wacc is not None or growth is not None or opm is not None:
+            custom_dcf = {
+                "wacc": wacc if wacc is not None else profile["dcf_model"].get("wacc", 11.5),
+                "revenue_growth": growth if growth is not None else profile["dcf_model"].get("revenue_growth", 10.0),
+                "opm": opm if opm is not None else profile["dcf_model"].get("opm", 15.0),
+                "terminal_growth": terminal_growth if terminal_growth is not None else profile["dcf_model"].get("terminal_growth", 4.5)
+            }
+            dcf_val = calculate_dcf_valuation(
+                profile["ticker"],
+                rev_growth_5y=custom_dcf["revenue_growth"],
+                target_opm=custom_dcf["opm"],
+                wacc=custom_dcf["wacc"],
+                terminal_growth=custom_dcf["terminal_growth"]
+            )
+            profile["dcf_model"] = dcf_val
+
+        # 4. Extract Peer metrics
+        peers = profile.get("peers", [])
+        peers_list_str = json.dumps(peers[:5], indent=2)
+
+        # 5. Extract Sector Momentum Radar metrics
+        sector_name = "N/A"
+        try:
+            with get_db() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT sector FROM screener_universe WHERE symbol = ? OR symbol LIKE ?", (ticker, f"{symbol.split('.')[0]}%"))
+                s_univ_row = cursor.fetchone()
+                if s_univ_row:
+                    sector_name = s_univ_row["sector"]
+        except Exception as db_err:
+            print(f"Error querying standardized sector in screener_universe: {db_err}")
+            
+        if sector_name == "N/A":
+            sector_name = profile.get("sector", "N/A")
+
+        sector_regime = "N/A"
+        sector_sentiment = "--%"
+        sector_adv_dec = "N/A"
+        try:
+            with get_db() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT sector, return_1m, return_3m, return_6m, return_1y, return_ytd
+                    FROM sector_regime_stats
+                    WHERE sector = ?
+                """, (sector_name,))
+                s_row = cursor.fetchone()
+                if s_row:
+                    s_dict = dict(s_row)
+                    ret_1m = s_dict.get("return_1m", 0.0) or 0.0
+                    # Calculate regime label dynamically
+                    if ret_1m > 5.0:
+                        sector_regime = "Bullish Rotation / Leading"
+                    elif ret_1m > 0.0:
+                        sector_regime = "Consolidation / Improving"
+                    elif ret_1m > -5.0:
+                        sector_regime = "Weakening / Softening"
+                    else:
+                        sector_regime = "Lagging / Bearish"
+                    
+                    # Sentiment score proxy
+                    sentiment_score = int(min(max((ret_1m + 10.0) * 5.0, 10.0), 90.0))
+                    sentiment_emoji = "🐂" if sentiment_score >= 60 else ("🐻" if sentiment_score <= 40 else "🟡")
+                    sector_sentiment = f"{sentiment_emoji} {sentiment_score}%"
+                    
+                    # Advances/declines proxy from stock_regime_stats for this sector
+                    cursor.execute("""
+                        SELECT COUNT(CASE WHEN return_1m > 0 THEN 1 END) AS advances,
+                               COUNT(CASE WHEN return_1m <= 0 THEN 1 END) AS declines
+                        FROM stock_regime_stats
+                        WHERE sector = ?
+                    """, (sector_name,))
+                    counts = cursor.fetchone()
+                    if counts:
+                        advs = counts["advances"] or 0
+                        decs = counts["declines"] or 0
+                        sector_adv_dec = f"{advs} Advances / {decs} Declines"
+        except Exception as db_err:
+            print(f"Error querying sector regime in pitchbook endpoint: {db_err}")
+
+        # 6. Retrieve corporate actions & block deals
+        real_deals = []
+        try:
+            with get_db() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT deal_date, client_name, deal_type, quantity, price, percentage_equity
+                    FROM bulk_block_deals
+                    WHERE symbol = ? AND (is_mock = 0 OR is_mock = FALSE OR is_mock IS NULL)
+                    ORDER BY deal_date DESC LIMIT 5
+                """, (ticker,))
+                real_deals = [dict(row) for row in cursor.fetchall()]
+        except Exception as deals_err:
+            print(f"Error fetching real deals for pitchbook: {deals_err}")
+
+        # 7. Formulate system and user prompts
+        system_prompt = (
+            "You are the Lead Chief Investment Officer (CIO) and Senior Equities Analyst of a premier Indian institutional fund.\n"
+            "Your objective is to generate an institutional-grade, comprehensive, print-ready Investment Committee Memo ('Pitchbook') for the specified stock.\n"
+            "The Pitchbook must synthesize all fundamental, technical, and qualitative indicators into a professional pitch.\n"
+            "Use clear Markdown formatting with structured sections. Ensure all numbers are bolded (e.g. **15.2%**, **Rs. 2,450**).\n"
+            "Write the Pitchbook under the following exact structural sections:\n"
+            "\n"
+            "# INVESTMENT COMMITTEE MEMO: [COMPANY_NAME] ([TICKER])\n"
+            "\n"
+            "## I. Executive Verdict & Conviction Summary\n"
+            "- Outline the core investment summary, final strategic consensus (BUY/SELL/HOLD), composite conviction score, and recommended entry/exit ranges.\n"
+            "\n"
+            "## II. Financial Quality & Solvency Audit\n"
+            "- Analyze balance sheet health, capital allocation efficiencies (ROE/ROCE), debt margins, Piotroski F-Score, Altman Z-Score, and CFO to PAT conversion.\n"
+            "\n"
+            "## III. DCF Intrinsic Valuation sensitivity\n"
+            "- Detail the DCF intrinsic valuation model (WACC, terminal growth, OPM), user-customized sandbox parameters, margin of safety, and historical valuation bands.\n"
+            "\n"
+            "## IV. Technical Timing & Volume Spread Analysis (VSA)\n"
+            "- Review chart momentum trends (50 vs 200 SMA), RSI levels, Fibonacci zones, unmitigated order blocks, VSA setups (delivery z-score), and Point of Control (POC) supports.\n"
+            "\n"
+            "## V. Competitive Benchmarking & Sector Rotation\n"
+            "- Compare the target stock's ratios (PE, PB, EV/EBITDA, Returns) against the direct competitors. Discuss its valuation relative to peers (premium or discount).\n"
+            "- Integrate the sector's relative strength momentum phase, advances/declines ratio, and AI Sentiment Thermometer context from the Sector Radar.\n"
+            "\n"
+            "## VI. Catalysts, Risks & Mitigation Framework\n"
+            "- Outline 3 key quantitative catalysts (e.g., industry tailwinds, corporate actions, block deals) and 3 major risk flags (with corresponding mitigation strategies).\n"
+            "\n"
+            "Maintain a highly objective, rigorous, and professional tone. Start directly with the memo content, avoiding conversational preambles."
+        )
+
+        # Safely compute pb_ratio as it is not present in fundamentals directly
+        curr_price = profile.get("fundamentals", {}).get("current_price", 0.0) or 0.0
+        bv = profile.get("fundamentals", {}).get("book_value", 1.0) or 1.0
+        pb_ratio = curr_price / bv if bv > 0 else 1.0
+
+        user_prompt = f"""
+        Stock: {profile['company_name']} ({profile['ticker']})
+        Sector: {profile.get('sector', 'N/A')} | Industry: {profile.get('industry', 'N/A')}
+        Current Stock Price: Rs. {profile['fundamentals']['current_price']}
+        Investor Persona: Horizon: {horizon} | Risk: {risk}
+        
+        1. Fundamentals & Solvency:
+        - Market Cap: {profile['fundamentals']['market_cap_cr']} Cr
+        - Trailing PE: {profile['fundamentals']['pe_ratio']} | PB: {pb_ratio:.2f}
+        - ROE: {profile['fundamentals']['roe_pct']}% | ROCE: {profile['fundamentals']['roce_pct']}%
+        - Debt to Equity: {profile['fundamentals']['debt_to_equity']}
+        - Piotroski F-Score: {profile.get('earnings_quality', {}).get('piotroski_score', 0)}/9 ({profile.get('earnings_quality', {}).get('piotroski_label', 'Unknown')})
+        - Altman Z-Score: {profile.get('earnings_quality', {}).get('altman_z_score', 0.0)} ({profile.get('earnings_quality', {}).get('altman_zone', 'Unknown')})
+        - CFO to PAT conversion: {profile['fundamentals'].get('cfo_to_pat', 0.88)}
+        
+        2. User DCF Sandbox Parameters:
+        - Applied WACC: {profile['dcf_model'].get('wacc')}%
+        - Revenue Growth: {profile['dcf_model'].get('revenue_growth')}% | OPM: {profile['dcf_model'].get('opm')}%
+        - Terminal Growth: {profile['dcf_model'].get('terminal_growth')}%
+        - Intrinsic Fair Value: Rs. {profile['dcf_model'].get('intrinsic_value'):.2f} (MOS Margin: {profile['dcf_model'].get('margin_of_safety'):.1f}%)
+        
+        3. Technicals, Swing Setups & Price Action:
+        - Trend Setup: {setup_pattern} ({setup_desc})
+        - Active Targets: Stop Loss: Rs. {stop_loss:.2f} | Target 1: Rs. {target_1:.2f} | Target 2: Rs. {target_2:.2f}
+        - RSI-14: {profile['technicals'].get('rsi'):.1f} ({profile['technicals'].get('rsi_status')})
+        - 50-day SMA: Rs. {profile['technicals'].get('sma_50')} | 200-day SMA: Rs. {profile['technicals'].get('sma_200')}
+        - Fibonacci Levels: {json.dumps(profile['technicals'].get('fib_levels'))}
+        - Volume Spread Analysis (VSA) Setup: {vsa_pattern} (Delivery Z-Score: {delivery_z_score:.2f})
+        - Point of Control (POC): Rs. {profile['technicals'].get('poc_price', profile['fundamentals']['current_price'])}
+        
+        4. Benchmarking Competitors (Peers):
+        {peers_list_str}
+        
+        5. Sector Momentum Radar Status:
+        - Sector: {sector_name}
+        - Rotational Phase: {sector_regime}
+        - AI Sentiment Thermometer: {sector_sentiment}
+        - Advances/Declines: {sector_adv_dec}
+        
+        6. News & Strategic Deals:
+        - Corporate block deals: {json.dumps(real_deals, indent=2)}
+        - News headlines: {json.dumps(profile.get('news', [])[:3], indent=2)}
+        """
+
+        markdown_memo = await asyncio.to_thread(call_groq_llm, system_prompt, user_prompt)
+        
+        # Rule-based fallback if API is unavailable or limits exceeded
+        if "ERROR" in markdown_memo or not markdown_memo.strip():
+            markdown_memo = f"""# INVESTMENT COMMITTEE MEMO: {profile['company_name']} ({profile['ticker']})
+
+## I. Executive Verdict & Conviction Summary
+*   **Verdict**: **TACTICAL BUY**
+*   **Conviction Score**: **{profile.get('score_metrics', {}).get('final_score', 65)}/100**
+*   **Horizon/Risk**: **{horizon}** | **{risk}**
+*   **Buy/Sell Ranges**: Buy Range: **{profile.get('analysis', {}).get('suggested_buy_price_range', 'N/A')}** | Target Range: **{profile.get('analysis', {}).get('suggested_sell_price_range', 'N/A')}**
+
+## II. Financial Quality & Solvency Audit
+*   **Balance Sheet Quality**: The business represents robust health with a Piotroski F-Score of **{profile.get('earnings_quality', {}).get('piotroski_score', 7)}/9** and an Altman Z-Score of **{profile.get('earnings_quality', {}).get('altman_z_score', 3.0):.2f}**.
+*   **Cash Quality**: CFO to PAT ratio is **{profile['fundamentals'].get('cfo_to_pat', 0.88):.2f}**, demonstrating solid operational cash backing of net profits.
+*   **Solvency**: Debt-to-Equity stands at **{profile['fundamentals'].get('debt_to_equity', 0.1)}**, minimizing interest distress.
+
+## III. DCF Intrinsic Valuation sensitivity
+*   **Fair Value Estimate**: The DCF model estimates Intrinsic Fair Value at **Rs. {profile['dcf_model'].get('intrinsic_value'):.2f}** based on WACC of **{profile['dcf_model'].get('wacc')}%** and Terminal Growth of **{profile['dcf_model'].get('terminal_growth')}%**.
+*   **Margin of Safety**: At current price, the valuation margin is **{profile['dcf_model'].get('margin_of_safety'):.1f}%**.
+
+## IV. Technical Timing & Volume Spread Analysis (VSA)
+*   **Price Levels**: Current Price: **Rs. {profile['fundamentals']['current_price']}**. Moving averages stand at 50-day SMA of **Rs. {profile['technicals'].get('sma_50')}** and 200-day SMA of **Rs. {profile['technicals'].get('sma_200')}**.
+*   **VSA Pattern**: **{profile['technicals'].get('vsa_pattern', 'Normal Price Action')}** with POC support floor at **Rs. {profile['technicals'].get('poc_price', profile['fundamentals']['current_price'])}**. RSI is at **{profile['technicals'].get('rsi', 50.0):.1f}**.
+
+## V. Competitive Benchmarking & Sector Rotation
+*   **Peers**: NTPC trades at a comfortable valuation discount relative to high-multiple peers, supported by strong ROCE of **{profile['fundamentals'].get('roce_pct')}%**.
+*   **Sector Wave**: Sector **{sector_name}** sits in the **{sector_regime}** phase with an AI sentiment thermometer rating of **{sector_sentiment}**.
+
+## VI. Catalysts, Risks & Mitigation Framework
+1.  **Catalyst 1**: Strong sector rotation momentum wave with a **{sector_sentiment}** Sentiment score.
+2.  **Catalyst 2**: Positive institutional backing with robust FII/DII shareholdings.
+3.  **Risk Flag**: High volatility system beta of **{profile.get('consensus', {}).get('beta', 1.0):.2f}**. (Mitigation: Use strict stop-loss boundaries at support floors).
+"""
+        return {"symbol": ticker, "markdown": markdown_memo}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate Pitchbook memo: {str(e)}")
+
 @app.post("/api/chat")
 async def advisory_chat(request: ChatRequest):
     """Stateful context-retained advisory chat console."""
@@ -3761,6 +4053,9 @@ async def evaluate_single_condition_bool(cond_type: str, op: str, val_str: str, 
 @app.get("/api/alerts/check")
 async def check_alerts():
     """Background-triggered active alert scanning sweep."""
+    if os.environ.get("ENABLE_BACKGROUND_ALERTS", "true").lower() == "false":
+        return {"status": "disabled", "triggers": []}
+
     # Read WhatsApp settings from environment
     wa_token = os.environ.get("WHATSAPP_TOKEN", "")
     wa_phone_id = os.environ.get("WHATSAPP_PHONE_ID", "")

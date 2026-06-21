@@ -10545,4 +10545,234 @@ tr.active-peer-row td:first-child {
     }
 }
 
+/* Onscreen styles for Institutional Pitchbook Preview Modal */
+#pitchbook-modal .modal-content {
+    background: rgba(18, 22, 30, 0.95) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.7) !important;
+    backdrop-filter: blur(25px) !important;
+    -webkit-backdrop-filter: blur(25px) !important;
+    color: #f1f5f9 !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
 
+#pitchbook-modal .modal-content h3 {
+    color: #f8fafc !important;
+}
+
+#pitchbook-modal .modal-content button {
+    transition: all 0.2s ease;
+}
+
+#pitchbook-modal .modal-content button:hover {
+    transform: translateY(-1px);
+    opacity: 0.95;
+}
+
+#pitchbook-content-pane h1 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 20px;
+    font-weight: 800;
+    color: #38bdf8 !important; /* Premium sky blue for main header */
+    border-bottom: 2px solid #0284c7;
+    padding-bottom: 6px;
+    margin-top: 24px;
+    margin-bottom: 12px;
+    letter-spacing: 0.03em;
+}
+
+#pitchbook-content-pane h2 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: #e2e8f0 !important;
+    border-left: 4px solid #38bdf8;
+    padding-left: 10px;
+    margin-top: 18px;
+    margin-bottom: 10px;
+}
+
+#pitchbook-content-pane h3 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #94a3b8 !important;
+    margin-top: 14px;
+    margin-bottom: 8px;
+}
+
+#pitchbook-content-pane p,
+#pitchbook-content-pane li,
+#pitchbook-content-pane td {
+    color: #cbd5e1 !important;
+    font-family: 'Inter', sans-serif;
+    line-height: 1.6;
+}
+
+#pitchbook-content-pane strong {
+    color: #f8fafc !important;
+}
+
+/* Light Theme overrides for Pitchbook Preview modal */
+[data-theme="light"] #pitchbook-modal .modal-content {
+    background: rgba(255, 255, 255, 0.95) !important;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.15) !important;
+    color: #1e293b !important;
+}
+
+[data-theme="light"] #pitchbook-modal .modal-content h3 {
+    color: #0f172a !important;
+}
+
+[data-theme="light"] #pitchbook-content-pane h1 {
+    color: #0284c7 !important; /* sky blue primary */
+    border-bottom: 2px solid #cbd5e1;
+}
+
+[data-theme="light"] #pitchbook-content-pane h2 {
+    color: #1e293b !important;
+    border-left: 4px solid #0284c7;
+}
+
+[data-theme="light"] #pitchbook-content-pane h3 {
+    color: #475569 !important;
+}
+
+[data-theme="light"] #pitchbook-content-pane p,
+[data-theme="light"] #pitchbook-content-pane li,
+[data-theme="light"] #pitchbook-content-pane td {
+    color: #334155 !important;
+}
+
+[data-theme="light"] #pitchbook-content-pane strong {
+    color: #0f172a !important;
+}
+
+[data-theme="light"] #pitchbook-content-pane th {
+    background: rgba(0, 0, 0, 0.03) !important;
+    color: #475569 !important;
+}
+
+[data-theme="light"] #pitchbook-content-pane tr {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+}
+
+[data-theme="light"] #pitchbook-content-pane div.table-scroll {
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Print styles for Institutional Pitchbook Memo */
+@media print {
+    /* Hide all workspace layouts, headers, sidebars, charts, and dialogues */
+    body > *:not(#pitchbook-modal) {
+        display: none !important;
+    }
+
+    body {
+        background: #ffffff !important;
+        color: #000000 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        font-size: 11pt !important;
+    }
+
+    #pitchbook-modal {
+        position: static !important;
+        display: block !important;
+        background: none !important;
+        width: 100% !important;
+        height: auto !important;
+        box-shadow: none !important;
+        z-index: auto !important;
+        overflow: visible !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        padding: 0 !important;
+    }
+
+    #pitchbook-modal .modal-content {
+        background: none !important;
+        border: none !important;
+        box-shadow: none !important;
+        width: 100% !important;
+        height: auto !important;
+        max-width: none !important;
+        padding: 0 !important;
+        overflow: visible !important;
+    }
+
+    #pitchbook-modal .modal-content > div:first-child {
+        display: none !important; /* Hide preview header and action buttons on print */
+    }
+
+    #pitchbook-content-pane {
+        overflow: visible !important;
+        height: auto !important;
+        width: 100% !important;
+    }
+
+    /* Force all elements inside print pane to black text and transparent background */
+    #pitchbook-content-pane,
+    #pitchbook-content-pane * {
+        color: #000000 !important;
+        background: transparent !important;
+        text-shadow: none !important;
+        box-shadow: none !important;
+    }
+
+    /* Print typography refinements */
+    #pitchbook-content-pane h1 {
+        font-size: 18pt !important;
+        color: #000000 !important;
+        border-bottom: 1.5pt solid #000000 !important;
+        padding-bottom: 4pt !important;
+        margin-top: 20pt !important;
+        margin-bottom: 10pt !important;
+        page-break-after: avoid;
+    }
+
+    #pitchbook-content-pane h2 {
+        font-size: 14pt !important;
+        color: #000000 !important;
+        border-left: 3pt solid #000000 !important;
+        padding-left: 8pt !important;
+        margin-top: 16pt !important;
+        margin-bottom: 8pt !important;
+        page-break-after: avoid;
+    }
+
+    #pitchbook-content-pane h3 {
+        font-size: 11pt !important;
+        color: #000000 !important;
+        margin-top: 12pt !important;
+        margin-bottom: 6pt !important;
+        page-break-after: avoid;
+    }
+
+    #pitchbook-content-pane p,
+    #pitchbook-content-pane li,
+    #pitchbook-content-pane td,
+    #pitchbook-content-pane th {
+        font-size: 10pt !important;
+        line-height: 1.5 !important;
+    }
+
+    #pitchbook-content-pane table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        margin: 12pt 0 !important;
+        page-break-inside: avoid;
+    }
+
+    #pitchbook-content-pane th {
+        border-bottom: 1.5pt solid #000000 !important;
+        font-weight: bold !important;
+        background: #f1f5f9 !important; /* light grey block is fine for print */
+    }
+
+    #pitchbook-content-pane tr {
+        border-bottom: 0.5pt solid #e2e8f0 !important;
+        page-break-inside: avoid;
+    }
+}

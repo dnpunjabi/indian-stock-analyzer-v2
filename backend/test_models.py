@@ -185,7 +185,7 @@ class TestAPIEndpoints(unittest.TestCase):
         data = response.json()
         self.assertEqual(len(data), 1)
         self.assertEqual(data[0]["symbol"], "INFY")
-        mock_screener.assert_called_once_with("hybrid", "large", "Long-term (3+ years)", "Moderate", "all")
+        mock_screener.assert_called_once_with("hybrid", "large", "Long-term (3+ years)", "Moderate", "all", None, None)
 
     @patch("backend.main.run_ai_stock_screener")
     def test_discover_stocks_with_style_endpoint(self, mock_screener):
@@ -195,7 +195,7 @@ class TestAPIEndpoints(unittest.TestCase):
         ]
         response = self.client.get("/api/discover?strategy=hybrid&universe=large&style=value")
         self.assertEqual(response.status_code, 200)
-        mock_screener.assert_called_once_with("hybrid", "large", "Long-term (3+ years)", "Moderate", "value")
+        mock_screener.assert_called_once_with("hybrid", "large", "Long-term (3+ years)", "Moderate", "value", None, None)
 
     def test_get_universe_endpoint(self):
         """Verifies the GET /api/universe endpoint returns registered constituents."""

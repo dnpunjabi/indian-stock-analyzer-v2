@@ -1097,6 +1097,216 @@ function setupEnterpriseHeader() {
         setupMetaBannerToggles();
         setupMetaBannerCollapse();
     }
+
+    // Setup Institutional Pitchbook trigger listeners
+    const pitchbookTriggerBtn = document.getElementById('export-pitchbook-btn');
+    if (pitchbookTriggerBtn) {
+        pitchbookTriggerBtn.addEventListener('click', () => {
+            if (activeStockProfile && activeStockProfile.ticker) {
+                generatePitchbook(activeStockProfile.ticker);
+            }
+        });
+    }
+
+    const pitchbookPrintBtn = document.getElementById('pitchbook-print-btn');
+    if (pitchbookPrintBtn) {
+        pitchbookPrintBtn.addEventListener('click', () => {
+            const symbol = (activeStockProfile && activeStockProfile.ticker) ? activeStockProfile.ticker.split('.')[0].toUpperCase() : 'STOCK';
+            const companyName = (activeStockProfile && activeStockProfile.company_name) ? activeStockProfile.company_name : 'Pitchbook';
+            
+            // Format timestamp: YYYY-MM-DD_HH-MM
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const timestamp = `${year}-${month}-${day}_${hours}-${minutes}`;
+            
+            // Clean up company name to be safe for filenames
+            const cleanCompanyName = companyName.replace(/[^a-zA-Z0-9\s-_]/g, '').replace(/\s+/g, '_').trim();
+            const newTitle = `${symbol}_${cleanCompanyName}_Pitchbook_${timestamp}`;
+            
+            // Save original title
+            const originalTitle = document.title;
+            
+            // Set new document title
+            document.title = newTitle;
+            
+            // Trigger browser print
+            window.print();
+            
+            // Restore original title after a short delay (so the print dialog registers it)
+            setTimeout(() => {
+                document.title = originalTitle;
+            }, 1000);
+        });
+    }
+
+    const pitchbookCloseBtn = document.getElementById('pitchbook-close-btn');
+    const pitchbookModal = document.getElementById('pitchbook-modal');
+    if (pitchbookCloseBtn && pitchbookModal) {
+        pitchbookCloseBtn.addEventListener('click', () => {
+            pitchbookModal.style.display = 'none';
+        });
+        
+        // Also close modal when clicking outside the modal content box
+        pitchbookModal.addEventListener('click', (e) => {
+            if (e.target === pitchbookModal) {
+                pitchbookModal.style.display = 'none';
+            }
+        });
+    }
+}
+
+async function generatePitchbook(symbol) {
+    if (!symbol) return;
+    
+    // Fetch custom sandbox overrides from DCF DOM elements
+    const waccEl = document.getElementById('slider-wacc-val');
+    const growthEl = document.getElementById('slider-growth-val');
+    const opmEl = document.getElementById('slider-opm-val');
+    const termEl = document.getElementById('slider-terminal-val');
+    
+    // Get values or default
+    const wacc = waccEl ? parseFloat(waccEl.innerText) : null;
+    const growth = growthEl ? parseFloat(growthEl.innerText) : null;
+    const opm = opmEl ? parseFloat(opmEl.innerText) : null;
+    const term = termEl ? parseFloat(termEl.innerText) : 4.5;
+    
+    const horizon = document.getElementById('profile-horizon')?.value || 'Long-term (3+ years)';
+    const risk = document.getElementById('profile-risk')?.value || 'Moderate';
+    
+    // Show global loader with custom steps for professional feedback
+    showLoader(
+        `Compiling Investment Memo: ${symbol.toUpperCase()}`,
+        "Aggregating peer metrics, tracking sector momentum rotation, gathering governance checklists, and synthesizing institutional pitchbook report.",
+        true,
+        [
+            { threshold: 25, msg: "[INFO] Compiling relative peer multiples & valuations...", color: '#38bdf8' },
+            { threshold: 50, msg: "[INFO] Accessing Sector Momentum Radar databases...", color: '#f59e0b' },
+            { threshold: 75, msg: "[INFO] Synthesizing investment committee consensus memo...", color: '#10b981' },
+            { threshold: 95, msg: "[INFO] Launching Pitchbook viewer panel...", color: '#a855f7' }
+        ]
+    );
+    
+    try {
+        let url = `/api/analyze/pitchbook?symbol=${encodeURIComponent(symbol)}&horizon=${encodeURIComponent(horizon)}&risk=${encodeURIComponent(risk)}&terminal_growth=${term}`;
+        if (wacc !== null && !isNaN(wacc)) url += `&wacc=${wacc}`;
+        if (growth !== null && !isNaN(growth)) url += `&growth=${growth}`;
+        if (opm !== null && !isNaN(opm)) url += `&opm=${opm}`;
+        
+        const response = await fetch(url);
+        if (!response.ok) throw new Error("Pitchbook compilation failed.");
+        const data = await response.json();
+        
+        // Parse markdown text to html layout
+        const formattedHtml = parseMarkdownToPitchbookHTML(data.markdown);
+        
+        const contentPane = document.getElementById('pitchbook-content-pane');
+        if (contentPane) {
+            contentPane.innerHTML = formattedHtml;
+        }
+        
+        // Display Modal
+        const modal = document.getElementById('pitchbook-modal');
+        if (modal) {
+            modal.style.display = 'flex';
+        }
+    } catch (e) {
+        console.error("Pitchbook generation error:", e);
+        showToast("Failed to compile pitchbook: " + e.message, "error");
+    } finally {
+        hideLoader();
+    }
+}
+
+function parseMarkdownToPitchbookHTML(md) {
+    if (!md) return "";
+    
+    let html = md;
+    
+    // Parse tables first
+    if (html.includes('|')) {
+        const lines = html.split('\n');
+        let inTable = false;
+        let tableHtml = '';
+        let parsedLines = [];
+        
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (line.startsWith('|') && line.endsWith('|')) {
+                if (!inTable) {
+                    inTable = true;
+                    tableHtml = '<div class="table-scroll" style="overflow-x:auto; margin: 15px 0; border: 1px solid var(--border-glass); border-radius: 6px;"><table style="width:100%; border-collapse:collapse; font-size:11px; background:rgba(255,255,255,0.01);">';
+                }
+                
+                if (line.includes('---') || line.includes(':---')) {
+                    continue;
+                }
+                
+                const cells = line.split('|').slice(1, -1).map(c => c.trim());
+                const isHeader = !tableHtml.includes('<tbody>');
+                const tag = isHeader ? 'th' : 'td';
+                
+                let rowHtml = '<tr style="border-bottom: 1px solid var(--border-glass);">';
+                for (let cell of cells) {
+                    let cellStyle = 'padding:10px 12px; text-align:center; color:var(--text-primary);';
+                    if (isHeader) {
+                        cellStyle += 'padding:10px 12px; text-align:center; font-weight:700; color:var(--text-muted); background:rgba(255,255,255,0.03); font-family:\'Outfit\',sans-serif; text-transform:uppercase; font-size:10px;';
+                    }
+                    rowHtml += `<${tag} style="${cellStyle}">${cell}</${tag}>`;
+                }
+                rowHtml += '</tr>';
+                
+                if (isHeader) {
+                    tableHtml += '<thead>' + rowHtml + '</thead><tbody>';
+                } else {
+                    tableHtml += rowHtml;
+                }
+            } else {
+                if (inTable) {
+                    inTable = false;
+                    tableHtml += '</tbody></table></div>';
+                    parsedLines.push(tableHtml);
+                    tableHtml = '';
+                }
+                parsedLines.push(lines[i]);
+            }
+        }
+        if (inTable) {
+            tableHtml += '</tbody></table></div>';
+            parsedLines.push(tableHtml);
+        }
+        html = parsedLines.join('\n');
+    }
+    
+    // Apply header translations
+    html = html
+        .replace(/^# (.*?)$/gm, '<h1 style="font-family:\'Outfit\',sans-serif; font-size:18px; color:var(--color-primary-light); border-bottom:2px solid var(--color-primary); padding-bottom:8px; margin-top:25px; margin-bottom:15px; text-transform:uppercase; font-weight:800; letter-spacing:0.05em;">$1</h1>')
+        .replace(/^## (.*?)$/gm, '<h2 style="font-family:\'Outfit\',sans-serif; font-size:13.5px; color:var(--text-primary); border-left:4px solid var(--color-primary); padding-left:10px; margin-top:20px; margin-bottom:12px; text-transform:uppercase; font-weight:700; letter-spacing:0.03em;">$1</h2>')
+        .replace(/^### (.*?)$/gm, '<h3 style="font-family:\'Outfit\',sans-serif; font-size:11.5px; color:var(--text-secondary); margin-top:15px; margin-bottom:8px; font-weight:600;">$1</h3>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong style="color:var(--text-primary); font-weight:700;">$1</strong>')
+        .replace(/^\* (.*?)$/gm, '<li style="margin-left:20px; margin-bottom:6px; color:var(--text-secondary); list-style-type:square;">$1</li>')
+        .replace(/^- (.*?)$/gm, '<li style="margin-left:20px; margin-bottom:6px; color:var(--text-secondary); list-style-type:circle;">$1</li>');
+        
+    // Wrap lists nicely
+    html = html.replace(/(<li.*<\/li>)/gs, '<ul style="margin: 10px 0; padding-left:0;">$1</ul>');
+    
+    // Split into paragraph sections
+    const segments = html.split('\n\n');
+    let finalHtml = '';
+    for (let segment of segments) {
+        segment = segment.trim();
+        if (!segment) continue;
+        if (segment.startsWith('<h') || segment.startsWith('<div') || segment.startsWith('<ul') || segment.startsWith('<table')) {
+            finalHtml += segment + '\n';
+        } else {
+            finalHtml += `<p style="margin-bottom:12px; color:var(--text-secondary); line-height:1.6;">${segment}</p>\n`;
+        }
+    }
+    
+    return finalHtml;
 }
 
 function setupMetaBannerToggles() {
@@ -3463,7 +3673,7 @@ function renderScreenerSkeletons() {
     }
 }
 
-async function loadStockAnalyzer(query) {
+async function loadStockAnalyzer(query, force_llm = false) {
     const searchInput = document.getElementById('analyzer-search-input');
     if (searchInput) {
         searchInput.value = query;
@@ -3472,11 +3682,16 @@ async function loadStockAnalyzer(query) {
     const horizon = document.getElementById('profile-horizon').value;
     const risk = document.getElementById('profile-risk').value;
 
+    const pitchbookBtn = document.getElementById('export-pitchbook-btn');
+    if (pitchbookBtn) {
+        pitchbookBtn.style.display = 'none';
+    }
+
     setAnalyzeBtnLoading(true);
 
     showLoader(
         `Synthesizing Equity Diagnostics: ${query.toUpperCase()}`,
-        "Orchestrating mathematical subagents, evaluating balance sheets, scanning technical lines, and generating custom advisory consensus.",
+        force_llm ? "Running full multi-agent LLM analysis and narrative synthesis..." : "Orchestrating mathematical subagents, evaluating balance sheets, scanning technical lines, and generating custom advisory consensus.",
         true,
         [
             { threshold: 12, msg: `[INFO] Connecting to yfinance feeds for ${query.toUpperCase()}...`, color: '#38bdf8' },
@@ -3499,7 +3714,7 @@ async function loadStockAnalyzer(query) {
     applyCardSkeletons(true);
 
     try {
-        const response = await fetch(`/api/analyze?query=${encodeURIComponent(query)}&horizon=${encodeURIComponent(horizon)}&risk=${encodeURIComponent(risk)}`);
+        const response = await fetch(`/api/analyze?query=${encodeURIComponent(query)}&horizon=${encodeURIComponent(horizon)}&risk=${encodeURIComponent(risk)}&force_llm=${force_llm}`);
         if (!response.ok) throw new Error("Analysis failed.");
         const profile = await response.json();
 
@@ -3533,6 +3748,29 @@ async function loadStockAnalyzer(query) {
         setupPeersSorting();
         triggerLiveCompoundingCalculation();
         if (window.resetAnalyzerSubtabs) window.resetAnalyzerSubtabs();
+
+        // Handle Institutional Pitchbook Button
+        const pitchbookBtn = document.getElementById('export-pitchbook-btn');
+        if (pitchbookBtn) {
+            pitchbookBtn.style.display = 'flex';
+        }
+
+        // Handle AI Prospectus Upgrade Banner
+        const upgradeContainer = document.getElementById('prospectus-ai-upgrade-container');
+        const upgradeBtn = document.getElementById('generate-ai-prospectus-btn');
+        if (upgradeContainer && upgradeBtn) {
+            if (profile.analysis && profile.analysis.is_simulated) {
+                upgradeContainer.style.display = 'block';
+                // Clone button to clear old event listeners safely
+                const newBtn = upgradeBtn.cloneNode(true);
+                upgradeBtn.parentNode.replaceChild(newBtn, upgradeBtn);
+                newBtn.addEventListener('click', () => {
+                    loadStockAnalyzer(profile.ticker, true);
+                });
+            } else {
+                upgradeContainer.style.display = 'none';
+            }
+        }
 
         // Complete the loader animation and console text
         const progressBar = document.getElementById('global-loader-progress-bar');
@@ -7076,6 +7314,7 @@ async function runDynamicSandboxAI() {
     const horizon = document.getElementById('profile-horizon').value;
     const risk = document.getElementById('profile-risk').value;
 
+    const isSimulated = activeStockProfile && activeStockProfile.analysis && activeStockProfile.analysis.is_simulated;
     const payload = {
         query: query,
         horizon: horizon,
@@ -7083,7 +7322,8 @@ async function runDynamicSandboxAI() {
         wacc: parseFloat(document.getElementById('sb-wacc').value),
         revenue_growth: parseFloat(document.getElementById('sb-growth').value),
         opm: parseFloat(document.getElementById('sb-opm').value),
-        terminal_growth: parseFloat(document.getElementById('sb-terminal').value)
+        terminal_growth: parseFloat(document.getElementById('sb-terminal').value),
+        force_llm: !isSimulated
     };
 
     try {
@@ -8338,6 +8578,12 @@ function startRealTimeAlertScanner() {
     const getInterval = () => 10000; // Poll every 10 seconds for quick automatic updates
 
     const runScan = async () => {
+        const alertsEnabled = localStorage.getItem('setting-alerts-enabled') !== 'false';
+        if (!alertsEnabled) {
+            setTimeout(runScan, getInterval());
+            return;
+        }
+
         try {
             const response = await fetch('/api/alerts/check');
             if (!response.ok) return;
@@ -9933,14 +10179,48 @@ function setupChatDrawer() {
     }
 }
 
-async function loadStockSynthesis(symbol) {
-    if (!symbol) return;
+// Global Session Cache
+if (!window.synthesisCache) {
+    window.synthesisCache = {};
+}
 
-    // Stop any active audio playback when switching/reloading stock synthesis
-    if (typeof stopAudioPlayback === 'function') {
-        stopAudioPlayback();
+function renderSynthesisLandingScreen(symbol) {
+    const reportTextEl = document.getElementById('synthesis-report-text');
+    if (!reportTextEl) return;
+
+    const triggerText = document.getElementById('meta-ai-conviction-text');
+    if (triggerText) {
+        triggerText.innerText = "Advisory Report Pending";
+    }
+    const triggerBadge = document.getElementById('meta-ai-conviction-trigger');
+    if (triggerBadge) {
+        triggerBadge.style.opacity = '1';
+        triggerBadge.style.borderColor = 'rgba(255,255,255,0.1)';
+        triggerBadge.style.color = 'var(--text-muted)';
     }
 
+    reportTextEl.innerHTML = `
+        <div style="padding: 30px 15px; text-align: center; display: flex; flex-direction: column; gap: 12px; align-items: center; background: rgba(255,255,255,0.005); border: 1px dashed rgba(255,255,255,0.05); border-radius: 8px; margin: 15px 0; box-sizing: border-box; width: 100%;">
+            <div style="font-size: 24px;">🔬</div>
+            <h4 style="margin: 0; font-size: 11.5px; color: var(--text-primary); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">AI Conviction Synthesis</h4>
+            <p style="margin: 0; font-size: 10px; color: var(--text-muted); line-height: 1.5; max-width: 280px;">
+                Synthesize a deep conviction model for <strong>${symbol}</strong>. Connects valuation spreads, technical momentum, and governance indicators into a unified CIO consensus report.
+            </p>
+            <button id="trigger-conviction-synthesis-btn" class="action-btn" style="width: 100%; height: 32px; font-size: 11px; font-weight: bold; background: var(--color-primary); color: #fff; border: none; border-radius: 4px; cursor: pointer; transition: opacity 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 8px;">
+                ⚡ Generate Conviction Report
+            </button>
+        </div>
+    `;
+
+    const triggerBtn = document.getElementById('trigger-conviction-synthesis-btn');
+    if (triggerBtn) {
+        triggerBtn.addEventListener('click', () => {
+            fetchAndRenderStockSynthesis(symbol);
+        });
+    }
+}
+
+async function fetchAndRenderStockSynthesis(symbol) {
     const horizon = document.getElementById('profile-horizon')?.value || 'Long-term (3+ years)';
     const risk = document.getElementById('profile-risk')?.value || 'Moderate';
 
@@ -9970,311 +10250,335 @@ async function loadStockSynthesis(symbol) {
         if (!response.ok) throw new Error("Synthesis failed.");
         const data = await response.json();
 
-        // Cache conviction metrics in active stock profile for dashboard sync
-        if (activeStockProfile) {
-            activeStockProfile.fundamental_conviction = data.fundamental_conviction;
-            activeStockProfile.technical_conviction = data.technical_conviction;
-            activeStockProfile.sentiment_conviction = data.sentiment_conviction;
-            activeStockProfile.synthesis_friction_points = data.friction_points;
+        // Cache the result
+        window.synthesisCache[symbol] = data;
 
-            // Refresh dashboard debate block headers with active conviction badges
-            renderAIDebate(activeStockProfile);
-        }
-
-        // Update top banner trigger badge
-        if (triggerText) {
-            triggerText.innerText = `Score: ${data.final_score}/100 (${data.recommendation})`;
-        }
-        if (triggerBadge) {
-            triggerBadge.style.opacity = '1';
-            // Adjust border and color based on recommendation
-            if (data.recommendation.includes("BUY")) {
-                triggerBadge.style.borderColor = 'rgba(16, 185, 129, 0.4)';
-                triggerBadge.style.color = '#10b981';
-            } else if (data.recommendation.includes("SELL") || data.recommendation.includes("AVOID")) {
-                triggerBadge.style.borderColor = 'rgba(239, 68, 68, 0.4)';
-                triggerBadge.style.color = '#ef4444';
-            } else {
-                triggerBadge.style.borderColor = 'rgba(245, 158, 11, 0.4)';
-                triggerBadge.style.color = '#f59e0b';
-            }
-        }
-
-        // Update drawer executive synthesis tab controls
-        const scoreNumEl = document.getElementById('synthesis-gauge-score-num');
-        if (scoreNumEl) scoreNumEl.innerText = data.final_score;
-
-        const gaugeFill = document.getElementById('synthesis-gauge-fill');
-        if (gaugeFill) {
-            gaugeFill.setAttribute('stroke-dasharray', `${data.final_score}, 100`);
-            if (data.final_score >= 70) {
-                gaugeFill.style.stroke = 'var(--color-emerald)';
-            } else if (data.final_score >= 45) {
-                gaugeFill.style.stroke = 'var(--color-amber)';
-            } else {
-                gaugeFill.style.stroke = 'var(--color-crimson)';
-            }
-        }
-
-        const ratingBadge = document.getElementById('synthesis-badge-rec');
-        if (ratingBadge) {
-            ratingBadge.innerText = data.recommendation + (data.recommendation.includes("BUY") ? " 🟢" : (data.recommendation.includes("HOLD") ? " 🟡" : " 🔴"));
-            ratingBadge.className = 'badge-rec';
-            if (data.recommendation.includes("BUY")) ratingBadge.classList.add('rec-buy');
-            if (data.recommendation.includes("STRONG BUY")) ratingBadge.classList.add('rec-strong-buy');
-            if (data.recommendation.includes("HOLD")) ratingBadge.classList.add('rec-hold');
-            if (data.recommendation.includes("SELL") || data.recommendation.includes("AVOID")) ratingBadge.classList.add('rec-sell');
-        }
-
-        // Micro indicators
-        const mosEl = document.getElementById('synthesis-micro-mos');
-        if (mosEl) {
-            mosEl.innerText = `${data.margin_of_safety > 0 ? '+' : ''}${data.margin_of_safety.toFixed(1)}%`;
-            mosEl.className = data.margin_of_safety >= 0 ? 'green-text' : 'red-text';
-        }
-
-        const altmanEl = document.getElementById('synthesis-micro-altman');
-        if (altmanEl) {
-            altmanEl.innerText = `${data.altman_z_score.toFixed(2)} (${data.altman_zone.split(' ')[0]})`;
-            if (data.altman_zone.includes("Safe")) altmanEl.className = 'green-text';
-            else if (data.altman_zone.includes("Grey")) altmanEl.className = 'yellow-text';
-            else altmanEl.className = 'red-text';
-        }
-
-        const piotroskiEl = document.getElementById('synthesis-micro-piotroski');
-        if (piotroskiEl) {
-            piotroskiEl.innerText = `${data.piotroski_score}/9 (${data.piotroski_label.split(' ')[0]})`;
-            if (data.piotroski_score >= 7) piotroskiEl.className = 'green-text';
-            else if (data.piotroski_score >= 4) piotroskiEl.className = 'yellow-text';
-            else piotroskiEl.className = 'red-text';
-        }
-
-        const zscoreEl = document.getElementById('synthesis-micro-zscore');
-        if (zscoreEl) {
-            const zscoreVal = data.delivery_z_score !== undefined ? data.delivery_z_score : 0.0;
-            zscoreEl.innerText = `${zscoreVal > 0 ? '+' : ''}${zscoreVal.toFixed(2)}`;
-            if (zscoreVal >= 1.0) zscoreEl.className = 'green-text';
-            else if (zscoreVal <= -1.0) zscoreEl.className = 'red-text';
-            else zscoreEl.className = 'yellow-text';
-        }
-
-        const vsaEl = document.getElementById('synthesis-micro-vsa');
-        if (vsaEl) {
-            const pattern = data.vsa_pattern || 'Normal';
-            const shortPattern = pattern.split(' ')[0]; // E.g. 'Selling', 'No', 'Normal'
-            vsaEl.innerText = shortPattern;
-
-            const vsaType = data.vsa_type || 'neutral';
-            if (vsaType === 'bullish') vsaEl.className = 'green-text';
-            else if (vsaType === 'bearish') vsaEl.className = 'red-text';
-            else vsaEl.className = 'yellow-text';
-        }
-
-        const pocEl = document.getElementById('synthesis-micro-poc');
-        if (pocEl) {
-            const pocVal = data.poc_price !== undefined ? data.poc_price : 0.0;
-            pocEl.innerText = `Rs. ${pocVal.toFixed(1)}`;
-            pocEl.className = 'green-text';
-        }
-
-        // 1. Build Critical Warning Flags alert callouts if present
-        let warningHtml = '';
-        if (data.risk_warning_flags && data.risk_warning_flags.length > 0) {
-            warningHtml = `
-                <div class="synthesis-warning-container" style="margin-bottom: 16px; padding: 12px; border-radius: 8px; background: rgba(239, 68, 68, 0.06); border: 1px solid rgba(239, 68, 68, 0.25); display: flex; flex-direction: column; gap: 8px; width: 100%; box-sizing: border-box;">
-                    <div style="display: flex; align-items: center; gap: 6px; color: #ef4444; font-size: 11px; font-weight: 700; letter-spacing: 0.03em;">
-                        <span>⚠️ HIGH PRIORITY PORTFOLIO RISK ALERT</span>
-                    </div>
-                    <ul style="margin: 0; padding-left: 16px; font-size: 10.5px; color: var(--text-primary); line-height: 1.5; font-weight: 500;">
-                        ${data.risk_warning_flags.map(flag => `<li style="margin-bottom: 3px;">${flag}</li>`).join('')}
-                    </ul>
-                </div>
-            `;
-        }
-
-        // 1b. Build Dialectic Conflict Highlight Banner if present
-        let conflictHtml = '';
-        if (data.friction_points && data.friction_points.length > 0) {
-            conflictHtml = `
-                <div class="synthesis-conflict-banner">
-                    <div class="synthesis-conflict-title">
-                        ⚖️ DIALECTIC ANALYSIS: FRICTION & CONFLICT POINTS
-                    </div>
-                    <ul class="synthesis-conflict-list">
-                        ${data.friction_points.map(pt => `<li>${pt}</li>`).join('')}
-                    </ul>
-                </div>
-            `;
-        }
-
-        // 2. Build Glassmorphic Header blocks dynamically by parsing synthesis text
-        let formattedText = data.synthesis_text;
-
-        // Inject individual sub-agent conviction scores as badges inside their headers
-        if (data.fundamental_conviction !== undefined) {
-            formattedText = formattedText.replace(
-                /<div class="agent-header">📊 Fundamental &amp; Valuation Analyst<\/div>/gi,
-                `<div class="agent-header">📊 Fundamental &amp; Valuation Analyst <span class="agent-conviction-badge">Conviction: ${data.fundamental_conviction}%</span></div>`
-            ).replace(
-                /<div class="agent-header">📊 Fundamental & Valuation Analyst<\/div>/gi,
-                `<div class="agent-header">📊 Fundamental & Valuation Analyst <span class="agent-conviction-badge">Conviction: ${data.fundamental_conviction}%</span></div>`
-            );
-        }
-        if (data.technical_conviction !== undefined) {
-            formattedText = formattedText.replace(
-                /<div class="agent-header">📈 Technical &amp; VSA Tactician<\/div>/gi,
-                `<div class="agent-header">📈 Technical &amp; VSA Tactician <span class="agent-conviction-badge">Conviction: ${data.technical_conviction}%</span></div>`
-            ).replace(
-                /<div class="agent-header">📈 Technical & VSA Tactician<\/div>/gi,
-                `<div class="agent-header">📈 Technical & VSA Tactician <span class="agent-conviction-badge">Conviction: ${data.technical_conviction}%</span></div>`
-            );
-        }
-        if (data.sentiment_conviction !== undefined) {
-            formattedText = formattedText.replace(
-                /<div class="agent-header">🛡️ Sentiment &amp; Smart Money Auditor<\/div>/gi,
-                `<div class="agent-header">🛡️ Sentiment &amp; Smart Money Auditor <span class="agent-conviction-badge">Conviction: ${data.sentiment_conviction}%</span></div>`
-            ).replace(
-                /<div class="agent-header">🛡️ Sentiment & Smart Money Auditor<\/div>/gi,
-                `<div class="agent-header">🛡️ Sentiment & Smart Money Auditor <span class="agent-conviction-badge">Conviction: ${data.sentiment_conviction}%</span></div>`
-            );
-        }
-        if (data.final_score !== undefined) {
-            formattedText = formattedText.replace(
-                /<div class="agent-header">⚖️ Lead CIO Referee \(Consensus Moderator\)<\/div>/gi,
-                `<div class="agent-header">⚖️ Lead CIO Referee (Consensus Moderator) <span class="agent-conviction-badge">Conviction: ${data.final_score}%</span></div>`
-            ).replace(
-                /<div class="agent-header">⚖️ Lead CIO Referee \(Consensus Moderator\)<\/div>/gi,
-                `<div class="agent-header">⚖️ Lead CIO Referee (Consensus Moderator) <span class="agent-conviction-badge">Conviction: ${data.final_score}%</span></div>`
-            );
-        }
-
-        const solvencyBadge = `<span class="header-badge" style="margin-left: auto; font-size: 9px; padding: 2px 8px; border-radius: 99px; font-weight: 700; background: ${data.piotroski_score >= 7 ? 'rgba(16, 185, 129, 0.12)' : 'rgba(245, 158, 11, 0.12)'}; color: ${data.piotroski_score >= 7 ? '#10b981' : '#f59e0b'}; border: 1px solid ${data.piotroski_score >= 7 ? 'rgba(16, 185, 129, 0.25)' : 'rgba(245, 158, 11, 0.25)'};">F-Score: ${data.piotroski_score}/9</span>`;
-        formattedText = formattedText.replace(/### I\. Operational Quality & Solvency Scorecard/g,
-            `<div class="synthesis-header-block" style="display: flex; align-items: center; margin-top: 16px; margin-bottom: 8px; padding: 6px 12px; border-radius: 6px; background: var(--bg-glass); border-left: 3px solid var(--color-primary); font-size: 11.5px; font-weight: 700; color: var(--text-primary);"><span style="margin-right:8px;">I. Operational Quality</span> ${solvencyBadge}</div>`);
-
-        const mosColor = data.margin_of_safety >= 0 ? '#10b981' : '#ef4444';
-        const mosBg = data.margin_of_safety >= 0 ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)';
-        const mosBorder = data.margin_of_safety >= 0 ? 'rgba(16, 185, 129, 0.25)' : 'rgba(239, 68, 68, 0.25)';
-        const mosBadge = `<span class="header-badge" style="margin-left: auto; font-size: 9px; padding: 2px 8px; border-radius: 99px; font-weight: 700; background: ${mosBg}; color: ${mosColor}; border: 1px solid ${mosBorder};">MOS: ${data.margin_of_safety > 0 ? '+' : ''}${data.margin_of_safety.toFixed(1)}%</span>`;
-        formattedText = formattedText.replace(/### II\. Valuation & Peer Benchmarking/g,
-            `<div class="synthesis-header-block" style="display: flex; align-items: center; margin-top: 16px; margin-bottom: 8px; padding: 6px 12px; border-radius: 6px; background: var(--bg-glass); border-left: 3px solid var(--color-primary); font-size: 11.5px; font-weight: 700; color: var(--text-primary);"><span style="margin-right:8px;">II. Valuation & Peers</span> ${mosBadge}</div>`);
-
-        const trendBadge = `<span class="header-badge" style="margin-left: auto; font-size: 9px; padding: 2px 8px; border-radius: 99px; font-weight: 700; background: rgba(168, 85, 247, 0.12); color: #a855f7; border: 1px solid rgba(168, 85, 247, 0.25);">RSI: ${data.rsi.toFixed(1)}</span>`;
-        formattedText = formattedText.replace(/### III\. Technical Timing & Fibonacci Zones/g,
-            `<div class="synthesis-header-block" style="display: flex; align-items: center; margin-top: 16px; margin-bottom: 8px; padding: 6px 12px; border-radius: 6px; background: var(--bg-glass); border-left: 3px solid var(--color-primary); font-size: 11.5px; font-weight: 700; color: var(--text-primary);"><span style="margin-right:8px;">III. Technical Timing</span> ${trendBadge}</div>`);
-
-        const beta = data.capm_risk_nifty50 ? data.capm_risk_nifty50.beta : 1.0;
-        const betaColor = beta <= 1.0 ? '#10b981' : '#f59e0b';
-        const betaBg = beta <= 1.0 ? 'rgba(16, 185, 129, 0.12)' : 'rgba(245, 158, 11, 0.12)';
-        const betaBorder = beta <= 1.0 ? 'rgba(16, 185, 129, 0.25)' : 'rgba(245, 158, 11, 0.25)';
-        const capmBadge = `<span class="header-badge" style="margin-left: auto; font-size: 9px; padding: 2px 8px; border-radius: 99px; font-weight: 700; background: ${betaBg}; color: ${betaColor}; border: 1px solid ${betaBorder};">Beta (N50): ${beta.toFixed(2)}</span>`;
-        formattedText = formattedText.replace(/### IV\. CAPM Risk Analytics & Market Capture/g,
-            `<div class="synthesis-header-block" style="display: flex; align-items: center; margin-top: 16px; margin-bottom: 8px; padding: 6px 12px; border-radius: 6px; background: var(--bg-glass); border-left: 3px solid var(--color-primary); font-size: 11.5px; font-weight: 700; color: var(--text-primary);"><span style="margin-right:8px;">IV. CAPM Risk & Capture</span> ${capmBadge}</div>`);
-
-        const recClean = data.recommendation.replace(/[🟡🟢🔴]/g, '').trim();
-        const recColor = recClean.includes('BUY') ? '#10b981' : (recClean.includes('HOLD') ? '#f59e0b' : '#ef4444');
-        const recBg = recClean.includes('BUY') ? 'rgba(16, 185, 129, 0.12)' : (recClean.includes('HOLD') ? 'rgba(245, 158, 11, 0.12)' : 'rgba(239, 68, 68, 0.12)');
-        const recBorder = recClean.includes('BUY') ? 'rgba(16, 185, 129, 0.25)' : (recClean.includes('HOLD') ? 'rgba(245, 158, 11, 0.25)' : 'rgba(239, 68, 68, 0.25)');
-        const recBadge = `<span class="header-badge" style="margin-left: auto; font-size: 9px; padding: 2px 8px; border-radius: 99px; font-weight: 700; background: ${recBg}; color: ${recColor}; border: 1px solid ${recBorder};">${recClean}</span>`;
-        formattedText = formattedText.replace(/### V\. CIO Investment Prospectus & Conviction Summary/g,
-            `<div class="synthesis-header-block" style="display: flex; align-items: center; margin-top: 16px; margin-bottom: 8px; padding: 6px 12px; border-radius: 6px; background: var(--bg-glass); border-left: 3px solid var(--color-primary); font-size: 11.5px; font-weight: 700; color: var(--text-primary);"><span style="margin-right:8px;">V. CIO Conviction Summary</span> ${recBadge}</div>`);
-
-        // Parse markdown tables to HTML tables first
-        if (formattedText.includes('|')) {
-            const lines = formattedText.split('\n');
-            let inTable = false;
-            let tableHtml = '';
-            let parsedLines = [];
-
-            for (let i = 0; i < lines.length; i++) {
-                const line = lines[i].trim();
-                if (line.startsWith('|') && line.endsWith('|')) {
-                    if (!inTable) {
-                        inTable = true;
-                        tableHtml = '<div style="overflow-x:auto; margin: 12px 0;"><table class="synthesis-markdown-table" style="width:100%; border-collapse:collapse; font-size:10px; border:1px solid var(--border-glass); background:rgba(255,255,255,0.01);">';
-                    }
-
-                    if (line.includes('---') || line.includes(':---')) {
-                        continue; // skip separator row
-                    }
-
-                    const cells = line.split('|').slice(1, -1).map(c => c.trim());
-                    const isHeader = !tableHtml.includes('<tbody>');
-                    const tag = isHeader ? 'th' : 'td';
-
-                    let rowHtml = '<tr>';
-                    for (let cell of cells) {
-                        let cellStyle = `padding:6px 8px; border:1px solid var(--border-glass); text-align:center;`;
-                        let colorSpan = cell;
-                        if (tag === 'th') {
-                            cellStyle += 'font-weight:700; color:var(--text-muted); background:rgba(255,255,255,0.02);';
-                        } else {
-                            if (cell.startsWith('+')) {
-                                colorSpan = `<span style="color:var(--color-emerald); font-weight:600;">${cell}</span>`;
-                            } else if (cell.startsWith('-') && !cell.includes('vs')) {
-                                colorSpan = `<span style="color:#f43f5e; font-weight:600;">${cell}</span>`;
-                            }
-                            cellStyle += 'color:var(--text-primary);';
-                        }
-                        rowHtml += `<${tag} style="${cellStyle}">${colorSpan}</${tag}>`;
-                    }
-                    rowHtml += '</tr>';
-
-                    if (isHeader) {
-                        tableHtml += '<thead>' + rowHtml + '</thead><tbody>';
-                    } else {
-                        tableHtml += rowHtml;
-                    }
-                } else {
-                    if (inTable) {
-                        inTable = false;
-                        tableHtml += '</tbody></table></div>';
-                        parsedLines.push(tableHtml);
-                        tableHtml = '';
-                    }
-                    parsedLines.push(lines[i]);
-                }
-            }
-            if (inTable) {
-                tableHtml += '</tbody></table></div>';
-                parsedLines.push(tableHtml);
-            }
-            formattedText = parsedLines.join('\n');
-        }
-
-        // Apply inline formatting and list formatting
-        formattedText = formattedText
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            .replace(/### (.*?)\n/g, '<h3>$1</h3>')
-            .replace(/\* (.*?)\n/g, '<li>$1</li>');
-
-        if (formattedText.includes('<li>')) {
-            formattedText = formattedText.replace(/(<li>.*?<\/li>)/gs, '<ul>$1</ul>');
-        }
-
-        // Split by paragraph segments and wrap non-HTML blocks in <p>
-        const segments = formattedText.split('\n\n');
-        let finalHtml = '';
-        for (let segment of segments) {
-            segment = segment.trim();
-            if (!segment) continue;
-            if (segment.startsWith('<div') || segment.startsWith('</div') || segment.startsWith('<table') || segment.includes('class="synthesis-header-block"') || segment.includes('class="agent-debate-block"') || segment.includes('class="synthesis-markdown-table"')) {
-                finalHtml += segment + '\n';
-            } else {
-                finalHtml += `<p>${segment}</p>\n`;
-            }
-        }
-
-        if (reportTextEl) {
-            const combinedHtml = `${warningHtml}${conflictHtml}${finalHtml}`;
-            reportTextEl.innerHTML = typeof injectMetricTooltips === 'function' ? injectMetricTooltips(combinedHtml) : combinedHtml;
-        }
+        displaySynthesisData(data);
     } catch (e) {
         console.error("Synthesis load error:", e);
         if (triggerText) triggerText.innerText = "Error";
         if (reportTextEl) {
             reportTextEl.innerHTML = `<span class="red-text" style="font-size: 12px;">Failed to compile AI equities synthesis: ${e.message}. Please verify Groq API configurations.</span>`;
         }
+    }
+}
+
+function displaySynthesisData(data) {
+    const triggerBadge = document.getElementById('meta-ai-conviction-trigger');
+    const triggerText = document.getElementById('meta-ai-conviction-text');
+    const reportTextEl = document.getElementById('synthesis-report-text');
+
+    // Cache conviction metrics in active stock profile for dashboard sync
+    if (activeStockProfile) {
+        activeStockProfile.fundamental_conviction = data.fundamental_conviction;
+        activeStockProfile.technical_conviction = data.technical_conviction;
+        activeStockProfile.sentiment_conviction = data.sentiment_conviction;
+        activeStockProfile.synthesis_friction_points = data.friction_points;
+
+        // Refresh dashboard debate block headers with active conviction badges
+        renderAIDebate(activeStockProfile);
+    }
+
+    // Update top banner trigger badge
+    if (triggerText) {
+        triggerText.innerText = `Score: ${data.final_score}/100 (${data.recommendation})`;
+    }
+    if (triggerBadge) {
+        triggerBadge.style.opacity = '1';
+        // Adjust border and color based on recommendation
+        if (data.recommendation.includes("BUY")) {
+            triggerBadge.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+            triggerBadge.style.color = '#10b981';
+        } else if (data.recommendation.includes("SELL") || data.recommendation.includes("AVOID")) {
+            triggerBadge.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+            triggerBadge.style.color = '#ef4444';
+        } else {
+            triggerBadge.style.borderColor = 'rgba(245, 158, 11, 0.4)';
+            triggerBadge.style.color = '#f59e0b';
+        }
+    }
+
+    // Update drawer executive synthesis tab controls
+    const scoreNumEl = document.getElementById('synthesis-gauge-score-num');
+    if (scoreNumEl) scoreNumEl.innerText = data.final_score;
+
+    const gaugeFill = document.getElementById('synthesis-gauge-fill');
+    if (gaugeFill) {
+        gaugeFill.setAttribute('stroke-dasharray', `${data.final_score}, 100`);
+        if (data.final_score >= 70) {
+            gaugeFill.style.stroke = 'var(--color-emerald)';
+        } else if (data.final_score >= 45) {
+            gaugeFill.style.stroke = 'var(--color-amber)';
+        } else {
+            gaugeFill.style.stroke = 'var(--color-crimson)';
+        }
+    }
+
+    const ratingBadge = document.getElementById('synthesis-badge-rec');
+    if (ratingBadge) {
+        ratingBadge.innerText = data.recommendation + (data.recommendation.includes("BUY") ? " 🟢" : (data.recommendation.includes("HOLD") ? " 🟡" : " 🔴"));
+        ratingBadge.className = 'badge-rec';
+        if (data.recommendation.includes("BUY")) ratingBadge.classList.add('rec-buy');
+        if (data.recommendation.includes("STRONG BUY")) ratingBadge.classList.add('rec-strong-buy');
+        if (data.recommendation.includes("HOLD")) ratingBadge.classList.add('rec-hold');
+        if (data.recommendation.includes("SELL") || data.recommendation.includes("AVOID")) ratingBadge.classList.add('rec-sell');
+    }
+
+    // Micro indicators
+    const mosEl = document.getElementById('synthesis-micro-mos');
+    if (mosEl) {
+        mosEl.innerText = `${data.margin_of_safety > 0 ? '+' : ''}${data.margin_of_safety.toFixed(1)}%`;
+        mosEl.className = data.margin_of_safety >= 0 ? 'green-text' : 'red-text';
+    }
+
+    const altmanEl = document.getElementById('synthesis-micro-altman');
+    if (altmanEl) {
+        altmanEl.innerText = `${data.altman_z_score.toFixed(2)} (${data.altman_zone.split(' ')[0]})`;
+        if (data.altman_zone.includes("Safe")) altmanEl.className = 'green-text';
+        else if (data.altman_zone.includes("Grey")) altmanEl.className = 'yellow-text';
+        else altmanEl.className = 'red-text';
+    }
+
+    const piotroskiEl = document.getElementById('synthesis-micro-piotroski');
+    if (piotroskiEl) {
+        piotroskiEl.innerText = `${data.piotroski_score}/9 (${data.piotroski_label.split(' ')[0]})`;
+        if (data.piotroski_score >= 7) piotroskiEl.className = 'green-text';
+        else if (data.piotroski_score >= 4) piotroskiEl.className = 'yellow-text';
+        else piotroskiEl.className = 'red-text';
+    }
+
+    const zscoreEl = document.getElementById('synthesis-micro-zscore');
+    if (zscoreEl) {
+        const zscoreVal = data.delivery_z_score !== undefined ? data.delivery_z_score : 0.0;
+        zscoreEl.innerText = `${zscoreVal > 0 ? '+' : ''}${zscoreVal.toFixed(2)}`;
+        if (zscoreVal >= 1.0) zscoreEl.className = 'green-text';
+        else if (zscoreVal <= -1.0) zscoreEl.className = 'red-text';
+        else zscoreEl.className = 'yellow-text';
+    }
+
+    const vsaEl = document.getElementById('synthesis-micro-vsa');
+    if (vsaEl) {
+        const pattern = data.vsa_pattern || 'Normal';
+        const shortPattern = pattern.split(' ')[0];
+        vsaEl.innerText = shortPattern;
+
+        const vsaType = data.vsa_type || 'neutral';
+        if (vsaType === 'bullish') vsaEl.className = 'green-text';
+        else if (vsaType === 'bearish') vsaEl.className = 'red-text';
+        else vsaEl.className = 'yellow-text';
+    }
+
+    const pocEl = document.getElementById('synthesis-micro-poc');
+    if (pocEl) {
+        const pocVal = data.poc_price !== undefined ? data.poc_price : 0.0;
+        pocEl.innerText = `Rs. ${pocVal.toFixed(1)}`;
+        pocEl.className = 'green-text';
+    }
+
+    // 1. Build Critical Warning Flags alert callouts if present
+    let warningHtml = '';
+    if (data.risk_warning_flags && data.risk_warning_flags.length > 0) {
+        warningHtml = `
+            <div class="synthesis-warning-container" style="margin-bottom: 16px; padding: 12px; border-radius: 8px; background: rgba(239, 68, 68, 0.06); border: 1px solid rgba(239, 68, 68, 0.25); display: flex; flex-direction: column; gap: 8px; width: 100%; box-sizing: border-box;">
+                <div style="display: flex; align-items: center; gap: 6px; color: #ef4444; font-size: 11px; font-weight: 700; letter-spacing: 0.03em;">
+                    <span>⚠️ HIGH PRIORITY PORTFOLIO RISK ALERT</span>
+                </div>
+                <ul style="margin: 0; padding-left: 16px; font-size: 10.5px; color: var(--text-primary); line-height: 1.5; font-weight: 500;">
+                    ${data.risk_warning_flags.map(flag => `<li style="margin-bottom: 3px;">${flag}</li>`).join('')}
+                </ul>
+            </div>
+        `;
+    }
+
+    // 1b. Build Dialectic Conflict Highlight Banner if present
+    let conflictHtml = '';
+    if (data.friction_points && data.friction_points.length > 0) {
+        conflictHtml = `
+            <div class="synthesis-conflict-banner">
+                <div class="synthesis-conflict-title">
+                    ⚖️ DIALECTIC ANALYSIS: FRICTION & CONFLICT POINTS
+                </div>
+                <ul class="synthesis-conflict-list">
+                    ${data.friction_points.map(pt => `<li>${pt}</li>`).join('')}
+                </ul>
+            </div>
+        `;
+    }
+
+    // 2. Build Glassmorphic Header blocks dynamically by parsing synthesis text
+    let formattedText = data.synthesis_text;
+
+    // Inject individual sub-agent conviction scores as badges inside their headers
+    if (data.fundamental_conviction !== undefined) {
+        formattedText = formattedText.replace(
+            /<div class="agent-header">📊 Fundamental &amp; Valuation Analyst<\/div>/gi,
+            `<div class="agent-header">📊 Fundamental &amp; Valuation Analyst <span class="agent-conviction-badge">Conviction: ${data.fundamental_conviction}%</span></div>`
+        ).replace(
+            /<div class="agent-header">📊 Fundamental & Valuation Analyst<\/div>/gi,
+            `<div class="agent-header">📊 Fundamental & Valuation Analyst <span class="agent-conviction-badge">Conviction: ${data.fundamental_conviction}%</span></div>`
+        );
+    }
+    if (data.technical_conviction !== undefined) {
+        formattedText = formattedText.replace(
+            /<div class="agent-header">📈 Technical &amp; VSA Tactician<\/div>/gi,
+            `<div class="agent-header">📈 Technical &amp; VSA Tactician <span class="agent-conviction-badge">Conviction: ${data.technical_conviction}%</span></div>`
+        ).replace(
+            /<div class="agent-header">📈 Technical & VSA Tactician<\/div>/gi,
+            `<div class="agent-header">📈 Technical & VSA Tactician <span class="agent-conviction-badge">Conviction: ${data.technical_conviction}%</span></div>`
+        );
+    }
+    if (data.sentiment_conviction !== undefined) {
+        formattedText = formattedText.replace(
+            /<div class="agent-header">🛡️ Sentiment &amp; Smart Money Auditor<\/div>/gi,
+            `<div class="agent-header">🛡️ Sentiment &amp; Smart Money Auditor <span class="agent-conviction-badge">Conviction: ${data.sentiment_conviction}%</span></div>`
+        ).replace(
+            /<div class="agent-header">🛡️ Sentiment & Smart Money Auditor<\/div>/gi,
+            `<div class="agent-header">🛡️ Sentiment & Smart Money Auditor <span class="agent-conviction-badge">Conviction: ${data.sentiment_conviction}%</span></div>`
+        );
+    }
+    if (data.final_score !== undefined) {
+        formattedText = formattedText.replace(
+            /<div class="agent-header">⚖️ Lead CIO Referee \(Consensus Moderator\)<\/div>/gi,
+            `<div class="agent-header">⚖️ Lead CIO Referee (Consensus Moderator) <span class="agent-conviction-badge">Conviction: ${data.final_score}%</span></div>`
+        ).replace(
+            /<div class="agent-header">⚖️ Lead CIO Referee \(Consensus Moderator\)<\/div>/gi,
+            `<div class="agent-header">⚖️ Lead CIO Referee (Consensus Moderator) <span class="agent-conviction-badge">Conviction: ${data.final_score}%</span></div>`
+        );
+    }
+
+    const solvencyBadge = `<span class="header-badge" style="margin-left: auto; font-size: 9px; padding: 2px 8px; border-radius: 99px; font-weight: 700; background: ${data.piotroski_score >= 7 ? 'rgba(16, 185, 129, 0.12)' : 'rgba(245, 158, 11, 0.12)'}; color: ${data.piotroski_score >= 7 ? '#10b981' : '#f59e0b'}; border: 1px solid ${data.piotroski_score >= 7 ? 'rgba(16, 185, 129, 0.25)' : 'rgba(245, 158, 11, 0.25)'};">F-Score: ${data.piotroski_score}/9</span>`;
+    formattedText = formattedText.replace(/### I\. Operational Quality & Solvency Scorecard/g,
+        `<div class="synthesis-header-block" style="display: flex; align-items: center; margin-top: 16px; margin-bottom: 8px; padding: 6px 12px; border-radius: 6px; background: var(--bg-glass); border-left: 3px solid var(--color-primary); font-size: 11.5px; font-weight: 700; color: var(--text-primary);"><span style="margin-right:8px;">I. Operational Quality</span> ${solvencyBadge}</div>`);
+
+    const mosColor = data.margin_of_safety >= 0 ? '#10b981' : '#ef4444';
+    const mosBg = data.margin_of_safety >= 0 ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)';
+    const mosBorder = data.margin_of_safety >= 0 ? 'rgba(16, 185, 129, 0.25)' : 'rgba(239, 68, 68, 0.25)';
+    const mosBadge = `<span class="header-badge" style="margin-left: auto; font-size: 9px; padding: 2px 8px; border-radius: 99px; font-weight: 700; background: ${mosBg}; color: ${mosColor}; border: 1px solid ${mosBorder};">MOS: ${data.margin_of_safety > 0 ? '+' : ''}${data.margin_of_safety.toFixed(1)}%</span>`;
+    formattedText = formattedText.replace(/### II\. Valuation & Peer Benchmarking/g,
+        `<div class="synthesis-header-block" style="display: flex; align-items: center; margin-top: 16px; margin-bottom: 8px; padding: 6px 12px; border-radius: 6px; background: var(--bg-glass); border-left: 3px solid var(--color-primary); font-size: 11.5px; font-weight: 700; color: var(--text-primary);"><span style="margin-right:8px;">II. Valuation & Peers</span> ${mosBadge}</div>`);
+
+    const trendBadge = `<span class="header-badge" style="margin-left: auto; font-size: 9px; padding: 2px 8px; border-radius: 99px; font-weight: 700; background: rgba(168, 85, 247, 0.12); color: #a855f7; border: 1px solid rgba(168, 85, 247, 0.25);">RSI: ${data.rsi.toFixed(1)}</span>`;
+    formattedText = formattedText.replace(/### III\. Technical Timing & Fibonacci Zones/g,
+        `<div class="synthesis-header-block" style="display: flex; align-items: center; margin-top: 16px; margin-bottom: 8px; padding: 6px 12px; border-radius: 6px; background: var(--bg-glass); border-left: 3px solid var(--color-primary); font-size: 11.5px; font-weight: 700; color: var(--text-primary);"><span style="margin-right:8px;">III. Technical Timing</span> ${trendBadge}</div>`);
+
+    const beta = data.capm_risk_nifty50 ? data.capm_risk_nifty50.beta : 1.0;
+    const betaColor = beta <= 1.0 ? '#10b981' : '#f59e0b';
+    const betaBg = beta <= 1.0 ? 'rgba(16, 185, 129, 0.12)' : 'rgba(245, 158, 11, 0.12)';
+    const betaBorder = beta <= 1.0 ? 'rgba(16, 185, 129, 0.25)' : 'rgba(245, 158, 11, 0.25)';
+    const capmBadge = `<span class="header-badge" style="margin-left: auto; font-size: 9px; padding: 2px 8px; border-radius: 99px; font-weight: 700; background: ${betaBg}; color: ${betaColor}; border: 1px solid ${betaBorder};">Beta (N50): ${beta.toFixed(2)}</span>`;
+    formattedText = formattedText.replace(/### IV\. CAPM Risk Analytics & Market Capture/g,
+        `<div class="synthesis-header-block" style="display: flex; align-items: center; margin-top: 16px; margin-bottom: 8px; padding: 6px 12px; border-radius: 6px; background: var(--bg-glass); border-left: 3px solid var(--color-primary); font-size: 11.5px; font-weight: 700; color: var(--text-primary);"><span style="margin-right:8px;">IV. CAPM Risk & Capture</span> ${capmBadge}</div>`);
+
+    const recClean = data.recommendation.replace(/[🟡🟢🔴]/g, '').trim();
+    const recColor = recClean.includes('BUY') ? '#10b981' : (recClean.includes('HOLD') ? '#f59e0b' : '#ef4444');
+    const recBg = recClean.includes('BUY') ? 'rgba(16, 185, 129, 0.12)' : (recClean.includes('HOLD') ? 'rgba(245, 158, 11, 0.12)' : 'rgba(239, 68, 68, 0.12)');
+    const recBorder = recClean.includes('BUY') ? 'rgba(16, 185, 129, 0.25)' : (recClean.includes('HOLD') ? 'rgba(245, 158, 11, 0.25)' : 'rgba(239, 68, 68, 0.25)');
+    const recBadge = `<span class="header-badge" style="margin-left: auto; font-size: 9px; padding: 2px 8px; border-radius: 99px; font-weight: 700; background: ${recBg}; color: ${recColor}; border: 1px solid ${recBorder};">${recClean}</span>`;
+    formattedText = formattedText.replace(/### V\. CIO Investment Prospectus & Conviction Summary/g,
+        `<div class="synthesis-header-block" style="display: flex; align-items: center; margin-top: 16px; margin-bottom: 8px; padding: 6px 12px; border-radius: 6px; background: var(--bg-glass); border-left: 3px solid var(--color-primary); font-size: 11.5px; font-weight: 700; color: var(--text-primary);"><span style="margin-right:8px;">V. CIO Conviction Summary</span> ${recBadge}</div>`);
+
+    // Parse markdown tables to HTML tables first
+    if (formattedText.includes('|')) {
+        const lines = formattedText.split('\n');
+        let inTable = false;
+        let tableHtml = '';
+        let parsedLines = [];
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (line.startsWith('|') && line.endsWith('|')) {
+                if (!inTable) {
+                    inTable = true;
+                    tableHtml = '<div style="overflow-x:auto; margin: 12px 0;"><table class="synthesis-markdown-table" style="width:100%; border-collapse:collapse; font-size:10px; border:1px solid var(--border-glass); background:rgba(255,255,255,0.01);">';
+                }
+
+                if (line.includes('---') || line.includes(':---')) {
+                    continue;
+                }
+
+                const cells = line.split('|').slice(1, -1).map(c => c.trim());
+                const isHeader = !tableHtml.includes('<tbody>');
+                const tag = isHeader ? 'th' : 'td';
+
+                let rowHtml = '<tr>';
+                for (let cell of cells) {
+                    let cellStyle = `padding:6px 8px; border:1px solid var(--border-glass); text-align:center;`;
+                    let colorSpan = cell;
+                    if (tag === 'th') {
+                        cellStyle += 'font-weight:700; color:var(--text-muted); background:rgba(255,255,255,0.02);';
+                    } else {
+                        if (cell.startsWith('+')) {
+                            colorSpan = `<span style="color:var(--color-emerald); font-weight:600;">${cell}</span>`;
+                        } else if (cell.startsWith('-') && !cell.includes('vs')) {
+                            colorSpan = `<span style="color:#f43f5e; font-weight:600;">${cell}</span>`;
+                        }
+                        cellStyle += 'color:var(--text-primary);';
+                    }
+                    rowHtml += `<${tag} style="${cellStyle}">${colorSpan}</${tag}>`;
+                }
+                rowHtml += '</tr>';
+
+                if (isHeader) {
+                    tableHtml += '<thead>' + rowHtml + '</thead><tbody>';
+                } else {
+                    tableHtml += rowHtml;
+                }
+            } else {
+                if (inTable) {
+                    inTable = false;
+                    tableHtml += '</tbody></table></div>';
+                    parsedLines.push(tableHtml);
+                    tableHtml = '';
+                }
+                parsedLines.push(lines[i]);
+            }
+        }
+        if (inTable) {
+            tableHtml += '</tbody></table></div>';
+            parsedLines.push(tableHtml);
+        }
+        formattedText = parsedLines.join('\n');
+    }
+
+    // Apply inline formatting and list formatting
+    formattedText = formattedText
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/### (.*?)\n/g, '<h3>$1</h3>')
+        .replace(/\* (.*?)\n/g, '<li>$1</li>');
+
+    if (formattedText.includes('<li>')) {
+        formattedText = formattedText.replace(/(<li>.*?<\/li>)/gs, '<ul>$1</ul>');
+    }
+
+    const segments = formattedText.split('\n\n');
+    let finalHtml = '';
+    for (let segment of segments) {
+        segment = segment.trim();
+        if (!segment) continue;
+        if (segment.startsWith('<div') || segment.startsWith('</div') || segment.startsWith('<table') || segment.includes('class="synthesis-header-block"') || segment.includes('class="agent-debate-block"') || segment.includes('class="synthesis-markdown-table"')) {
+            finalHtml += segment + '\n';
+        } else {
+            finalHtml += `<p>${segment}</p>\n`;
+        }
+    }
+
+    if (reportTextEl) {
+        const combinedHtml = `${warningHtml}${conflictHtml}${finalHtml}`;
+        reportTextEl.innerHTML = typeof injectMetricTooltips === 'function' ? injectMetricTooltips(combinedHtml) : combinedHtml;
+    }
+}
+
+async function loadStockSynthesis(symbol) {
+    if (!symbol) return;
+
+    if (typeof stopAudioPlayback === 'function') {
+        stopAudioPlayback();
+    }
+
+    if (window.synthesisCache && window.synthesisCache[symbol]) {
+        displaySynthesisData(window.synthesisCache[symbol]);
+    } else {
+        renderSynthesisLandingScreen(symbol);
     }
 }
 
@@ -12995,6 +13299,16 @@ function setupThemeToggle() {
 
     if (desktopBtn) desktopBtn.addEventListener('click', toggle);
     if (mobileBtn) mobileBtn.addEventListener('click', toggle);
+
+    // Wire AI Background Alerts toggle
+    const alertsToggle = document.getElementById('setting-alerts-toggle');
+    if (alertsToggle) {
+        const savedAlerts = localStorage.getItem('setting-alerts-enabled') !== 'false';
+        alertsToggle.checked = savedAlerts;
+        alertsToggle.addEventListener('change', (e) => {
+            localStorage.setItem('setting-alerts-enabled', e.target.checked);
+        });
+    }
 }
 
 function setWorkstationMode(mode) {
