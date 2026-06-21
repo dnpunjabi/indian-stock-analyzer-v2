@@ -4,6 +4,23 @@
    Real-time WebSocket Streaming via Angel One SmartAPI
 */
 
+// ==================== GLOBAL INTERCEPTOR & CAPACITOR ROUTER ====================
+(function() {
+    const isCapacitor = window.hasOwnProperty('Capacitor') || (window.Capacitor !== undefined);
+    const apiBaseUrl = isCapacitor ? 'https://80.225.228.232' : '';
+    
+    if (isCapacitor) {
+        const originalFetch = window.fetch;
+        window.fetch = function(input, init) {
+            if (typeof input === 'string' && input.startsWith('/api/')) {
+                input = apiBaseUrl + input;
+            }
+            return originalFetch(input, init);
+        };
+    }
+})();
+
+
 // ==================== LIVE TICKS WEBSOCKET MANAGER ====================
 let liveTicksWS = null;
 let liveTicksReconnectTimer = null;
@@ -37,8 +54,11 @@ function connectLiveTicksWS() {
         return; // Already connected or connecting
     }
 
+    const isCapacitor = window.hasOwnProperty('Capacitor') || (window.Capacitor !== undefined);
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${location.host}/ws/live-ticks`;
+    const host = isCapacitor ? '80.225.228.232' : location.host;
+    const wsProto = isCapacitor ? 'wss:' : protocol;
+    const wsUrl = `${wsProto}//${host}/ws/live-ticks`;
 
     try {
         liveTicksWS = new WebSocket(wsUrl);
