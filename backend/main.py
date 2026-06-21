@@ -2321,6 +2321,7 @@ async def get_tv_chart_data(
         df['EMA_50'] = df['Close'].ewm(span=50, adjust=False).mean()
         df['EMA_100'] = df['Close'].ewm(span=100, adjust=False).mean()
         df['EMA_200'] = df['Close'].ewm(span=200, adjust=False).mean()
+        df['EMA_Custom'] = df['Close'].ewm(span=length, adjust=False).mean()
         
         from backend.swing_utils import calculate_trendlines_with_breaks, calculate_mxwll_suite, calculate_lux_smc, calculate_linear_regression_trend_channel
         breaks_data = calculate_trendlines_with_breaks(df, length=length, atr_mult=mult)
@@ -2368,6 +2369,7 @@ async def get_tv_chart_data(
                 "ema_50": round(float(df_sliced["EMA_50"].iloc[idx]), 2) if not pd.isna(df_sliced["EMA_50"].iloc[idx]) else None,
                 "ema_100": round(float(df_sliced["EMA_100"].iloc[idx]), 2) if not pd.isna(df_sliced["EMA_100"].iloc[idx]) else None,
                 "ema_200": round(float(df_sliced["EMA_200"].iloc[idx]), 2) if not pd.isna(df_sliced["EMA_200"].iloc[idx]) else None,
+                "ema_custom": round(float(df_sliced["EMA_Custom"].iloc[idx]), 2) if not pd.isna(df_sliced["EMA_Custom"].iloc[idx]) else None,
                 "resistance": round(float(df_sliced["Resistance"].iloc[idx]), 2) if not pd.isna(df_sliced["Resistance"].iloc[idx]) else None,
                 "support": round(float(df_sliced["Support"].iloc[idx]), 2) if not pd.isna(df_sliced["Support"].iloc[idx]) else None,
                 "bullish_break": bool(df_sliced["Bullish_Break"].iloc[idx]),

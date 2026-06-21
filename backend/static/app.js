@@ -20447,6 +20447,7 @@ let activeTVEma20Series = null;
 let activeTVEma50Series = null;
 let activeTVEma100Series = null;
 let activeTVEma200Series = null;
+let activeTVEmaCustomSeries = null;
 let activeTVResistanceSeries = null;
 let activeTVSupportSeries = null;
 let activeTVVolumeSeries = null;
@@ -24293,11 +24294,17 @@ async function renderTVWorkstationChart(symbol) {
     const showEma50 = document.getElementById('tv-ema-50')?.checked ?? true;
     const showEma100 = document.getElementById('tv-ema-100')?.checked ?? false;
     const showEma200 = document.getElementById('tv-ema-200')?.checked ?? false;
+    const showEmaCustom = document.getElementById('tv-ema-custom')?.checked ?? false;
 
     if (document.getElementById('tv-legend-ema-20')) document.getElementById('tv-legend-ema-20').style.display = showEma20 ? 'flex' : 'none';
     if (document.getElementById('tv-legend-ema-50')) document.getElementById('tv-legend-ema-50').style.display = showEma50 ? 'flex' : 'none';
     if (document.getElementById('tv-legend-ema-100')) document.getElementById('tv-legend-ema-100').style.display = showEma100 ? 'flex' : 'none';
     if (document.getElementById('tv-legend-ema-200')) document.getElementById('tv-legend-ema-200').style.display = showEma200 ? 'flex' : 'none';
+    if (document.getElementById('tv-legend-ema-custom')) {
+        document.getElementById('tv-legend-ema-custom').style.display = showEmaCustom ? 'flex' : 'none';
+        const customLbl = document.getElementById('tv-legend-ema-custom-lbl');
+        if (customLbl) customLbl.textContent = `EMA ${length}`;
+    }
 
     // Show/hide parameter controls based on active indicators
     const legendLegends = document.querySelectorAll('.tv-indicator-legend');
@@ -24308,7 +24315,7 @@ async function renderTVWorkstationChart(symbol) {
     const lrtcLegends = document.querySelectorAll('.lrtc-legend');
 
     // Manage Length select disabled state
-    if (showLuxAlgo || showMxwll || showLuxSMC || showLRTC) {
+    if (showLuxAlgo || showMxwll || showLuxSMC || showLRTC || showEmaCustom) {
         if (document.getElementById('tv-length')) document.getElementById('tv-length').disabled = false;
     } else {
         if (document.getElementById('tv-length')) document.getElementById('tv-length').disabled = true;
@@ -24488,6 +24495,24 @@ async function renderTVWorkstationChart(symbol) {
             activeTVEma200Series = ema200Series;
         } else {
             activeTVEma200Series = null;
+        }
+
+        // EMA Custom
+        if (showEmaCustom) {
+            const emaCustomSeries = chart.addLineSeries({
+                color: '#a855f7',
+                lineWidth: 1.5,
+                title: `EMA ${length}`,
+                axisLabelVisible: false,
+                priceLineVisible: false
+            });
+            const emaCustomData = data.candlesticks
+                .map(c => ({ time: c.time, value: c.ema_custom }))
+                .filter(d => d.value !== null && d.value !== undefined);
+            emaCustomSeries.setData(emaCustomData);
+            activeTVEmaCustomSeries = emaCustomSeries;
+        } else {
+            activeTVEmaCustomSeries = null;
         }
 
         const mergedMarkers = [];
@@ -25068,7 +25093,8 @@ function updateEmaPillStyles() {
         { cb: document.getElementById('tv-ema-20'), color: '#3b82f6', bgChecked: 'rgba(59, 130, 246, 0.25)', borderChecked: '#3b82f6', colorChecked: '#93c5fd' },
         { cb: document.getElementById('tv-ema-50'), color: '#f59e0b', bgChecked: 'rgba(245, 158, 11, 0.25)', borderChecked: '#f59e0b', colorChecked: '#fde047' },
         { cb: document.getElementById('tv-ema-100'), color: '#10b981', bgChecked: 'rgba(16, 185, 129, 0.25)', borderChecked: '#10b981', colorChecked: '#6ee7b7' },
-        { cb: document.getElementById('tv-ema-200'), color: '#ef4444', bgChecked: 'rgba(239, 68, 68, 0.25)', borderChecked: '#ef4444', colorChecked: '#f87171' }
+        { cb: document.getElementById('tv-ema-200'), color: '#ef4444', bgChecked: 'rgba(239, 68, 68, 0.25)', borderChecked: '#ef4444', colorChecked: '#f87171' },
+        { cb: document.getElementById('tv-ema-custom'), color: '#a855f7', bgChecked: 'rgba(168, 85, 247, 0.25)', borderChecked: '#a855f7', colorChecked: '#d8b4fe' }
     ];
     pills.forEach(p => {
         if (p.cb) {
@@ -25126,6 +25152,7 @@ function setupTVWorkstationChartControls() {
     const tvEma50 = document.getElementById('tv-ema-50');
     const tvEma100 = document.getElementById('tv-ema-100');
     const tvEma200 = document.getElementById('tv-ema-200');
+    const tvEmaCustom = document.getElementById('tv-ema-custom');
 
     // Initialize pill styles
     updateIndicatorPillStyles();
@@ -25166,7 +25193,7 @@ function setupTVWorkstationChartControls() {
         }
     });
 
-    const emaCheckboxes = [tvEma20, tvEma50, tvEma100, tvEma200];
+    const emaCheckboxes = [tvEma20, tvEma50, tvEma100, tvEma200, tvEmaCustom];
     emaCheckboxes.forEach(cb => {
         if (cb) {
             cb.addEventListener('change', () => {

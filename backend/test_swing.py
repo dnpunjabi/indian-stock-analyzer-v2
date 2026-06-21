@@ -444,6 +444,7 @@ class TestSwingAPIRoutes(unittest.TestCase):
         self.assertIn("ema_50", first_candle)
         self.assertIn("ema_100", first_candle)
         self.assertIn("ema_200", first_candle)
+        self.assertIn("ema_custom", first_candle)
         self.assertIn("resistance", first_candle)
         self.assertIn("support", first_candle)
         self.assertIn("bullish_break", first_candle)
