@@ -8675,13 +8675,21 @@ function startRealTimeAlertScanner() {
     setTimeout(runScan, getInterval());
 }
 
+let tvAudioCtx = null;
+
 function playAlertSound(style = null) {
     const audioSelect = document.getElementById('hud-audio-select');
     const activeStyle = style || (audioSelect ? audioSelect.value : 'sonar_ping');
     if (activeStyle === 'mute') return;
 
     try {
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (!tvAudioCtx) {
+            tvAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (tvAudioCtx.state === 'suspended') {
+            tvAudioCtx.resume();
+        }
+        const audioCtx = tvAudioCtx;
 
         if (activeStyle === 'sonar_ping') {
             const osc = audioCtx.createOscillator();
