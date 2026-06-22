@@ -7,7 +7,7 @@
 // ==================== GLOBAL INTERCEPTOR & CAPACITOR ROUTER ====================
 (function() {
     const isCapacitor = window.hasOwnProperty('Capacitor') || (window.Capacitor !== undefined);
-    const apiBaseUrl = isCapacitor ? 'https://80.225.228.232' : '';
+    const apiBaseUrl = isCapacitor ? 'https://my-stock-advisor.duckdns.org' : '';
     
     if (isCapacitor) {
         const originalFetch = window.fetch;
@@ -56,7 +56,7 @@ function connectLiveTicksWS() {
 
     const isCapacitor = window.hasOwnProperty('Capacitor') || (window.Capacitor !== undefined);
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = isCapacitor ? '80.225.228.232' : location.host;
+    const host = isCapacitor ? 'my-stock-advisor.duckdns.org' : location.host;
     const wsProto = isCapacitor ? 'wss:' : protocol;
     const wsUrl = `${wsProto}//${host}/ws/live-ticks`;
 
