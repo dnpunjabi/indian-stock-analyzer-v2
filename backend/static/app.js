@@ -25793,6 +25793,12 @@ async function renderTVAdvancedChart(symbol) {
         tvSymbol = cleanTicker;
     }
     
+    // Update external button href
+    const externalBtn = document.getElementById('tv-advanced-external-btn');
+    if (externalBtn) {
+        externalBtn.href = `https://in.tradingview.com/chart/?symbol=${encodeURIComponent(tvSymbol)}`;
+    }
+
     // Detect theme (dark or light)
     const isDark = document.documentElement.getAttribute('data-mode') === 'light' ? 'light' : 'dark';
     
