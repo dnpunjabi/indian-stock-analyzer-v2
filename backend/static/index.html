@@ -1986,7 +1986,7 @@
                                 <div class="pe-bands-summary" style="display: flex; flex-direction: column; gap: 12px; margin-top: 5px;">
                                     <!-- Top Row Callout + Mini Stats Grid -->
                                     <div class="pe-bands-row">
-                                        <div class="current-pe-callout" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(59, 130, 246, 0.02) 100%); border: 1px solid rgba(59, 130, 246, 0.25); padding: 10px; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.15);">
+                                        <div class="current-pe-callout hover-chart-trigger" data-hover-chart="pe" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(59, 130, 246, 0.02) 100%); border: 1px solid rgba(59, 130, 246, 0.25); padding: 10px; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.15); cursor: help;">
                                             <span style="font-size: 8px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700; letter-spacing: 0.03em;">Current P/E</span>
                                             <strong id="pe-current" style="font-size: 22px; font-weight: 800; color: var(--text-primary); margin-top: 4px; text-shadow: 0 0 8px rgba(255,255,255,0.1);">--</strong>
                                         </div>
@@ -5668,6 +5668,15 @@
             <button id="mobile-login-btn" style="width:100%; background:var(--color-primary, #6366f1); color:#ffffff; border:none; padding:12px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; display:flex; justify-content:center; align-items:center; transition:all 0.2s;">
                 Connect Workstation
             </button>
+        </div>
+    </div>
+
+    <!-- Interactive Sparkline Hover Tooltip -->
+    <div id="metric-hover-tooltip" style="position: absolute; display: none; z-index: 99999; background: rgba(15, 23, 42, 0.95); border: 1px solid var(--border-glass); border-radius: 8px; padding: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); width: 260px; pointer-events: none; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); transition: opacity 0.15s ease;">
+        <div style="font-size: 10px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em;" id="hover-tooltip-title">Metric Trend</div>
+        <div style="font-size: 8.5px; color: var(--text-muted); margin-bottom: 8px;" id="hover-tooltip-subtitle">Historical 3-Year Trend</div>
+        <div style="height: 120px; width: 100%; position: relative;">
+            <canvas id="hover-tooltip-chart"></canvas>
         </div>
     </div>
 

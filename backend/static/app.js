@@ -24500,7 +24500,161 @@ document.addEventListener('DOMContentLoaded', () => {
     setupRuleScanner();
     setupAudioConsoleBindings();
     setupTVWorkstationChartControls();
+    setupMetricHoverTooltips();
 });
+
+function setupMetricHoverTooltips() {
+    const tooltip = document.getElementById('metric-hover-tooltip');
+    const canvas = document.getElementById('hover-tooltip-chart');
+    if (!tooltip || !canvas) return;
+
+    let hoverChartInstance = null;
+
+    document.addEventListener('mouseover', (e) => {
+        const trigger = e.target.closest('.hover-chart-trigger');
+        if (!trigger) return;
+
+        const metricType = trigger.getAttribute('data-hover-chart');
+        if (typeof activeStockProfile === 'undefined' || !activeStockProfile) return;
+
+        let chartData = [];
+        let chartLabels = [];
+        let title = "Metric Trend";
+        let subtitle = "Historical 3-Year Trend";
+
+        if (metricType === 'pe') {
+            const peBands = activeStockProfile.pe_bands || {};
+            const peHistory = peBands.pe_history || [];
+            if (peHistory.length === 0) return;
+
+            // Sort history ascending by date for chronological chart drawing
+            const sortedHistory = [...peHistory].sort((a, b) => new Date(a.date) - new Date(b.date));
+            // Limit to last 36 months (3 years)
+            const history3Y = sortedHistory.slice(-36);
+
+            chartLabels = history3Y.map(item => {
+                const d = new Date(item.date);
+                return d.toLocaleString('en-US', { month: 'short', year: '2-digit' });
+            });
+            chartData = history3Y.map(item => item.pe);
+            title = `${activeStockProfile.ticker.split('.')[0]} P/E Ratio Trend`;
+            subtitle = "3-Year Historical Monthly Trailing P/E";
+        }
+
+        if (chartData.length === 0) return;
+
+        // Update titles
+        document.getElementById('hover-tooltip-title').innerText = title;
+        document.getElementById('hover-tooltip-subtitle').innerText = subtitle;
+
+        // Show tooltip
+        tooltip.style.display = 'block';
+        tooltip.style.opacity = '1';
+
+        // Destroy previous chart
+        if (hoverChartInstance) {
+            hoverChartInstance.destroy();
+        }
+
+        const isLight = document.documentElement.getAttribute('data-mode') === 'light';
+        const lineColor = isLight ? '#2563eb' : '#00d2ff';
+        const areaColor = isLight ? 'rgba(37, 99, 235, 0.05)' : 'rgba(0, 210, 255, 0.05)';
+        const gridColor = isLight ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.03)';
+        const textColor = isLight ? '#475569' : '#9ca3af';
+
+        // Initialize Chart.js
+        hoverChartInstance = new Chart(canvas, {
+            type: 'line',
+            data: {
+                labels: chartLabels,
+                datasets: [{
+                    label: 'P/E Ratio',
+                    data: chartData,
+                    borderColor: lineColor,
+                    backgroundColor: areaColor,
+                    fill: true,
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    pointHoverRadius: 4,
+                    tension: 0.2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        enabled: true,
+                        mode: 'index',
+                        intersect: false,
+                        backgroundColor: isLight ? 'rgba(255,255,255,0.95)' : 'rgba(15,23,42,0.95)',
+                        titleColor: isLight ? '#0f172a' : '#ffffff',
+                        bodyColor: isLight ? '#334155' : '#e2e8f0',
+                        borderColor: isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)',
+                        borderWidth: 1
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: {
+                            color: textColor,
+                            font: { size: 7 },
+                            maxTicksLimit: 6
+                        }
+                    },
+                    y: {
+                        grid: { color: gridColor },
+                        ticks: {
+                            color: textColor,
+                            font: { size: 7 }
+                        }
+                    }
+                }
+            }
+        });
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        const trigger = e.target.closest('.hover-chart-trigger');
+        if (!trigger) {
+            if (tooltip.style.display !== 'none') {
+                tooltip.style.display = 'none';
+                tooltip.style.opacity = '0';
+                if (hoverChartInstance) {
+                    hoverChartInstance.destroy();
+                    hoverChartInstance = null;
+                }
+            }
+            return;
+        }
+
+        let x = e.pageX + 15;
+        let y = e.pageY + 15;
+
+        // Overflow checks
+        const tooltipWidth = 270;
+        if (x + tooltipWidth > window.innerWidth + window.scrollX) {
+            x = e.pageX - tooltipWidth - 15;
+        }
+
+        tooltip.style.left = x + 'px';
+        tooltip.style.top = y + 'px';
+    });
+
+    document.addEventListener('mouseout', (e) => {
+        const trigger = e.target.closest('.hover-chart-trigger');
+        if (trigger && !e.relatedTarget?.closest('.hover-chart-trigger')) {
+            tooltip.style.display = 'none';
+            tooltip.style.opacity = '0';
+            if (hoverChartInstance) {
+                hoverChartInstance.destroy();
+                hoverChartInstance = null;
+            }
+        }
+    });
+}
 
 // ==================== INTERACTIVE WORKSTATION CHART CONTROLS & RENDERER ====================
 async function renderTVWorkstationChart(symbol) {
