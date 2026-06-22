@@ -14,7 +14,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- TradingView Lightweight Charts -->
     <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=1.1.0">
 </head>
 <body>
     <!-- Emergency System Warning HUD -->
@@ -4402,7 +4402,51 @@
             </section>
 
             <!-- SECTION 6: STANDALONE AI PORTFOLIO DOCTOR -->
-            <section class="workspace-tab" id="tab-portfolio" style="display: none;">
+            <section class="workspace-tab" id="tab-portfolio" style="display: none; position: relative;">
+                <!-- Glassmorphic Lock Overlay Shield -->
+                <div id="portfolio-lock-overlay" class="portfolio-lock-overlay">
+                    <div class="lock-shield-card">
+                        <div class="lock-shield-glow"></div>
+                        <div class="lock-icon-wrap">
+                            <span class="lock-icon">🔒</span>
+                        </div>
+                        <h2 class="lock-title">Portfolio Security Shield</h2>
+                        <p class="lock-subtitle">Biometric credentials or secure PIN passcode verification required.</p>
+                        
+                        <!-- Primary Biometric Button -->
+                        <button id="portfolio-biometric-btn" class="lock-btn-primary">
+                            <span>🧬 Verify Fingerprint / Face ID</span>
+                        </button>
+                        
+                        <!-- Keypad PIN Entry -->
+                        <div class="lock-pin-section">
+                            <div class="lock-pin-label">Or Enter 4-Digit Passcode PIN</div>
+                            <div class="lock-pin-dots" id="lock-pin-dots">
+                                <span class="dot"></span>
+                                <span class="dot"></span>
+                                <span class="dot"></span>
+                                <span class="dot"></span>
+                            </div>
+                            
+                            <!-- Custom Keypad grid -->
+                            <div class="lock-keypad-grid">
+                                <button class="key-btn" data-key="1">1</button>
+                                <button class="key-btn" data-key="2">2</button>
+                                <button class="key-btn" data-key="3">3</button>
+                                <button class="key-btn" data-key="4">4</button>
+                                <button class="key-btn" data-key="5">5</button>
+                                <button class="key-btn" data-key="6">6</button>
+                                <button class="key-btn" data-key="7">7</button>
+                                <button class="key-btn" data-key="8">8</button>
+                                <button class="key-btn" data-key="9">9</button>
+                                <button class="key-btn action-key" id="lock-pin-change-btn" title="Change PIN passcode">PIN</button>
+                                <button class="key-btn" data-key="0">0</button>
+                                <button class="key-btn action-key" id="lock-pin-clear-btn" title="Clear PIN entry">⌫</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="section-header">
                     <h2>Portfolio Optimization Doctor</h2>
                     <p>Orchestrate institutional-grade diagnostic audits, analyze concentration indices, measure sector exposure, and receive active mathematical rebalancing strategies compiled by the AI agent.</p>
@@ -5605,7 +5649,7 @@
         </div>
     </div>
 
-    <script src="app.js?v=1.0.9"></script>
+    <script src="app.js?v=1.1.0"></script>
 </body>
 </html>
 

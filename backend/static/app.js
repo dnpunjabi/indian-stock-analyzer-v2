@@ -9,7 +9,7 @@
     const isCapacitor = window.hasOwnProperty('Capacitor') || 
                         (window.Capacitor !== undefined) || 
                         ((location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.protocol === 'capacitor:') && 
-                         (location.port !== '8000' && location.port !== '5000'));
+                         (location.port !== '8000' && location.port !== '8001' && location.port !== '8002' && location.port !== '5000'));
     const apiBaseUrl = isCapacitor ? 'https://my-stock-advisor.duckdns.org' : '';
     
     let isLoginModalOpen = false;
@@ -147,7 +147,7 @@ function connectLiveTicksWS() {
     const isCapacitor = window.hasOwnProperty('Capacitor') || 
                         (window.Capacitor !== undefined) || 
                         ((location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.protocol === 'capacitor:') && 
-                         (location.port !== '8000' && location.port !== '5000'));
+                         (location.port !== '8000' && location.port !== '8001' && location.port !== '8002' && location.port !== '5000'));
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
     const authToken = localStorage.getItem('server_auth_token');
     
@@ -1018,6 +1018,11 @@ document.addEventListener('DOMContentLoaded', () => {
     setupSwingWorkspace(); // Swing Trading Workspace
     setupSectorRadarControls(); // Sector Radar Controls
     setupBrandReset(); // Initialize brand logo reset button events
+    try {
+        if (window.setupPortfolioSecurity) window.setupPortfolioSecurity();
+    } catch (err) {
+        console.error("[Portfolio Security] Initialization error:", err);
+    }
 
     // Routing is initialized dynamically by setupTabNavigation() using location.hash
 
@@ -1629,6 +1634,25 @@ function setupTabNavigation() {
 }
 
 function switchTab(tabKey) {
+    // Portfolio security interception and lock resets
+    if (tabKey === 'portfolio') {
+        if (!window.portfolioUnlocked) {
+            const overlay = document.getElementById('portfolio-lock-overlay');
+            if (overlay) overlay.classList.remove('hidden');
+            if (window.triggerBiometricVerification) {
+                window.triggerBiometricVerification();
+            }
+        }
+    } else {
+        window.portfolioUnlocked = false;
+        const overlay = document.getElementById('portfolio-lock-overlay');
+        if (overlay) {
+            overlay.classList.remove('hidden');
+            const dots = overlay.querySelectorAll('.dot');
+            dots.forEach(dot => dot.classList.remove('filled'));
+        }
+    }
+
     if (location.hash !== '#' + tabKey) {
         location.hash = tabKey;
     }
@@ -26858,5 +26882,195 @@ window.renderTVWorkstationChart = renderTVWorkstationChart;
     // Expose to window for tab switching triggers
     window.setupMarketMovers = setupMarketMovers;
     window.loadScreenerSectorRegime = loadScreenerSectorRegime;
+    window.setupPortfolioSecurity = setupPortfolioSecurity;
+
+    // Portfolio Biometric & PIN Security
+    function setupPortfolioSecurity() {
+        console.log("[Portfolio Lock] setupPortfolioSecurity initializing...");
+        window.portfolioUnlocked = false;
+        
+        const biometricBtn = document.getElementById('portfolio-biometric-btn');
+        const keyButtons = document.querySelectorAll('.lock-keypad-grid .key-btn[data-key]');
+        const dots = document.querySelectorAll('#lock-pin-dots .dot');
+        const clearBtn = document.getElementById('lock-pin-clear-btn');
+        const changePinBtn = document.getElementById('lock-pin-change-btn');
+        const cardEl = document.querySelector('.lock-shield-card');
+        
+        console.log(`[Portfolio Lock] Found ${keyButtons.length} keypad buttons and ${dots.length} dots.`);
+        
+        let currentPinEntry = "";
+        
+        // Hide biometric button if not on native mobile platform
+        const isNative = typeof window.Capacitor !== 'undefined' && 
+                         typeof window.Capacitor.isNativePlatform === 'function' && 
+                         window.Capacitor.isNativePlatform();
+        console.log("[Portfolio Lock] isNativePlatform is:", isNative);
+        if (!isNative && biometricBtn) {
+            console.log("[Portfolio Lock] Hiding biometric button (desktop/web environment).");
+            biometricBtn.style.display = 'none';
+        }
+        
+        function updatePinDots() {
+            console.log("[Portfolio Lock] Updating dots. Current length:", currentPinEntry.length);
+            dots.forEach((dot, index) => {
+                if (index < currentPinEntry.length) {
+                    dot.classList.add('filled');
+                } else {
+                    dot.classList.remove('filled');
+                }
+            });
+        }
+        
+        function unlockPortfolio() {
+            window.portfolioUnlocked = true;
+            const overlay = document.getElementById('portfolio-lock-overlay');
+            if (overlay) {
+                overlay.classList.add('hidden');
+            }
+            currentPinEntry = "";
+            updatePinDots();
+        }
+        
+        function validatePinEntry() {
+            const savedPin = localStorage.getItem('portfolio-pin') || '1234';
+            if (currentPinEntry === savedPin) {
+                unlockPortfolio();
+                showToast("Access granted.", "success");
+            } else {
+                if (cardEl) {
+                    cardEl.classList.add('error');
+                    setTimeout(() => {
+                        cardEl.classList.remove('error');
+                    }, 500);
+                }
+                showToast("Incorrect passcode PIN.", "error");
+                currentPinEntry = "";
+                updatePinDots();
+            }
+        }
+        
+        async function triggerBiometricVerification() {
+            if (!isNative) {
+                console.log("Not running in native Capacitor environment. Skipping native biometrics.");
+                return;
+            }
+            const NativeBiometric = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.NativeBiometric;
+            if (!NativeBiometric) {
+                console.warn("Capacitor NativeBiometric plugin not available.");
+                return;
+            }
+            try {
+                const result = await NativeBiometric.isAvailable();
+                if (result.isAvailable) {
+                    await NativeBiometric.verifyIdentity({
+                        reason: 'Authenticate to view secure Portfolio metrics',
+                        title: 'Portfolio Access Shield',
+                        subtitle: 'Verify Biometrics',
+                        description: 'Scan your fingerprint or face to unlock portfolio doctor.',
+                        maxAttempts: 3
+                    });
+                    unlockPortfolio();
+                    showToast("Portfolio security shield unlocked via biometrics.", "success");
+                }
+            } catch (err) {
+                console.error("Biometric authentication error/failed:", err);
+                showToast("Biometric verification canceled or failed.", "info");
+            }
+        }
+        
+        // Expose biometric prompt globally so switchTab can invoke it
+        window.triggerBiometricVerification = triggerBiometricVerification;
+        
+        // Wire up events
+        if (biometricBtn) {
+            biometricBtn.addEventListener('click', () => {
+                triggerBiometricVerification();
+            });
+        }
+        
+        console.log("[Portfolio Lock] Binding keypad listeners...");
+        keyButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const val = btn.getAttribute('data-key');
+                console.log("[Portfolio Lock] Button clicked. Key:", val);
+                if (currentPinEntry.length < 4) {
+                    currentPinEntry += val;
+                    updatePinDots();
+                    if (currentPinEntry.length === 4) {
+                        console.log("[Portfolio Lock] 4 digits entered, validating PIN...");
+                        setTimeout(validatePinEntry, 200);
+                    }
+                }
+            });
+        });
+        console.log("[Portfolio Lock] Keypad listeners bound.");
+        
+        if (clearBtn) {
+            clearBtn.addEventListener('click', () => {
+                currentPinEntry = "";
+                updatePinDots();
+            });
+        }
+        
+        if (changePinBtn) {
+            changePinBtn.addEventListener('click', () => {
+                const savedPin = localStorage.getItem('portfolio-pin') || '1234';
+                const currentPinPrompt = prompt("Enter current 4-digit PIN passcode:");
+                if (currentPinPrompt === null) return;
+                
+                if (currentPinPrompt !== savedPin) {
+                    showToast("Incorrect current PIN passcode.", "error");
+                    return;
+                }
+                
+                const newPinPrompt = prompt("Enter new 4-digit PIN passcode:");
+                if (newPinPrompt === null) return;
+                
+                if (!/^\d{4}$/.test(newPinPrompt)) {
+                    showToast("Invalid PIN. Must be exactly 4 digits.", "error");
+                    return;
+                }
+                
+                const confirmPinPrompt = prompt("Confirm new 4-digit PIN passcode:");
+                if (confirmPinPrompt === null) return;
+                
+                if (newPinPrompt !== confirmPinPrompt) {
+                    showToast("PIN confirmation did not match.", "error");
+                    return;
+                }
+                
+                localStorage.setItem('portfolio-pin', newPinPrompt);
+                showToast("Passcode PIN successfully updated.", "success");
+            });
+        }
+        
+        // Auto-lock when tab or app backgrounded
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                window.portfolioUnlocked = false;
+                const overlay = document.getElementById('portfolio-lock-overlay');
+                if (overlay) {
+                    overlay.classList.remove('hidden');
+                    currentPinEntry = "";
+                    updatePinDots();
+                }
+            }
+        });
+        
+        const CapacitorApp = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App;
+        if (CapacitorApp) {
+            CapacitorApp.addListener('appStateChange', ({ isActive }) => {
+                if (!isActive) {
+                    window.portfolioUnlocked = false;
+                    const overlay = document.getElementById('portfolio-lock-overlay');
+                    if (overlay) {
+                        overlay.classList.remove('hidden');
+                        currentPinEntry = "";
+                        updatePinDots();
+                    }
+                }
+            });
+        }
+    }
 })();
 
