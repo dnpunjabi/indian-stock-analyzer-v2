@@ -451,6 +451,15 @@ function handleLiveTickMessage(ticksData) {
         if (lowCell) lowCell.innerHTML = `<span style="font-family: 'Inter', monospace;">₹${q.low.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>`;
     });
 
+    // Update Today's Market Movers Dashboard
+    if (window.handleMoversLiveTick) {
+        for (const [sym, q] of Object.entries(ticksData)) {
+            if (q && q.price > 0) {
+                window.handleMoversLiveTick(sym, q.price, q.change_pct);
+            }
+        }
+    }
+
     // Update Portfolio Ledger Real-time
     updatePortfolioLedgerRealtime(ticksData);
 }
@@ -954,7 +963,8 @@ const tabs = {
     portfolio: document.getElementById('tab-portfolio'),
     'swing-scan': document.getElementById('tab-swing-scan'),
     swing: document.getElementById('tab-swing'),
-    'sector-radar': document.getElementById('tab-sector-radar')
+    'sector-radar': document.getElementById('tab-sector-radar'),
+    movers: document.getElementById('tab-movers')
 };
 
 const tabBtns = {
@@ -968,7 +978,8 @@ const tabBtns = {
     portfolio: document.getElementById('tab-portfolio-btn'),
     'swing-scan': document.getElementById('tab-swing-scan-btn'),
     swing: document.getElementById('tab-swing-btn'),
-    'sector-radar': document.getElementById('tab-sector-radar-btn')
+    'sector-radar': document.getElementById('tab-sector-radar-btn'),
+    movers: document.getElementById('tab-movers-btn')
 };
 
 // Initialize Application
@@ -1003,6 +1014,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupAuditSummary(); // Initialize Strategy Audit AI matrix summary
     setupWatchlistSummary(); // Initialize Watchlist AI Summary & Print Exporter
     setupRiskAnalytics(); // CAPM Risk Analytics
+    if (window.setupMarketMovers) window.setupMarketMovers(); // Today's Market Movers Dashboard
     setupSwingWorkspace(); // Swing Trading Workspace
     setupSectorRadarControls(); // Sector Radar Controls
     setupBrandReset(); // Initialize brand logo reset button events
@@ -1642,6 +1654,13 @@ function switchTab(tabKey) {
 
     if (tabKey === 'sector-radar') {
         if (window.loadScreenerSectorRegime) window.loadScreenerSectorRegime();
+    }
+
+    if (tabKey === 'movers') {
+        if (window.fetchMarketMoversData) window.fetchMarketMoversData();
+        if (window.startMoversPolling) window.startMoversPolling();
+    } else {
+        if (window.stopMoversPolling) window.stopMoversPolling();
     }
 
     // Auto-resize TradingView Lightweight Charts on tab activation to prevent collapsed canvas sizing
@@ -25701,6 +25720,7 @@ window.renderTVWorkstationChart = renderTVWorkstationChart;
     });
 
     window.activeSectorRegimeData = null;
+    window.sectorRadarView = 'sectors';
 
     async function loadScreenerSectorRegime(forceRefresh = false) {
         const listEl = document.getElementById('sector-radar-list');
@@ -25853,6 +25873,92 @@ window.renderTVWorkstationChart = renderTVWorkstationChart;
             listEl.innerHTML = '<div style="font-size:10px; color:var(--text-muted); text-align:center; padding:15px; grid-column: 1/-1;">No sectors match the selected capitalization filter.</div>';
             return;
         }
+
+        const activeView = window.sectorRadarView || 'sectors';
+        if (activeView === 'stocks') {
+            listEl.style.display = 'grid';
+            listEl.style.gridTemplateColumns = 'repeat(auto-fill, minmax(280px, 1fr))';
+            
+            processedSectors.forEach(s => {
+                const groupEl = document.createElement('div');
+                groupEl.className = 'stock-heatmap-sector-group';
+                
+                const secRet = s.avg_return || 0.0;
+                const secSign = secRet >= 0 ? '+' : '';
+                const secColor = secRet >= 0 ? 'var(--neon-green)' : 'var(--neon-red)';
+                
+                groupEl.innerHTML = `
+                    <div class="stock-heatmap-sector-header">
+                        <span>${s.sector}</span>
+                        <span style="color: ${secColor}; font-weight:800;">${secSign}${secRet.toFixed(2)}%</span>
+                    </div>
+                    <div class="stock-heatmap-grid" id="stock-grid-${s.sector.replace(/\s+/g, '-')}"></div>
+                `;
+                
+                const gridEl = groupEl.querySelector('.stock-heatmap-grid');
+                
+                // Sort stocks in sector descending by performance in active period
+                const sortedStocks = [...(s.stocks || [])].sort((a, b) => {
+                    const valA = a[colName] || 0.0;
+                    const valB = b[colName] || 0.0;
+                    return valB - valA;
+                });
+
+                sortedStocks.forEach(stk => {
+                    const ret = stk[colName] || 0.0;
+                    const sign = ret >= 0 ? '+' : '';
+                    
+                    let tileBg = 'rgba(255, 255, 255, 0.015)';
+                    let tileBorder = '1px solid var(--border-glass)';
+                    let valueColor = 'var(--text-primary)';
+                    
+                    if (ret >= 5.0) {
+                        tileBg = 'rgba(16, 185, 129, 0.22)';
+                        tileBorder = '1px solid rgba(16, 185, 129, 0.5)';
+                        valueColor = 'var(--neon-green)';
+                    } else if (ret > 0.0) {
+                        tileBg = 'rgba(16, 185, 129, 0.08)';
+                        tileBorder = '1px solid rgba(16, 185, 129, 0.25)';
+                        valueColor = '#a7f3d0';
+                    } else if (ret <= -5.0) {
+                        tileBg = 'rgba(239, 68, 68, 0.22)';
+                        tileBorder = '1px solid rgba(239, 68, 68, 0.5)';
+                        valueColor = 'var(--neon-red)';
+                    } else if (ret < 0.0) {
+                        tileBg = 'rgba(239, 68, 68, 0.08)';
+                        tileBorder = '1px solid rgba(239, 68, 68, 0.25)';
+                        valueColor = '#fca5a5';
+                    }
+                    
+                    const tile = document.createElement('div');
+                    tile.className = 'stock-heatmap-tile';
+                    tile.style.background = tileBg;
+                    tile.style.borderColor = tileBorder.replace('1px solid ', '');
+                    
+                    tile.title = `${stk.company_name}\nCap: ${stk.cap_type.toUpperCase()}\nReturn: ${sign}${ret.toFixed(2)}%\nClick to analyze stock details!`;
+                    
+                    tile.innerHTML = `
+                        <span class="stock-heatmap-tile-sym">${stk.symbol.replace('.NS', '')}</span>
+                        <span class="stock-heatmap-tile-pct" style="color: ${valueColor};">${sign}${ret.toFixed(1)}%</span>
+                    `;
+                    
+                    tile.addEventListener('click', () => {
+                        if (window.switchTab) window.switchTab('analyzer');
+                        if (window.loadStockAnalyzer) {
+                            window.loadStockAnalyzer(stk.symbol);
+                        }
+                    });
+                    
+                    gridEl.appendChild(tile);
+                });
+                
+                listEl.appendChild(groupEl);
+            });
+            return;
+        }
+
+        // Restore sector grid template columns
+        listEl.style.gridTemplateColumns = 'repeat(auto-fill, minmax(240px, 1fr))';
 
         // Find max return value for scaling
         const maxVal = Math.max(...processedSectors.map(s => Math.abs(s.avg_return || 0.1)));
@@ -26012,10 +26118,13 @@ window.renderTVWorkstationChart = renderTVWorkstationChart;
 
         // Map period labels
         const horizonLabels = {
+            '1d': '1 Day',
+            '5d': '5 Days',
             '1m': '1 Month (20D)',
             '3m': '3 Months',
             '6m': '6 Months',
             '1y': '1 Year',
+            '5y': '5 Years',
             'ytd': 'Year-To-Date (YTD)'
         };
         if (badgeEl) badgeEl.innerText = horizonLabels[period] || period;
@@ -26033,15 +26142,18 @@ window.renderTVWorkstationChart = renderTVWorkstationChart;
         function renderRows(filteredStocks) {
             tableBody.innerHTML = '';
             if (filteredStocks.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 15px; color: var(--text-muted);">No stocks matching filter.</td></tr>`;
+                tableBody.innerHTML = `<tr><td colspan="11" style="text-align: center; padding: 15px; color: var(--text-muted);">No stocks matching filter.</td></tr>`;
                 return;
             }
 
             filteredStocks.forEach(stk => {
+                const ret1d = stk.return_1d || 0.0;
+                const ret5d = stk.return_5d || 0.0;
                 const ret1m = stk.return_1m || 0.0;
                 const ret3m = stk.return_3m || 0.0;
                 const ret6m = stk.return_6m || 0.0;
                 const ret1y = stk.return_1y || 0.0;
+                const ret5y = stk.return_5y || 0.0;
 
                 // Color-coded pill builder
                 function getPillHtml(val) {
@@ -26069,10 +26181,13 @@ window.renderTVWorkstationChart = renderTVWorkstationChart;
                     <td style="padding: 10px 12px; font-weight: 700; color: var(--color-primary);">${stk.symbol.replace(".NS", "")}</td>
                     <td style="padding: 10px 12px; color: var(--text-secondary); max-width: 250px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">${stk.company_name}</td>
                     <td style="padding: 10px 12px; text-align: center;">${capBadgeHtml}</td>
+                    <td style="padding: 10px 12px; text-align: center;">${getPillHtml(ret1d)}</td>
+                    <td style="padding: 10px 12px; text-align: center;">${getPillHtml(ret5d)}</td>
                     <td style="padding: 10px 12px; text-align: center;">${getPillHtml(ret1m)}</td>
                     <td style="padding: 10px 12px; text-align: center;">${getPillHtml(ret3m)}</td>
                     <td style="padding: 10px 12px; text-align: center;">${getPillHtml(ret6m)}</td>
                     <td style="padding: 10px 12px; text-align: center;">${getPillHtml(ret1y)}</td>
+                    <td style="padding: 10px 12px; text-align: center;">${getPillHtml(ret5y)}</td>
                     <td style="padding: 10px 12px; text-align: center; display: flex; gap: 6px; justify-content: center; align-items: center;">
                         <button class="btn-primary modal-analyze-btn" style="height: 24px; padding: 0 8px; border-radius: 4px; font-size: 9.5px; font-weight: 700; background: var(--color-primary); color: #000; border: none; cursor: pointer; font-family: 'Outfit';">Analyze 📈</button>
                         <button class="btn-secondary modal-screen-btn" style="height: 24px; padding: 0 8px; border-radius: 4px; font-size: 9.5px; font-weight: 700; cursor: pointer; font-family: 'Outfit';">Screen 🔍</button>
@@ -26172,6 +26287,19 @@ window.renderTVWorkstationChart = renderTVWorkstationChart;
                 if (window.renderSectorRegimeList && window.activeSectorRegimeData) {
                     window.renderSectorRegimeList();
                 }
+            });
+        }
+        const viewControl = document.getElementById('sector-radar-view-control');
+        if (viewControl) {
+            viewControl.querySelectorAll('.segmented-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    viewControl.querySelectorAll('.segmented-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    window.sectorRadarView = btn.getAttribute('data-view');
+                    if (window.renderSectorRegimeList && window.activeSectorRegimeData) {
+                        window.renderSectorRegimeList();
+                    }
+                });
             });
         }
         const refreshBtn = document.getElementById('sector-radar-refresh-btn');
@@ -26395,7 +26523,340 @@ window.renderTVWorkstationChart = renderTVWorkstationChart;
         }
     };
 
+    // --- TODAY'S MARKET MOVERS WORKSPACE LOGIC ---
+    let activeMoversFilter = 'all';
+    let moversDataCache = null;
+    let moversIntervalId = null;
+    let tooltipEl = null;
+
+    function setupMarketMovers() {
+        const moversTabBtn = document.getElementById('tab-movers-btn');
+        if (!moversTabBtn) return;
+
+        // Create quick-look tooltip in DOM if not present
+        if (!document.getElementById('movers-quick-tooltip')) {
+            tooltipEl = document.createElement('div');
+            tooltipEl.id = 'movers-quick-tooltip';
+            tooltipEl.className = 'movers-tooltip';
+            document.body.appendChild(tooltipEl);
+        } else {
+            tooltipEl = document.getElementById('movers-quick-tooltip');
+        }
+
+        // Setup filter buttons
+        const segmentedControl = document.getElementById('movers-segmented-control');
+        if (segmentedControl) {
+            segmentedControl.querySelectorAll('.segmented-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    segmentedControl.querySelectorAll('.segmented-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    activeMoversFilter = btn.getAttribute('data-filter');
+                    if (moversDataCache) {
+                        renderMoversTables(moversDataCache);
+                    }
+                });
+            });
+        }
+
+        // Listen for tab click to trigger initial fetch
+        moversTabBtn.addEventListener('click', () => {
+            fetchMarketMoversData();
+            // Start interval polling when active
+            if (moversIntervalId) clearInterval(moversIntervalId);
+            moversIntervalId = setInterval(fetchMarketMoversData, 60000); // refresh frontend UI from backend cache every 60s
+        });
+
+        // Clear interval when switching away from Movers tab
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+            if (btn !== moversTabBtn) {
+                btn.addEventListener('click', () => {
+                    if (moversIntervalId) {
+                        clearInterval(moversIntervalId);
+                        moversIntervalId = null;
+                    }
+                });
+            }
+        });
+
+        // Expose helpers globally so they work via switchTab hooks
+        window.fetchMarketMoversData = fetchMarketMoversData;
+        window.startMoversPolling = function() {
+            if (moversIntervalId) clearInterval(moversIntervalId);
+            moversIntervalId = setInterval(fetchMarketMoversData, 60000);
+        };
+        window.stopMoversPolling = function() {
+            if (moversIntervalId) {
+                clearInterval(moversIntervalId);
+                moversIntervalId = null;
+            }
+        };
+
+        // If this tab is already active (loaded via URL hash), trigger initial fetch
+        if (activeTab === 'movers' || location.hash === '#movers') {
+            fetchMarketMoversData();
+            window.startMoversPolling();
+        }
+
+        // Setup Web Socket updates
+        setupMoversWebSocketUpdates();
+    }
+
+    async function fetchMarketMoversData() {
+        try {
+            const res = await fetch('/api/market-movers');
+            if (res.ok) {
+                const data = await res.json();
+                moversDataCache = data;
+                renderMarketMovers(data);
+            } else {
+                console.error("Failed to fetch market movers data:", res.statusText);
+            }
+        } catch (err) {
+            console.error("Error fetching market movers:", err);
+        }
+    }
+
+    function renderMarketMovers(data) {
+        if (!data || data.status === 'initializing') {
+            showMoversLoadingSkeleton();
+            return;
+        }
+
+        // 1. Render Breadth Gauge
+        const advances = data.advances || 0;
+        const declines = data.declines || 0;
+        const total = advances + declines || 1;
+        const advancesPct = (advances / total) * 100;
+        const declinesPct = (declines / total) * 100;
+
+        const advBar = document.getElementById('breadth-advances-bar');
+        const decBar = document.getElementById('breadth-declines-bar');
+        const ratioText = document.getElementById('breadth-ratio-text');
+        const advLbl = document.getElementById('breadth-advances-lbl');
+        const decLbl = document.getElementById('breadth-declines-lbl');
+
+        if (advBar) advBar.style.width = advancesPct + '%';
+        if (decBar) decBar.style.width = declinesPct + '%';
+        if (ratioText) ratioText.innerText = `${Math.round(advancesPct)}% Bullish | ${Math.round(declinesPct)}% Bearish`;
+        if (advLbl) advLbl.innerText = `Advances: ${advances}`;
+        if (decLbl) decLbl.innerText = `Declines: ${declines}`;
+
+        // 2. Render Cap Temperatures
+        const largeTemp = document.getElementById('large-cap-temp-val');
+        const midTemp = document.getElementById('mid-cap-temp-val');
+        const smallTemp = document.getElementById('small-cap-temp-val');
+
+        if (largeTemp) {
+            largeTemp.innerText = (data.large_cap_temp >= 0 ? '+' : '') + data.large_cap_temp.toFixed(2) + '%';
+            largeTemp.className = data.large_cap_temp >= 0 ? 'change-pct positive' : 'change-pct negative';
+        }
+        if (midTemp) {
+            midTemp.innerText = (data.mid_cap_temp >= 0 ? '+' : '') + data.mid_cap_temp.toFixed(2) + '%';
+            midTemp.className = data.mid_cap_temp >= 0 ? 'change-pct positive' : 'change-pct negative';
+        }
+        if (smallTemp) {
+            smallTemp.innerText = (data.small_cap_temp >= 0 ? '+' : '') + data.small_cap_temp.toFixed(2) + '%';
+            smallTemp.className = data.small_cap_temp >= 0 ? 'change-pct positive' : 'change-pct negative';
+        }
+
+        // 3. Render Indices Grid
+        const indexGrid = document.getElementById('index-performance-grid');
+        if (indexGrid) {
+            indexGrid.innerHTML = '';
+            const indices = data.indices || [];
+            indices.forEach(idx => {
+                const card = document.createElement('div');
+                card.className = 'index-card';
+                card.id = `index-card-${idx.symbol.replace('^', '')}`;
+                
+                const isPos = idx.change_pct >= 0;
+                const changeClass = isPos ? 'index-change positive' : 'index-change negative';
+                const prefix = isPos ? '+' : '';
+
+                card.innerHTML = `
+                    <span class="index-name">${idx.name}</span>
+                    <div class="index-val-row">
+                        <span class="index-price" id="index-price-${idx.symbol.replace('^', '').replace('.NS','')/*.NS fallback*/}">₹${idx.price.toLocaleString('en-IN', {minimumFractionDigits:2})}</span>
+                        <span class="${changeClass}" id="index-change-${idx.symbol.replace('^', '').replace('.NS','')}">${prefix}${idx.change_pct.toFixed(2)}%</span>
+                    </div>
+                `;
+                
+                card.addEventListener('click', () => {
+                    if (window.switchTab) window.switchTab('analyzer');
+                    if (window.loadStockAnalyzer) window.loadStockAnalyzer(idx.symbol);
+                });
+
+                indexGrid.appendChild(card);
+            });
+        }
+
+        // 4. Render Movers Tables
+        renderMoversTables(data);
+    }
+
+    function renderMoversTables(data) {
+        const gainersList = data.gainers[activeMoversFilter] || [];
+        const losersList = data.losers[activeMoversFilter] || [];
+
+        const gainersTbody = document.getElementById('top-gainers-tbody');
+        const losersTbody = document.getElementById('top-losers-tbody');
+
+        if (gainersTbody) {
+            gainersTbody.innerHTML = '';
+            if (gainersList.length === 0) {
+                gainersTbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted" style="padding: 20px;">No gainers matching filters</td></tr>`;
+            } else {
+                gainersList.forEach(stock => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'clickable-row';
+                    tr.setAttribute('data-symbol', stock.symbol);
+                    tr.innerHTML = `
+                        <td style="padding: 12px; font-weight: 700; color: var(--neon-blue);">${stock.symbol.replace('.NS', '')}</td>
+                        <td style="padding: 12px; color: var(--text-primary); max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${stock.company_name}</td>
+                        <td style="padding: 12px; text-align: right; font-family: 'Outfit', sans-serif; font-weight: 600;" id="movers-price-${stock.symbol.replace('.NS', '')}">₹${stock.price.toFixed(2)}</td>
+                        <td style="padding: 12px; text-align: right; font-family: 'Outfit', sans-serif; font-weight: 700; color: var(--neon-green);" id="movers-change-${stock.symbol.replace('.NS', '')}">+${stock.change_pct.toFixed(2)}%</td>
+                    `;
+                    bindMoversRowEvents(tr, stock);
+                    gainersTbody.appendChild(tr);
+                });
+            }
+        }
+
+        if (losersTbody) {
+            losersTbody.innerHTML = '';
+            if (losersList.length === 0) {
+                losersTbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted" style="padding: 20px;">No losers matching filters</td></tr>`;
+            } else {
+                losersList.forEach(stock => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'clickable-row';
+                    tr.setAttribute('data-symbol', stock.symbol);
+                    tr.innerHTML = `
+                        <td style="padding: 12px; font-weight: 700; color: var(--neon-blue);">${stock.symbol.replace('.NS', '')}</td>
+                        <td style="padding: 12px; color: var(--text-primary); max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${stock.company_name}</td>
+                        <td style="padding: 12px; text-align: right; font-family: 'Outfit', sans-serif; font-weight: 600;" id="movers-price-${stock.symbol.replace('.NS', '')}">₹${stock.price.toFixed(2)}</td>
+                        <td style="padding: 12px; text-align: right; font-family: 'Outfit', sans-serif; font-weight: 700; color: #ef4444;" id="movers-change-${stock.symbol.replace('.NS', '')}">${stock.change_pct.toFixed(2)}%</td>
+                    `;
+                    bindMoversRowEvents(tr, stock);
+                    losersTbody.appendChild(tr);
+                });
+            }
+        }
+    }
+
+    function bindMoversRowEvents(tr, stock) {
+        tr.addEventListener('click', () => {
+            if (window.switchTab) window.switchTab('analyzer');
+            if (window.loadStockAnalyzer) window.loadStockAnalyzer(stock.symbol);
+        });
+
+        tr.addEventListener('mouseenter', (e) => {
+            const rect = tr.getBoundingClientRect();
+            tooltipEl.innerHTML = `
+                <div class="movers-tooltip-header">
+                    <span>${stock.symbol.replace('.NS', '')}</span>
+                    <span style="font-size: 9px; padding: 2px 6px; border-radius: 4px; background: rgba(59,130,246,0.15); color: var(--neon-blue); text-transform: uppercase;">${stock.cap_type} Cap</span>
+                </div>
+                <div class="movers-tooltip-item">
+                    <span class="movers-tooltip-label">Company:</span>
+                    <span class="movers-tooltip-value" style="max-width: 135px; text-overflow: ellipsis; white-space: nowrap; overflow: hidden;">${stock.company_name}</span>
+                </div>
+                <div class="movers-tooltip-item">
+                    <span class="movers-tooltip-label">LTP Price:</span>
+                    <span class="movers-tooltip-value">₹${stock.price.toFixed(2)}</span>
+                </div>
+                <div class="movers-tooltip-item">
+                    <span class="movers-tooltip-label">Day Change:</span>
+                    <span class="movers-tooltip-value" style="color: ${stock.change_pct >= 0 ? 'var(--neon-green)' : '#ef4444'};">${stock.change_pct >= 0 ? '+' : ''}${stock.change_pct.toFixed(2)}%</span>
+                </div>
+                <div class="movers-tooltip-item">
+                    <span class="movers-tooltip-label">Segment:</span>
+                    <span class="movers-tooltip-value">${stock.cap_type.toUpperCase()} CAP EQ</span>
+                </div>
+            `;
+            tooltipEl.style.display = 'block';
+            tooltipEl.style.left = (window.scrollX + rect.left + 50) + 'px';
+            tooltipEl.style.top = (window.scrollY + rect.top - 80) + 'px';
+        });
+
+        tr.addEventListener('mousemove', (e) => {
+            const rect = tr.getBoundingClientRect();
+            tooltipEl.style.left = (window.scrollX + rect.left + 50) + 'px';
+            tooltipEl.style.top = (window.scrollY + rect.top - 80) + 'px';
+        });
+
+        tr.addEventListener('mouseleave', () => {
+            tooltipEl.style.display = 'none';
+        });
+    }
+
+    function showMoversLoadingSkeleton() {
+        const indexGrid = document.getElementById('index-performance-grid');
+        if (indexGrid) {
+            indexGrid.innerHTML = `
+                <div class="skeleton-card" style="height: 70px; border-radius: 8px; background: var(--border-glass);"></div>
+                <div class="skeleton-card" style="height: 70px; border-radius: 8px; background: var(--border-glass);"></div>
+                <div class="skeleton-card" style="height: 70px; border-radius: 8px; background: var(--border-glass);"></div>
+                <div class="skeleton-card" style="height: 70px; border-radius: 8px; background: var(--border-glass);"></div>
+            `;
+        }
+        const gainersTbody = document.getElementById('top-gainers-tbody');
+        const losersTbody = document.getElementById('top-losers-tbody');
+        if (gainersTbody) gainersTbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted" style="padding: 20px;">Fetching initial database sweep (approx 20s)...</td></tr>`;
+        if (losersTbody) losersTbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted" style="padding: 20px;">Fetching initial database sweep (approx 20s)...</td></tr>`;
+    }
+
+    function setupMoversWebSocketUpdates() {
+        window.handleMoversLiveTick = function(symbol, price, changePct) {
+            const cleanSym = symbol.replace('.NS', '').replace('.BO', '').replace('^', '');
+            
+            // 1. Update Movers tables rows if visible
+            const priceEl = document.getElementById(`movers-price-${cleanSym}`);
+            const changeEl = document.getElementById(`movers-change-${cleanSym}`);
+            if (priceEl && changeEl) {
+                const oldPrice = parseFloat(priceEl.innerText.replace('₹', ''));
+                priceEl.innerText = `₹${price.toFixed(2)}`;
+                changeEl.innerText = `${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%`;
+                changeEl.className = changePct >= 0 ? 'change-pct positive' : 'change-pct negative';
+                
+                // Trigger radial blink animations
+                const parentRow = priceEl.closest('tr');
+                if (parentRow) {
+                    parentRow.classList.remove('tick-blink-positive', 'tick-blink-negative');
+                    void parentRow.offsetWidth; // trigger reflow
+                    if (price > oldPrice) {
+                        parentRow.classList.add('tick-blink-positive');
+                    } else if (price < oldPrice) {
+                        parentRow.classList.add('tick-blink-negative');
+                    }
+                }
+            }
+
+            // 2. Update Index cards if visible
+            const idxPriceEl = document.getElementById(`index-price-${cleanSym}`);
+            const idxChangeEl = document.getElementById(`index-change-${cleanSym}`);
+            if (idxPriceEl && idxChangeEl) {
+                const oldPrice = parseFloat(idxPriceEl.innerText.replace('₹', '').replace(/,/g, ''));
+                idxPriceEl.innerText = `₹${price.toLocaleString('en-IN', {minimumFractionDigits:2})}`;
+                idxChangeEl.innerText = `${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%`;
+                idxChangeEl.className = changePct >= 0 ? 'index-change positive' : 'index-change negative';
+
+                const cardEl = idxPriceEl.closest('.index-card');
+                if (cardEl) {
+                    cardEl.classList.remove('tick-blink-positive', 'tick-blink-negative');
+                    void cardEl.offsetWidth; // trigger reflow
+                    if (price > oldPrice) {
+                        cardEl.classList.add('tick-blink-positive');
+                    } else if (price < oldPrice) {
+                        cardEl.classList.add('tick-blink-negative');
+                    }
+                }
+            }
+        };
+    }
+
     // Expose to window for tab switching triggers
+    window.setupMarketMovers = setupMarketMovers;
     window.loadScreenerSectorRegime = loadScreenerSectorRegime;
 })();
 

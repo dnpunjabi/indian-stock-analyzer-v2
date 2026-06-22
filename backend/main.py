@@ -164,10 +164,13 @@ def init_db():
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS sector_regime_stats (
             sector TEXT PRIMARY KEY,
+            return_1d REAL,
+            return_5d REAL,
             return_1m REAL,
             return_3m REAL,
             return_6m REAL,
             return_1y REAL,
+            return_5y REAL,
             return_ytd REAL,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
@@ -178,10 +181,13 @@ def init_db():
         CREATE TABLE IF NOT EXISTS stock_regime_stats (
             symbol TEXT PRIMARY KEY,
             sector TEXT,
+            return_1d REAL,
+            return_5d REAL,
             return_1m REAL,
             return_3m REAL,
             return_6m REAL,
             return_1y REAL,
+            return_5y REAL,
             return_ytd REAL,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
@@ -708,6 +714,220 @@ async def run_background_cache_warmer():
         await asyncio.sleep(3600)
 
 
+_MARKET_MOVERS_CACHE = {
+    "status": "initializing",
+    "last_updated": None,
+    "advances": 0,
+    "declines": 0,
+    "gainers": {
+        "all": [],
+        "large": [],
+        "mid": [],
+        "small": []
+    },
+    "losers": {
+        "all": [],
+        "large": [],
+        "mid": [],
+        "small": []
+    },
+    "indices": [],
+    "large_cap_temp": 0.0,
+    "mid_cap_temp": 0.0,
+    "small_cap_temp": 0.0
+}
+
+def is_indian_market_hours() -> bool:
+    """
+    Checks if current time is within Indian Stock Market trading hours (Mon-Fri 9:15 AM - 3:30 PM IST).
+    """
+    now_utc = datetime.utcnow()
+    now_ist = now_utc + timedelta(hours=5, minutes=30)
+    if now_ist.weekday() >= 5:
+        return False
+    total_minutes = now_ist.hour * 60 + now_ist.minute
+    if 555 <= total_minutes <= 930:
+        return True
+    return False
+
+async def run_background_market_movers_updater():
+    """
+    Background loop that runs immediately on startup and updates today's market movers.
+    Recalculates every 10 minutes during market hours, or once per hour during off-market/weekends.
+    """
+    global _MARKET_MOVERS_CACHE
+    await asyncio.sleep(5)
+    while True:
+        try:
+            print("Background market movers updater: starting fetch...")
+            indices_tickers = [
+                "^NSEI", "^BSESN", "^NSEBANK", "^CNXIT", "^CNXPHARMA", 
+                "^CNXFMCG", "^CNXMETAL", "^CNXAUTO", "^CNXREALTY", 
+                "^CNXINFRA", "^CNXENERGY", "^CNXFIN", "^CNXPSUBANK", 
+                "^CNXMEDIA", "^CNXCONSUM"
+            ]
+            index_names = {
+                "^NSEI": "Nifty 50",
+                "^BSESN": "BSE Sensex",
+                "^NSEBANK": "Nifty Bank",
+                "^CNXIT": "Nifty IT",
+                "^CNXPHARMA": "Nifty Pharma",
+                "^CNXFMCG": "Nifty FMCG",
+                "^CNXMETAL": "Nifty Metal",
+                "^CNXAUTO": "Nifty Auto",
+                "^CNXREALTY": "Nifty Realty",
+                "^CNXINFRA": "Nifty Infra",
+                "^CNXENERGY": "Nifty Energy",
+                "^CNXFIN": "Nifty Financial Services",
+                "^CNXPSUBANK": "Nifty PSU Bank",
+                "^CNXMEDIA": "Nifty Media",
+                "^CNXCONSUM": "Nifty Consumption"
+            }
+            
+            loop = asyncio.get_event_loop()
+            df_indices = await loop.run_in_executor(
+                None, 
+                lambda: yf.download(indices_tickers, period="2d", interval="1d", progress=False)
+            )
+            
+            parsed_indices = []
+            if not df_indices.empty:
+                is_multi_idx = isinstance(df_indices.columns, pd.MultiIndex)
+                for ticker in indices_tickers:
+                    try:
+                        if is_multi_idx:
+                            close_series = df_indices['Close'][ticker].dropna()
+                        else:
+                            close_series = df_indices['Close'].dropna()
+                        if not close_series.empty:
+                            price = float(close_series.iloc[-1])
+                            prev_close = float(close_series.iloc[-2]) if len(close_series) >= 2 else price
+                            change = price - prev_close
+                            change_pct = (change / prev_close * 100.0) if prev_close > 0 else 0.0
+                            parsed_indices.append({
+                                "symbol": ticker,
+                                "name": index_names[ticker],
+                                "price": round(price, 2),
+                                "change": round(change, 2),
+                                "change_pct": round(change_pct, 2)
+                            })
+                    except Exception as idx_err:
+                        print(f"Error parsing index {ticker} in movers task: {idx_err}")
+            
+            with get_db() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT symbol, company_name, cap_type FROM screener_universe WHERE symbol NOT LIKE '%DUMMY%'")
+                db_stocks = [dict(r) for r in cursor.fetchall()]
+                
+            stocks_tickers = [s["symbol"] for s in db_stocks]
+            stocks_map = {s["symbol"]: s for s in db_stocks}
+            
+            df_stocks = await loop.run_in_executor(
+                None, 
+                lambda: yf.download(stocks_tickers, period="2d", interval="1d", progress=False, threads=True)
+            )
+            
+            parsed_stocks = []
+            advances_cnt = 0
+            declines_cnt = 0
+            large_cap_changes = []
+            mid_cap_changes = []
+            small_cap_changes = []
+            
+            if not df_stocks.empty:
+                is_multi_stocks = isinstance(df_stocks.columns, pd.MultiIndex)
+                for sym in stocks_tickers:
+                    try:
+                        if is_multi_stocks:
+                            if sym not in df_stocks.columns.get_level_values(1):
+                                continue
+                            close_series = df_stocks['Close'][sym].dropna()
+                        else:
+                            close_series = df_stocks['Close'].dropna()
+                        if len(close_series) >= 1:
+                            price = float(close_series.iloc[-1])
+                            prev_close = float(close_series.iloc[-2]) if len(close_series) >= 2 else price
+                            change = price - prev_close
+                            change_pct = (change / prev_close * 100.0) if prev_close > 0 else 0.0
+                            
+                            db_info = stocks_map[sym]
+                            cap = db_info["cap_type"]
+                            
+                            parsed_stocks.append({
+                                "symbol": sym,
+                                "company_name": db_info["company_name"],
+                                "cap_type": cap,
+                                "price": round(price, 2),
+                                "change": round(change, 2),
+                                "change_pct": round(change_pct, 2)
+                            })
+                            
+                            if change_pct > 0.05:
+                                advances_cnt += 1
+                            elif change_pct < -0.05:
+                                declines_cnt += 1
+                                
+                            if cap == "large":
+                                large_cap_changes.append(change_pct)
+                            elif cap == "mid":
+                                mid_cap_changes.append(change_pct)
+                            elif cap == "small":
+                                small_cap_changes.append(change_pct)
+                    except Exception as sym_err:
+                        pass
+            
+            gainers_all = [s for s in parsed_stocks if s["change_pct"] > 0]
+            losers_all = [s for s in parsed_stocks if s["change_pct"] < 0]
+            
+            gainers_all.sort(key=lambda x: x["change_pct"], reverse=True)
+            losers_all.sort(key=lambda x: x["change_pct"], reverse=False)
+            
+            large_gainers = [s for s in gainers_all if s["cap_type"] == "large"][:10]
+            large_losers = [s for s in losers_all if s["cap_type"] == "large"][:10]
+            mid_gainers = [s for s in gainers_all if s["cap_type"] == "mid"][:10]
+            mid_losers = [s for s in losers_all if s["cap_type"] == "mid"][:10]
+            small_gainers = [s for s in gainers_all if s["cap_type"] == "small"][:10]
+            small_losers = [s for s in losers_all if s["cap_type"] == "small"][:10]
+            
+            avg_large = sum(large_cap_changes) / len(large_cap_changes) if large_cap_changes else 0.0
+            avg_mid = sum(mid_cap_changes) / len(mid_cap_changes) if mid_cap_changes else 0.0
+            avg_small = sum(small_cap_changes) / len(small_cap_changes) if small_cap_changes else 0.0
+            
+            _MARKET_MOVERS_CACHE = {
+                "status": "success",
+                "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "advances": advances_cnt,
+                "declines": declines_cnt,
+                "gainers": {
+                    "all": gainers_all[:10],
+                    "large": large_gainers,
+                    "mid": mid_gainers,
+                    "small": small_gainers
+                },
+                "losers": {
+                    "all": losers_all[:10],
+                    "large": large_losers,
+                    "mid": mid_losers,
+                    "small": small_losers
+                },
+                "indices": parsed_indices,
+                "large_cap_temp": round(avg_large, 2),
+                "mid_cap_temp": round(avg_mid, 2),
+                "small_cap_temp": round(avg_small, 2)
+            }
+            print("Background market movers updater: updated cache successfully.")
+        except Exception as loop_err:
+            print(f"Background market movers updater loop error: {loop_err}")
+            _MARKET_MOVERS_CACHE["status"] = "error"
+            
+        if is_indian_market_hours():
+            print("Background market movers updater: sleeping for 10 minutes (market open)...")
+            await asyncio.sleep(600)
+        else:
+            print("Background market movers updater: sleeping for 1 hour (market closed)...")
+            await asyncio.sleep(3600)
+
+
 def update_nse_delivery_data():
     """
     Downloads the daily consolidated full bhavcopy CSV report from NSE India,
@@ -935,14 +1155,14 @@ def update_nse_bulk_block_deals():
 
 def update_sector_regime_stats():
     """
-    Computes the average sector returns for 1m, 3m, 6m, 1y, and YTD lookbacks
+    Computes the average sector returns for 1d, 5d, 1m, 3m, 6m, 1y, 5y, and YTD lookbacks
     and saves them to the sector_regime_stats table.
     """
     import yfinance as yf
     import pandas as pd
     from datetime import datetime
     try:
-        print("Computing sector relative strength regime stats (1m, 3m, 6m, 1y, YTD)...")
+        print("Computing sector relative strength regime stats (1d, 5d, 1m, 3m, 6m, 1y, 5y, YTD)...")
         with get_db() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT symbol, sector FROM screener_universe WHERE symbol NOT LIKE '%DUMMY%'")
@@ -953,13 +1173,16 @@ def update_sector_regime_stats():
             
         tickers = [s["symbol"] for s in stocks]
         
-        # Download 1 year history in batch to cover all lookback periods
-        data = yf.download(tickers, period="1y", progress=False)
+        # Download 5 years history in batch to cover all lookback periods (including 5y)
+        data = yf.download(tickers, period="5y", progress=False)
         
+        returns_1d = {}
+        returns_5d = {}
         returns_1m = {}
         returns_3m = {}
         returns_6m = {}
         returns_1y = {}
+        returns_5y = {}
         returns_ytd = {}
         
         now = datetime.now()
@@ -976,8 +1199,16 @@ def update_sector_regime_stats():
                     close_col = data['Close'].dropna()
                 
                 length = len(close_col)
-                if length >= 10:
+                if length >= 2:
                     p_end = float(close_col.iloc[-1])
+                    
+                    # 1 Day (previous day close)
+                    p_1d = float(close_col.iloc[-2]) if length >= 2 else float(close_col.iloc[0])
+                    returns_1d[sym] = ((p_end - p_1d) / p_1d) * 100.0 if p_1d > 0 else 0.0
+                    
+                    # 5 Day (approx 1 calendar week)
+                    p_5d = float(close_col.iloc[-6]) if length >= 6 else float(close_col.iloc[0])
+                    returns_5d[sym] = ((p_end - p_5d) / p_5d) * 100.0 if p_5d > 0 else 0.0
                     
                     # 1 Month (approx 20 trading days)
                     p_1m = float(close_col.iloc[-21]) if length >= 21 else float(close_col.iloc[0])
@@ -991,9 +1222,13 @@ def update_sector_regime_stats():
                     p_6m = float(close_col.iloc[-127]) if length >= 127 else float(close_col.iloc[0])
                     returns_6m[sym] = ((p_end - p_6m) / p_6m) * 100.0 if p_6m > 0 else 0.0
                     
-                    # 1 Year (all database points)
-                    p_1y = float(close_col.iloc[0])
+                    # 1 Year (approx 252 trading days)
+                    p_1y = float(close_col.iloc[-253]) if length >= 253 else float(close_col.iloc[0])
                     returns_1y[sym] = ((p_end - p_1y) / p_1y) * 100.0 if p_1y > 0 else 0.0
+                    
+                    # 5 Year (all database points in 5y window)
+                    p_5y = float(close_col.iloc[0])
+                    returns_5y[sym] = ((p_end - p_5y) / p_5y) * 100.0 if p_5y > 0 else 0.0
                     
                     # YTD (from first day of current calendar year)
                     ytd_start_series = close_col[close_col.index >= f"{now.year}-01-01"]
@@ -1009,11 +1244,14 @@ def update_sector_regime_stats():
             sym = s["symbol"]
             if sym in returns_1m:
                 if sec not in sector_returns:
-                    sector_returns[sec] = {"1m": [], "3m": [], "6m": [], "1y": [], "ytd": []}
+                    sector_returns[sec] = {"1d": [], "5d": [], "1m": [], "3m": [], "6m": [], "1y": [], "5y": [], "ytd": []}
+                sector_returns[sec]["1d"].append(returns_1d[sym])
+                sector_returns[sec]["5d"].append(returns_5d[sym])
                 sector_returns[sec]["1m"].append(returns_1m[sym])
                 sector_returns[sec]["3m"].append(returns_3m[sym])
                 sector_returns[sec]["6m"].append(returns_6m[sym])
                 sector_returns[sec]["1y"].append(returns_1y[sym])
+                sector_returns[sec]["5y"].append(returns_5y[sym])
                 sector_returns[sec]["ytd"].append(returns_ytd[sym])
                 
         now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -1028,21 +1266,24 @@ def update_sector_regime_stats():
                 if sym in returns_1m:
                     cursor.execute("""
                         INSERT OR REPLACE INTO stock_regime_stats 
-                        (symbol, sector, return_1m, return_3m, return_6m, return_1y, return_ytd, updated_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    """, (sym, sec, round(returns_1m[sym], 2), round(returns_3m[sym], 2), round(returns_6m[sym], 2), round(returns_1y[sym], 2), round(returns_ytd[sym], 2), now_str))
+                        (symbol, sector, return_1d, return_5d, return_1m, return_3m, return_6m, return_1y, return_5y, return_ytd, updated_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (sym, sec, round(returns_1d[sym], 2), round(returns_5d[sym], 2), round(returns_1m[sym], 2), round(returns_3m[sym], 2), round(returns_6m[sym], 2), round(returns_1y[sym], 2), round(returns_5y[sym], 2), round(returns_ytd[sym], 2), now_str))
             
             for sec, vals in sector_returns.items():
+                avg_1d = sum(vals["1d"]) / len(vals["1d"]) if vals["1d"] else 0.0
+                avg_5d = sum(vals["5d"]) / len(vals["5d"]) if vals["5d"] else 0.0
                 avg_1m = sum(vals["1m"]) / len(vals["1m"]) if vals["1m"] else 0.0
                 avg_3m = sum(vals["3m"]) / len(vals["3m"]) if vals["3m"] else 0.0
                 avg_6m = sum(vals["6m"]) / len(vals["6m"]) if vals["6m"] else 0.0
                 avg_1y = sum(vals["1y"]) / len(vals["1y"]) if vals["1y"] else 0.0
+                avg_5y = sum(vals["5y"]) / len(vals["5y"]) if vals["5y"] else 0.0
                 avg_ytd = sum(vals["ytd"]) / len(vals["ytd"]) if vals["ytd"] else 0.0
                 
                 cursor.execute("""
-                    INSERT OR REPLACE INTO sector_regime_stats (sector, return_1m, return_3m, return_6m, return_1y, return_ytd, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, (sec, round(avg_1m, 2), round(avg_3m, 2), round(avg_6m, 2), round(avg_1y, 2), round(avg_ytd, 2), now_str))
+                    INSERT OR REPLACE INTO sector_regime_stats (sector, return_1d, return_5d, return_1m, return_3m, return_6m, return_1y, return_5y, return_ytd, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (sec, round(avg_1d, 2), round(avg_5d, 2), round(avg_1m, 2), round(avg_3m, 2), round(avg_6m, 2), round(avg_1y, 2), round(avg_5y, 2), round(avg_ytd, 2), now_str))
             conn.commit()
         print("Sector and stock relative strength regime stats computed successfully.")
     except Exception as e:
@@ -1069,16 +1310,19 @@ def update_sector_regime_stats():
             sectors = [r["sector"] for r in cursor.fetchall()]
             import random
             for sec in sectors:
+                ret_1d = round(random.uniform(-1.5, 3.5), 2)
+                ret_5d = round(random.uniform(-3.0, 7.0), 2)
                 ret_1m = round(random.uniform(-3.0, 12.0), 2)
                 ret_3m = round(random.uniform(-5.0, 20.0), 2)
                 ret_6m = round(random.uniform(-10.0, 35.0), 2)
                 ret_1y = round(random.uniform(-15.0, 60.0), 2)
+                ret_5y = round(random.uniform(-20.0, 150.0), 2)
                 ret_ytd = round(random.uniform(-5.0, 25.0), 2)
                 now_str_def = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 cursor.execute("""
-                    INSERT OR REPLACE INTO sector_regime_stats (sector, return_1m, return_3m, return_6m, return_1y, return_ytd, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, (sec, ret_1m, ret_3m, ret_6m, ret_1y, ret_ytd, now_str_def))
+                    INSERT OR REPLACE INTO sector_regime_stats (sector, return_1d, return_5d, return_1m, return_3m, return_6m, return_1y, return_5y, return_ytd, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (sec, ret_1d, ret_5d, ret_1m, ret_3m, ret_6m, ret_1y, ret_5y, ret_ytd, now_str_def))
             conn.commit()
 
         cursor.execute("SELECT COUNT(*) as cnt FROM stock_regime_stats")
@@ -1102,16 +1346,19 @@ def update_sector_regime_stats():
             for st in all_db_stocks:
                 sym = st["symbol"]
                 sec = st["sector"]
+                ret_1d = round(random.uniform(-4.0, 8.0), 2)
+                ret_5d = round(random.uniform(-8.0, 15.0), 2)
                 ret_1m = round(random.uniform(-10.0, 25.0), 2)
                 ret_3m = round(random.uniform(-15.0, 45.0), 2)
                 ret_6m = round(random.uniform(-25.0, 70.0), 2)
                 ret_1y = round(random.uniform(-30.0, 120.0), 2)
+                ret_5y = round(random.uniform(-50.0, 500.0), 2)
                 ret_ytd = round(random.uniform(-15.0, 50.0), 2)
                 now_str_def = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 cursor.execute("""
-                    INSERT OR REPLACE INTO stock_regime_stats (symbol, sector, return_1m, return_3m, return_6m, return_1y, return_ytd, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """, (sym, sec, ret_1m, ret_3m, ret_6m, ret_1y, ret_ytd, now_str_def))
+                    INSERT OR REPLACE INTO stock_regime_stats (symbol, sector, return_1d, return_5d, return_1m, return_3m, return_6m, return_1y, return_5y, return_ytd, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (sym, sec, ret_1d, ret_5d, ret_1m, ret_3m, ret_6m, ret_1y, ret_5y, ret_ytd, now_str_def))
             conn.commit()
 
 
@@ -1158,6 +1405,7 @@ async def startup_warm_caching():
     asyncio.create_task(asyncio.to_thread(update_nse_delivery_data))
     asyncio.create_task(asyncio.to_thread(update_nse_bulk_block_deals))
     asyncio.create_task(asyncio.to_thread(update_sector_regime_stats))
+    asyncio.create_task(run_background_market_movers_updater())
 
     # 5. Initialize Angel One real-time WebSocket feed (optional)
     angel_api_key = os.environ.get("ANGEL_API_KEY", "")
@@ -1450,12 +1698,12 @@ async def discover_stocks(
 def fetch_enriched_sector_regime(conn):
     cursor = conn.cursor()
     # 1. Fetch sector averages
-    cursor.execute("SELECT sector, return_1m, return_3m, return_6m, return_1y, return_ytd, updated_at FROM sector_regime_stats ORDER BY return_1m DESC")
+    cursor.execute("SELECT sector, return_1d, return_5d, return_1m, return_3m, return_6m, return_1y, return_5y, return_ytd, updated_at FROM sector_regime_stats ORDER BY return_1m DESC")
     sector_rows = [dict(r) for r in cursor.fetchall()]
     
     # 2. Fetch all constituent stock stats
     cursor.execute("""
-        SELECT s.symbol, s.sector, s.return_1m, s.return_3m, s.return_6m, s.return_1y, s.return_ytd, u.company_name, u.cap_type
+        SELECT s.symbol, s.sector, s.return_1d, s.return_5d, s.return_1m, s.return_3m, s.return_6m, s.return_1y, s.return_5y, s.return_ytd, u.company_name, u.cap_type
         FROM stock_regime_stats s
         JOIN screener_universe u ON s.symbol = u.symbol
     """)
@@ -1471,10 +1719,13 @@ def fetch_enriched_sector_regime(conn):
             "symbol": st.get("symbol") or "N/A",
             "company_name": st.get("company_name") or "N/A",
             "cap_type": st.get("cap_type") or "N/A",
+            "return_1d": st.get("return_1d") or 0.0,
+            "return_5d": st.get("return_5d") or 0.0,
             "return_1m": st.get("return_1m") or 0.0,
             "return_3m": st.get("return_3m") or 0.0,
             "return_6m": st.get("return_6m") or 0.0,
             "return_1y": st.get("return_1y") or 0.0,
+            "return_5y": st.get("return_5y") or 0.0,
             "return_ytd": st.get("return_ytd") or 0.0
         })
         
@@ -2122,6 +2373,16 @@ async def get_index_universe(cap_type: Optional[str] = None):
         return rows
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch index universe: {str(e)}")
+
+
+@app.get("/api/market-movers")
+async def get_market_movers():
+    """
+    Exposes the cached today's top gainers, losers, indices and breadth stats.
+    """
+    global _MARKET_MOVERS_CACHE
+    return _MARKET_MOVERS_CACHE
+
 
 def calculate_support_resistance_lines(prices: list) -> tuple:
     """

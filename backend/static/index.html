@@ -75,6 +75,9 @@
                 <button class="nav-btn" id="tab-universe-btn" data-title="Index Universe Registry">
                     <span class="btn-icon">🗄️</span> <span class="btn-text">Index Universe Registry</span>
                 </button>
+                <button class="nav-btn" id="tab-movers-btn" data-title="Today's Market Movers">
+                    <span class="btn-icon">🚀</span> <span class="btn-text">Today's Market Movers</span>
+                </button>
 
                 <div class="nav-category-header">⚡ Tactical Trading</div>
                 <button class="nav-btn" id="tab-swing-scan-btn" data-title="Swing Setup Scanner">
@@ -376,22 +379,32 @@
                         <div class="sector-radar-controls-wrap" style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
                             <div style="display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-secondary);">
                                 <label for="sector-radar-lookback" style="font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Lookback:</label>
-                                <select id="sector-radar-lookback" style="background: var(--bg-glass-input); border: 1px solid var(--border-glass); border-radius: 6px; color: #fff; font-size: 11px; padding: 4px 10px; font-family: 'Inter'; outline: none; cursor: pointer;">
-                                    <option value="1m" selected>1 Month (20D)</option>
-                                    <option value="3m">3 Months</option>
-                                    <option value="6m">6 Months</option>
-                                    <option value="1y">1 Year</option>
-                                    <option value="ytd">Year-To-Date (YTD)</option>
+                                <select id="sector-radar-lookback" style="background: var(--bg-glass-input); border: 1px solid var(--border-glass); border-radius: 6px; color: var(--text-primary); font-size: 11px; padding: 4px 10px; font-family: 'Inter'; outline: none; cursor: pointer;">
+                                    <option value="1d" style="background: var(--bg-sidebar); color: var(--text-primary);">1 Day</option>
+                                    <option value="5d" style="background: var(--bg-sidebar); color: var(--text-primary);">5 Days</option>
+                                    <option value="1m" style="background: var(--bg-sidebar); color: var(--text-primary);" selected>1 Month (20D)</option>
+                                    <option value="3m" style="background: var(--bg-sidebar); color: var(--text-primary);">3 Months</option>
+                                    <option value="6m" style="background: var(--bg-sidebar); color: var(--text-primary);">6 Months</option>
+                                    <option value="1y" style="background: var(--bg-sidebar); color: var(--text-primary);">1 Year</option>
+                                    <option value="5y" style="background: var(--bg-sidebar); color: var(--text-primary);">5 Years</option>
+                                    <option value="ytd" style="background: var(--bg-sidebar); color: var(--text-primary);">Year-To-Date (YTD)</option>
                                 </select>
                             </div>
                             <div style="display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-secondary);">
                                 <label for="sector-radar-cap" style="font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Market Cap:</label>
-                                <select id="sector-radar-cap" style="background: var(--bg-glass-input); border: 1px solid var(--border-glass); border-radius: 6px; color: #fff; font-size: 11px; padding: 4px 10px; font-family: 'Inter'; outline: none; cursor: pointer;">
-                                    <option value="all" selected>All Cap Universes</option>
-                                    <option value="large">Large Cap (Nifty 100)</option>
-                                    <option value="mid">Mid Cap (Nifty Midcap 150)</option>
-                                    <option value="small">Small Cap (Nifty Smallcap 250)</option>
+                                <select id="sector-radar-cap" style="background: var(--bg-glass-input); border: 1px solid var(--border-glass); border-radius: 6px; color: var(--text-primary); font-size: 11px; padding: 4px 10px; font-family: 'Inter'; outline: none; cursor: pointer;">
+                                    <option value="all" style="background: var(--bg-sidebar); color: var(--text-primary);" selected>All Cap Universes</option>
+                                    <option value="large" style="background: var(--bg-sidebar); color: var(--text-primary);">Large Cap (Nifty 100)</option>
+                                    <option value="mid" style="background: var(--bg-sidebar); color: var(--text-primary);">Mid Cap (Nifty Midcap 150)</option>
+                                    <option value="small" style="background: var(--bg-sidebar); color: var(--text-primary);">Small Cap (Nifty Smallcap 250)</option>
                                 </select>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-secondary);">
+                                <label style="font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">View:</label>
+                                <div class="segmented-control" id="sector-radar-view-control">
+                                    <button class="segmented-btn active" data-view="sectors">Sectors</button>
+                                    <button class="segmented-btn" data-view="stocks">Stocks</button>
+                                </div>
                             </div>
                             <button id="sector-radar-refresh-btn" class="btn-secondary" title="Refresh Sector Relative Strength Stats" style="font-family: 'Outfit'; font-weight: 600; font-size: 11.5px; height: 32px; padding: 0 14px; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; transition: all 0.2s;">
                                 <span id="sector-radar-refresh-spinner" style="display: none; animation: spin 1s linear infinite;">↻</span>
@@ -748,6 +761,134 @@
                 </div>
             </section>
 
+
+            <!-- SECTION: TODAY'S MARKET MOVERS -->
+            <section class="workspace-tab" id="tab-movers" style="display: none; font-family: 'Inter', sans-serif;">
+                <div class="section-header">
+                    <h2>Today's Market Movers</h2>
+                    <p>Monitor real-time top gainers, top losers, and major indices across the Indian stock market.</p>
+                </div>
+
+                <!-- Market Breadth Widget -->
+                <div class="breadth-card card" style="margin-bottom: 20px; padding: 20px;">
+                    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; border: none; padding: 0 0 10px 0; background: transparent;">
+                        <h3 style="margin: 0; font-size: 13px; font-weight: 600; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.05em;">📊 Market Breadth (Advances / Declines)</h3>
+                        <span id="breadth-ratio-text" style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">Calculating...</span>
+                    </div>
+                    <div class="breadth-bar-container" style="height: 16px; border-radius: 8px; overflow: hidden; background: rgba(255,255,255,0.05); display: flex; width: 100%; border: 1px solid var(--border-glass);">
+                        <div id="breadth-advances-bar" style="width: 50%; background: linear-gradient(90deg, #10b981, #059669); transition: width 0.5s ease-in-out;"></div>
+                        <div id="breadth-declines-bar" style="width: 50%; background: linear-gradient(90deg, #dc2626, #ef4444); transition: width 0.5s ease-in-out;"></div>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 11px; margin-top: 8px; color: var(--text-muted);">
+                        <span id="breadth-advances-lbl">Advances: 0</span>
+                        <span id="breadth-declines-lbl">Declines: 0</span>
+                    </div>
+                </div>
+
+                <!-- Cap Segment Market Temperature Cards -->
+                <div class="temp-cards-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                    <div class="card cap-temp-card" style="padding: 16px; display: flex; align-items: center; justify-content: space-between;">
+                        <div>
+                            <h4 style="margin: 0; font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.05em;">Large Cap Temperature</h4>
+                            <p style="margin: 4px 0 0 0; font-size: 20px; font-weight: 700; font-family: 'Outfit', sans-serif;" id="large-cap-temp-val">0.00%</p>
+                        </div>
+                        <div class="cap-temp-badge large-cap" style="padding: 8px; border-radius: 8px; font-size: 18px; background: rgba(16, 185, 129, 0.1); color: var(--neon-green);">🏢</div>
+                    </div>
+                    <div class="card cap-temp-card" style="padding: 16px; display: flex; align-items: center; justify-content: space-between;">
+                        <div>
+                            <h4 style="margin: 0; font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.05em;">Mid Cap Temperature</h4>
+                            <p style="margin: 4px 0 0 0; font-size: 20px; font-weight: 700; font-family: 'Outfit', sans-serif;" id="mid-cap-temp-val">0.00%</p>
+                        </div>
+                        <div class="cap-temp-badge mid-cap" style="padding: 8px; border-radius: 8px; font-size: 18px; background: rgba(16, 185, 129, 0.1); color: var(--neon-green);">🏭</div>
+                    </div>
+                    <div class="card cap-temp-card" style="padding: 16px; display: flex; align-items: center; justify-content: space-between;">
+                        <div>
+                            <h4 style="margin: 0; font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.05em;">Small Cap Temperature</h4>
+                            <p style="margin: 4px 0 0 0; font-size: 20px; font-weight: 700; font-family: 'Outfit', sans-serif;" id="small-cap-temp-val">0.00%</p>
+                        </div>
+                        <div class="cap-temp-badge small-cap" style="padding: 8px; border-radius: 8px; font-size: 18px; background: rgba(16, 185, 129, 0.1); color: var(--neon-green);">🚜</div>
+                    </div>
+                </div>
+
+                <!-- Index Performance Grid -->
+                <div class="card" style="margin-bottom: 25px; padding: 20px;">
+                    <div class="card-header" style="border: none; padding: 0 0 12px 0; margin-bottom: 12px; background: transparent;">
+                        <h3 style="margin: 0; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">📈 Index Performance Radar</h3>
+                        <p style="margin: 4px 0 0 0; font-size: 11px; color: var(--text-muted);">Real-time changes of key benchmark and sector indices.</p>
+                    </div>
+                    <div id="index-performance-grid" class="index-performance-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px;">
+                        <!-- Dynamically filled indices -->
+                        <div class="skeleton-card" style="height: 70px; border-radius: 8px; background: var(--border-glass); animation: pulse 1.5s infinite;"></div>
+                        <div class="skeleton-card" style="height: 70px; border-radius: 8px; background: var(--border-glass); animation: pulse 1.5s infinite;"></div>
+                        <div class="skeleton-card" style="height: 70px; border-radius: 8px; background: var(--border-glass); animation: pulse 1.5s infinite;"></div>
+                        <div class="skeleton-card" style="height: 70px; border-radius: 8px; background: var(--border-glass); animation: pulse 1.5s infinite;"></div>
+                    </div>
+                </div>
+
+                <!-- Movers and Shakers Tables -->
+                <div class="card" style="padding: 20px; margin-bottom: 25px;">
+                    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; border: none; padding: 0 0 15px 0; flex-wrap: wrap; gap: 10px; background: transparent;">
+                        <div>
+                            <h3 style="margin: 0; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">🏆 Movers & Shakers</h3>
+                            <p style="margin: 4px 0 0 0; font-size: 11px; color: var(--text-muted);">Top 10 gainers and losers from the universe of 500 stocks.</p>
+                        </div>
+                        <div class="movers-filter-segmented" id="movers-segmented-control" style="display: flex; background: rgba(0,0,0,0.1); padding: 3px; border-radius: 8px; border: 1px solid var(--border-glass);">
+                            <button class="segmented-btn active" data-filter="all" style="padding: 6px 14px; border: none; background: transparent; color: var(--text-secondary); font-size: 11px; font-weight: 600; cursor: pointer; border-radius: 6px; transition: all 0.2s;">All Caps</button>
+                            <button class="segmented-btn" data-filter="large" style="padding: 6px 14px; border: none; background: transparent; color: var(--text-secondary); font-size: 11px; font-weight: 600; cursor: pointer; border-radius: 6px; transition: all 0.2s;">Large Cap</button>
+                            <button class="segmented-btn" data-filter="mid" style="padding: 6px 14px; border: none; background: transparent; color: var(--text-secondary); font-size: 11px; font-weight: 600; cursor: pointer; border-radius: 6px; transition: all 0.2s;">Mid Cap</button>
+                            <button class="segmented-btn" data-filter="small" style="padding: 6px 14px; border: none; background: transparent; color: var(--text-secondary); font-size: 11px; font-weight: 600; cursor: pointer; border-radius: 6px; transition: all 0.2s;">Small Cap</button>
+                        </div>
+                    </div>
+
+                    <div class="movers-split-pane" style="display: flex; gap: 20px; flex-wrap: wrap; width: 100%;">
+                        <!-- Top Gainers -->
+                        <div class="movers-pane" style="flex: 1 1 450px;">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                                <span style="font-size: 16px;">🟢</span>
+                                <h4 style="margin: 0; font-size: 12px; font-weight: 700; color: var(--neon-green); text-transform: uppercase; letter-spacing: 0.05em;">Top 10 Gainers</h4>
+                            </div>
+                            <div class="table-container" style="overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 8px; border: 1px solid var(--border-glass);">
+                                <table class="screener-table" style="width: 100%; border-collapse: collapse; font-size: 11.5px;">
+                                    <thead>
+                                        <tr style="background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border-glass);">
+                                            <th style="text-align: left; padding: 12px;">Ticker</th>
+                                            <th style="text-align: left; padding: 12px;">Company Name</th>
+                                            <th style="text-align: right; padding: 12px;">LTP (₹)</th>
+                                            <th style="text-align: right; padding: 12px;">Change (%)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="top-gainers-tbody">
+                                        <!-- Loaded dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Top Losers -->
+                        <div class="movers-pane" style="flex: 1 1 450px;">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                                <span style="font-size: 16px;">🔴</span>
+                                <h4 style="margin: 0; font-size: 12px; font-weight: 700; color: #ef4444; text-transform: uppercase; letter-spacing: 0.05em;">Top 10 Losers</h4>
+                            </div>
+                            <div class="table-container" style="overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 8px; border: 1px solid var(--border-glass);">
+                                <table class="screener-table" style="width: 100%; border-collapse: collapse; font-size: 11.5px;">
+                                    <thead>
+                                        <tr style="background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border-glass);">
+                                            <th style="text-align: left; padding: 12px;">Ticker</th>
+                                            <th style="text-align: left; padding: 12px;">Company Name</th>
+                                            <th style="text-align: right; padding: 12px;">LTP (₹)</th>
+                                            <th style="text-align: right; padding: 12px;">Change (%)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="top-losers-tbody">
+                                        <!-- Loaded dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
 
             <!-- SECTION 2: SINGLE STOCK WORKSPACE (ANALYZER) -->
             <section class="workspace-tab" id="tab-analyzer">
@@ -2858,7 +2999,7 @@
                         </div>
 
                         <!-- Governance & News Feed -->
-                        <div class="card col-span-4 no-print" data-subtab="summary">
+                        <div id="news-feed-card" class="card col-span-4 no-print" data-subtab="summary">
                             <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border: none; padding: 0; width: 100%;">
                                 <h3 style="margin:0;">CORPORATE CATALYSTS & NEWS FEED</h3>
                                 <span style="font-size: 9px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Real-time Scrapes & Sentiment Analysis</span>
@@ -5390,11 +5531,14 @@
                             <tr style="background: rgba(0,0,0,0.02); border-bottom: 2px solid var(--border-glass);">
                                 <th style="padding: 10px 12px; color: var(--text-primary); font-weight: 700; font-family: 'Outfit', sans-serif; width: 95px;">Symbol</th>
                                 <th style="padding: 10px 12px; color: var(--text-primary); font-weight: 700; font-family: 'Outfit', sans-serif;">Company Name</th>
-                                <th style="padding: 10px 12px; color: var(--text-primary); font-weight: 700; font-family: 'Outfit', sans-serif; text-align: center; width: 70px;">Cap</th>
-                                <th style="padding: 10px 12px; color: var(--text-primary); font-weight: 700; font-family: 'Outfit', sans-serif; text-align: center; width: 70px;">1M (%)</th>
-                                <th style="padding: 10px 12px; color: var(--text-primary); font-weight: 700; font-family: 'Outfit', sans-serif; text-align: center; width: 70px;">3M (%)</th>
-                                <th style="padding: 10px 12px; color: var(--text-primary); font-weight: 700; font-family: 'Outfit', sans-serif; text-align: center; width: 70px;">6M (%)</th>
-                                <th style="padding: 10px 12px; color: var(--text-primary); font-weight: 700; font-family: 'Outfit', sans-serif; text-align: center; width: 70px;">1Y (%)</th>
+                                <th style="padding: 10px 12px; color: var(--text-primary); font-weight: 700; font-family: 'Outfit', sans-serif; text-align: center; width: 55px;">Cap</th>
+                                <th style="padding: 10px 12px; color: var(--text-primary); font-weight: 700; font-family: 'Outfit', sans-serif; text-align: center; width: 60px;">1D (%)</th>
+                                <th style="padding: 10px 12px; color: var(--text-primary); font-weight: 700; font-family: 'Outfit', sans-serif; text-align: center; width: 60px;">5D (%)</th>
+                                <th style="padding: 10px 12px; color: var(--text-primary); font-weight: 700; font-family: 'Outfit', sans-serif; text-align: center; width: 60px;">1M (%)</th>
+                                <th style="padding: 10px 12px; color: var(--text-primary); font-weight: 700; font-family: 'Outfit', sans-serif; text-align: center; width: 60px;">3M (%)</th>
+                                <th style="padding: 10px 12px; color: var(--text-primary); font-weight: 700; font-family: 'Outfit', sans-serif; text-align: center; width: 60px;">6M (%)</th>
+                                <th style="padding: 10px 12px; color: var(--text-primary); font-weight: 700; font-family: 'Outfit', sans-serif; text-align: center; width: 60px;">1Y (%)</th>
+                                <th style="padding: 10px 12px; color: var(--text-primary); font-weight: 700; font-family: 'Outfit', sans-serif; text-align: center; width: 60px;">5Y (%)</th>
                                 <th style="padding: 10px 12px; color: var(--text-primary); font-weight: 700; font-family: 'Outfit', sans-serif; text-align: center; width: 100px;">Actions</th>
                             </tr>
                         </thead>
