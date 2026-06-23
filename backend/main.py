@@ -6667,40 +6667,21 @@ async def get_news_impact(symbol: str, refresh: bool = False):
         search_query = sym.split('.')[0] + " stock news"
         google_news = await asyncio.to_thread(fetch_google_news_rss, search_query)
         
-        # 2. Fetch Yahoo Finance syndicated news (Global targets)
+        # 2. Fetch earlier version news feed (profile news + fallbacks)
         yf_news = []
         try:
-            import yfinance as yf
-            stock = yf.Ticker(sym)
-            raw_yf = stock.news or []
+            from backend.financial_utils import get_complete_financial_profile
+            profile = get_complete_financial_profile(sym)
+            raw_yf = profile.get("news", [])
             for item in raw_yf[:4]:
-                content_dict = item.get("content", {})
-                title = content_dict.get("title") or item.get("title") or ""
-                publisher = content_dict.get("provider", {}).get("displayName") or item.get("publisher") or "Yahoo Finance"
-                link = content_dict.get("clickThroughUrl", {}).get("url") or item.get("link") or ""
-                
-                pub_date_raw = content_dict.get("pubDate") or item.get("date") or ""
-                formatted_date = ""
-                if pub_date_raw:
-                    try:
-                        if isinstance(pub_date_raw, int):
-                            formatted_date = datetime.fromtimestamp(pub_date_raw).strftime("%Y-%m-%d")
-                        else:
-                            formatted_date = str(pub_date_raw)[:10]
-                    except Exception:
-                        formatted_date = str(pub_date_raw)
-                        
-                if not formatted_date:
-                    formatted_date = datetime.now().strftime("%Y-%m-%d")
-                    
                 yf_news.append({
-                    "title": title,
-                    "link": link,
-                    "date": formatted_date,
-                    "source": publisher
+                    "title": item.get("title") or "Corporate Expansion Update",
+                    "link": item.get("link") or "",
+                    "date": item.get("date") or datetime.now().strftime("%Y-%m-%d"),
+                    "source": item.get("publisher") or "Yahoo Finance"
                 })
         except Exception as yf_err:
-            print(f"Error fetching yfinance news inside impact: {yf_err}")
+            print(f"Error fetching profile news inside impact: {yf_err}")
             
         # 3. Merge and De-duplicate
         seen_titles = set()
