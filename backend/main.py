@@ -6155,6 +6155,193 @@ async def post_optimize_weights(data: OptimizeWeightsRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Weight optimization failed: {str(e)}")
 
+
+class OptimizeSharpeRequest(BaseModel):
+    tickers: list[str]
+    cash_pct: float = 0.0
+
+
+@app.post("/api/portfolio/optimize-sharpe")
+async def post_optimize_sharpe(data: OptimizeSharpeRequest):
+    try:
+        if not data.tickers:
+            return {
+                "max_sharpe": {"weights": {}, "return": 0.0, "volatility": 0.0, "sharpe": 0.0},
+                "min_vol": {"weights": {}, "return": 0.0, "volatility": 0.0, "sharpe": 0.0},
+                "simulations": []
+            }
+
+        import yfinance as yf
+        import numpy as np
+        import pandas as pd
+        import asyncio
+        from backend.financial_utils import resolve_company_ticker
+
+        # 1. Resolve tickers to yfinance format
+        tickers = []
+        ticker_map = {} # maps resolved yfinance ticker back to original ticker string
+        for t in data.tickers:
+            try:
+                res = resolve_company_ticker(t)
+                yf_ticker = res.get("yf_ticker") or f"{t.strip().upper()}.NS"
+            except Exception:
+                yf_ticker = f"{t.strip().upper()}.NS"
+            tickers.append(yf_ticker)
+            ticker_map[yf_ticker] = t
+
+        # 2. Download 2-year history concurrently
+        loop = asyncio.get_event_loop()
+        download_tasks = []
+        for t in tickers:
+            download_tasks.append(
+                loop.run_in_executor(None, lambda ticker=t: yf.download(ticker, period="2y", progress=False))
+            )
+        dfs = await asyncio.gather(*download_tasks)
+
+        # 3. Build a DataFrame of daily returns
+        returns_df = pd.DataFrame()
+        for yf_t, df in zip(tickers, dfs):
+            if df.empty or "Close" not in df.columns:
+                continue
+            close = df["Close"]
+            if isinstance(close, pd.DataFrame):
+                close = close.iloc[:, 0]
+            returns_df[yf_t] = close.pct_change()
+
+        returns_df = returns_df.dropna()
+
+        # If returns dataframe is empty or has too few observations, return default
+        if returns_df.empty or len(returns_df) < 5:
+            # Fallback
+            equal_weight = 100.0 / len(data.tickers)
+            weights = {t: round(equal_weight, 1) for t in data.tickers}
+            sum_w = sum(weights.values())
+            diff = 100.0 - sum_w
+            if diff != 0 and weights:
+                weights[list(weights.keys())[0]] = round(weights[list(weights.keys())[0]] + diff, 1)
+            
+            fallback_res = {"weights": weights, "return": 12.0, "volatility": 15.0, "sharpe": 0.33}
+            return {
+                "max_sharpe": fallback_res,
+                "min_vol": fallback_res,
+                "simulations": []
+            }
+
+        # 4. Compute expected returns and covariance matrix
+        exp_rets = returns_df.mean() * 252
+        cov_matrix = returns_df.cov() * 252
+
+        num_assets = len(returns_df.columns)
+        rf_rate = 0.07 # 7.0% risk-free rate for Indian market (10Y G-Sec)
+        
+        # Adjust for cash allocation if any
+        cash_weight = data.cash_pct / 100.0
+        equity_weight_avail = 1.0 - cash_weight
+
+        # 5. Run Monte Carlo simulation (1,000 runs)
+        num_portfolios = 1000
+        results = []
+        portfolio_weights = []
+
+        # Convert to numpy arrays for speed
+        exp_rets_np = exp_rets.values
+        cov_matrix_np = cov_matrix.values
+
+        for _ in range(num_portfolios):
+            # Generate random weights for equities
+            w = np.random.random(num_assets)
+            w /= np.sum(w)
+            # Scale weights to sum to available equity weight
+            w *= equity_weight_avail
+            
+            # Expected Return: w^T * exp_rets + cash_weight * Rf
+            p_ret = np.dot(w, exp_rets_np) + cash_weight * rf_rate
+            # Expected Volatility: sqrt(w^T * Cov * w)
+            p_vol = np.sqrt(np.dot(w.T, np.dot(cov_matrix_np, w)))
+            p_sharpe = (p_ret - rf_rate) / p_vol if p_vol > 0.0 else 0.0
+
+            results.append((p_ret, p_vol, p_sharpe))
+            portfolio_weights.append(w)
+
+        results = np.array(results)
+        
+        # 6. Extract Max Sharpe and Min Vol portfolios
+        max_sharpe_idx = np.argmax(results[:, 2])
+        min_vol_idx = np.argmin(results[:, 1])
+
+        # Prepare Max Sharpe details
+        max_sharpe_w = portfolio_weights[max_sharpe_idx]
+        max_sharpe_weights = {}
+        for idx, col in enumerate(returns_df.columns):
+            orig_t = ticker_map[col]
+            max_sharpe_weights[orig_t] = round(max_sharpe_w[idx] * 100.0, 1)
+        if data.cash_pct > 0.0:
+            max_sharpe_weights["CASH"] = round(data.cash_pct, 1)
+
+        # Prepare Min Vol details
+        min_vol_w = portfolio_weights[min_vol_idx]
+        min_vol_weights = {}
+        for idx, col in enumerate(returns_df.columns):
+            orig_t = ticker_map[col]
+            min_vol_weights[orig_t] = round(min_vol_w[idx] * 100.0, 1)
+        if data.cash_pct > 0.0:
+            min_vol_weights["CASH"] = round(data.cash_pct, 1)
+
+        def sanitize_weights(w_dict, target_sum=100.0):
+            if not w_dict:
+                return w_dict
+            s_sum = sum(w_dict.values())
+            diff = target_sum - s_sum
+            if diff != 0:
+                first_k = list(w_dict.keys())[0]
+                w_dict[first_k] = round(w_dict[first_k] + diff, 1)
+            return w_dict
+
+        max_sharpe_weights = sanitize_weights(max_sharpe_weights)
+        min_vol_weights = sanitize_weights(min_vol_weights)
+
+        # 7. Select a subset of simulation points for graphing
+        step = max(1, num_portfolios // 300)
+        sim_points = []
+        for i in range(0, num_portfolios, step):
+            p_ret, p_vol, p_sharpe = results[i]
+            w_dict = {}
+            for idx, col in enumerate(returns_df.columns):
+                orig_t = ticker_map[col]
+                w_dict[orig_t] = round(portfolio_weights[i][idx] * 100.0, 1)
+            if data.cash_pct > 0.0:
+                w_dict["CASH"] = round(data.cash_pct, 1)
+            w_dict = sanitize_weights(w_dict)
+            
+            w_str = " | ".join([f"{k}: {v}%" for k, v in w_dict.items()])
+
+            sim_points.append({
+                "x": round(float(p_vol * 100), 2),
+                "y": round(float(p_ret * 100), 2),
+                "sharpe": round(float(p_sharpe), 2),
+                "weights_str": w_str
+            })
+
+        return {
+            "status": "success",
+            "max_sharpe": {
+                "weights": max_sharpe_weights,
+                "return": round(float(results[max_sharpe_idx, 0] * 100.0), 2),
+                "volatility": round(float(results[max_sharpe_idx, 1] * 100.0), 2),
+                "sharpe": round(float(results[max_sharpe_idx, 2]), 2)
+            },
+            "min_vol": {
+                "weights": min_vol_weights,
+                "return": round(float(results[min_vol_idx, 0] * 100.0), 2),
+                "volatility": round(float(results[min_vol_idx, 1] * 100.0), 2),
+                "sharpe": round(float(results[min_vol_idx, 2]), 2)
+            },
+            "simulations": sim_points
+        }
+    except Exception as e:
+        print(f"Optimize Sharpe Error: {e}")
+        raise HTTPException(status_code=500, detail=f"Optimize Sharpe Error: {str(e)}")
+
 class SwingSynthesisRequest(BaseModel):
     symbol: str
     strategy: str

@@ -4481,13 +4481,13 @@
                     <h2>Portfolio Optimization Doctor</h2>
                     <p>Orchestrate institutional-grade diagnostic audits, analyze concentration indices, measure sector exposure, and receive active mathematical rebalancing strategies compiled by the AI agent.</p>
                 </div>
-
                 <!-- Portfolio Doctor Sub-navigation Tabs -->
                 <div class="portfolio-subtabs-wrapper no-print" style="display: flex; gap: 10px; margin-top: 15px; margin-bottom: 5px;">
                     <button class="portfolio-subtab-btn active" id="port-tab-diagnostics-btn" style="cursor: pointer; padding: 8px 16px; border-radius: 6px; font-family: 'Outfit', sans-serif; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; transition: all 0.2s; border: 1px solid var(--border-glass); background: rgba(255,255,255,0.03); color: var(--text-primary); outline: none;">🩺 Diagnostics Audit</button>
                     <button class="portfolio-subtab-btn" id="port-tab-tax-btn" style="cursor: pointer; padding: 8px 16px; border-radius: 6px; font-family: 'Outfit', sans-serif; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; transition: all 0.2s; border: 1px solid transparent; background: transparent; color: var(--text-muted); outline: none;">💸 Tax & Harvesting</button>
                     <button class="portfolio-subtab-btn" id="port-tab-backtester-btn" style="cursor: pointer; padding: 8px 16px; border-radius: 6px; font-family: 'Outfit', sans-serif; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; transition: all 0.2s; border: 1px solid transparent; background: transparent; color: var(--text-muted); outline: none;">📊 Historical Backtester</button>
                     <button class="portfolio-subtab-btn" id="port-tab-stress-btn" style="cursor: pointer; padding: 8px 16px; border-radius: 6px; font-family: 'Outfit', sans-serif; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; transition: all 0.2s; border: 1px solid transparent; background: transparent; color: var(--text-muted); outline: none;">💥 Macro Stress Test</button>
+                    <button class="portfolio-subtab-btn" id="port-tab-optimizer-btn" style="cursor: pointer; padding: 8px 16px; border-radius: 6px; font-family: 'Outfit', sans-serif; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; transition: all 0.2s; border: 1px solid transparent; background: transparent; color: var(--text-muted); outline: none;">🛡️ Sharpe Optimizer</button>
                 </div>
 
                 <!-- PANEL 1: DIAGNOSTICS AUDIT -->
@@ -5135,6 +5135,122 @@
                             <div>
                                 <h5 style="margin: 0 0 6px 0; font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Actionable Portfolio Recommendations</h5>
                                 <ul id="portfolio-stress-recommendations-list" style="margin: 0; padding-left: 15px; font-size: 11.5px; color: var(--text-secondary); line-height: 1.6;"></ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PANEL 5: SHARPE OPTIMIZER -->
+                <div id="port-panel-optimizer" class="portfolio-panel" style="display: none; margin-top: 15px;">
+                    <div class="card">
+                        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; border: none; padding: 0; margin-bottom: 15px;">
+                            <h3 style="display: flex; align-items: center; gap: 8px; margin: 0; font-family: 'Outfit', sans-serif;">
+                                <span>🛡️ Portfolio Sharpe Optimizer & Rebalancer</span>
+                                <span class="badge-rec" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);">MPT Engine Active</span>
+                            </h3>
+                        </div>
+                        <p style="font-size: 11.5px; color: var(--text-secondary); margin-bottom: 20px; line-height: 1.4;">
+                            Apply Modern Portfolio Theory (MPT) to calculate the optimal mathematical weights for your holdings. Generate the Efficient Frontier risk-return spectrum, optimize Sharpe ratios against G-Sec risk-free yields, and receive automated rebalancing trade tickets.
+                        </p>
+
+                        <!-- Empty State Fallback -->
+                        <div id="portfolio-optimizer-empty-state" style="padding: 30px; text-align: center; border: 1px dashed var(--border-glass); border-radius: 8px; color: var(--text-secondary); background: rgba(255,255,255,0.01); margin-bottom: 20px;">
+                            <span style="font-size: 24px; display: block; margin-bottom: 10px;">🛡️</span>
+                            No active holdings detected. Please go to the **Tax & Harvesting** tab to add manual transactions or initialize your portfolio diagnostics first.
+                        </div>
+
+                        <!-- Main Split Grid Workspace -->
+                        <div id="portfolio-optimizer-workspace" style="display: none;" class="optimizer-split-grid">
+                            <!-- Left Column: Controls & Allocations -->
+                            <div style="display: flex; flex-direction: column; gap: 15px;">
+                                <!-- Cash Reserves Config Card -->
+                                <div class="card" style="margin: 0; padding: 12px; background: var(--bg-card-sub); border: 1px solid var(--border-sub);">
+                                    <h4 style="font-size: 11px; text-transform: uppercase; color: var(--text-primary); margin: 0 0 10px 0; letter-spacing: 0.04em;">💵 RISK-FREE CASH RESERVES</h4>
+                                    <div style="display: flex; align-items: center; gap: 12px;">
+                                        <input type="range" id="portfolio-optimizer-cash-range" min="0" max="50" step="5" value="0" style="flex: 1;">
+                                        <span style="font-family: var(--font-heading); font-size: 13px; font-weight: 700; color: var(--color-primary); width: 45px; text-align: right;" id="portfolio-optimizer-cash-val">0%</span>
+                                    </div>
+                                    <p style="font-size: 9.5px; color: var(--text-muted); margin: 8px 0 0 0; line-height: 1.35;">
+                                        Yield benchmark: 10-Year Indian Government Bond (G-Sec) at $\approx 7.0\%$.
+                                    </p>
+                                </div>
+
+                                <!-- Assets Selection List Card -->
+                                <div class="card" style="margin: 0; padding: 15px; background: rgba(255,255,255,0.01);">
+                                    <h4 style="font-size: 11px; text-transform: uppercase; color: var(--text-primary); margin: 0 0 12px 0; letter-spacing: 0.04em;">🔒 HOLDINGS INCLUSION MATRIX</h4>
+                                    <div id="portfolio-optimizer-assets-list" style="display: flex; flex-direction: column; gap: 10px;">
+                                        <!-- Loaded dynamically -->
+                                    </div>
+                                    <button class="btn-primary" id="run-portfolio-optimizer-btn" style="margin-top: 15px; width: 100%; height: 34px; font-size: 11.5px; font-weight: 600; border-radius: 6px; cursor: pointer; border: none; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                                        ⚡ Calculate Optimal Weights
+                                    </button>
+                                </div>
+
+                                <!-- Target Allocation Selection & Comparative Table -->
+                                <div id="portfolio-optimizer-table-wrap" class="card" style="display: none; margin: 0; padding: 15px; background: rgba(255,255,255,0.01);">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                                        <h4 style="font-size: 11px; text-transform: uppercase; color: var(--text-primary); margin: 0; letter-spacing: 0.04em;">⚖️ WEIGHT REALLOCATION GRID</h4>
+                                        <div class="horizon-toggle" style="display: flex; gap: 2px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-glass); padding: 2px; border-radius: 6px;">
+                                            <button class="subtab-btn active" id="port-opt-target-sharpe" style="padding: 4px 8px; font-size: 9px; border-radius: 4px; font-weight: 700; text-transform: uppercase; border: none; background: transparent; color: var(--text-primary);">🏆 Max Sharpe</button>
+                                            <button class="subtab-btn" id="port-opt-target-vol" style="padding: 4px 8px; font-size: 9px; border-radius: 4px; font-weight: 700; text-transform: uppercase; border: none; background: transparent; color: var(--text-muted);">🛡️ Min Risk</button>
+                                        </div>
+                                    </div>
+                                    <div class="table-scroll" style="border: 1px solid var(--border-glass); border-radius: 8px; overflow-x: auto; background: rgba(0,0,0,0.1);">
+                                        <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 11px;">
+                                            <thead>
+                                                <tr style="background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border-glass);">
+                                                    <th style="padding: 8px; color: var(--text-secondary); text-align: left;">Asset</th>
+                                                    <th style="padding: 8px; color: var(--text-secondary); text-align: right;">Current Weight</th>
+                                                    <th style="padding: 8px; color: var(--text-secondary); text-align: right;" id="port-opt-table-target-header">Target Weight</th>
+                                                    <th style="padding: 8px; color: var(--text-secondary); text-align: right;">Rebalance Offset</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="portfolio-optimizer-table-body">
+                                                <!-- Loaded dynamically -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Right Column: Efficient Frontier & Metrics -->
+                            <div style="display: flex; flex-direction: column; gap: 15px;">
+                                <!-- Efficient Frontier Chart Card -->
+                                <div class="card" style="margin: 0; padding: 15px; background: rgba(255,255,255,0.01);">
+                                    <h4 style="font-size: 11px; text-transform: uppercase; color: var(--text-primary); margin: 0 0 10px 0; letter-spacing: 0.04em; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 4px;">
+                                        <span>📈 MPT EFFICIENT FRONTIER MODEL</span>
+                                        <span style="font-size: 8px; color: var(--text-muted); text-transform: none;">Expected Return vs Annualized Volatility</span>
+                                    </h4>
+                                    <div style="height: 200px; position: relative; width: 100%;">
+                                        <canvas id="portfolio-frontier-chart"></canvas>
+                                    </div>
+                                </div>
+
+                                <!-- Portfolio Performance KPIs Summary -->
+                                <div id="portfolio-optimizer-kpi-grid" style="display: none; grid-template-columns: 1fr 1fr; gap: 12px;">
+                                    <div class="card kpi-card" style="margin: 0; padding: 12px; background: var(--bg-card-sub); border: 1px solid var(--border-sub);">
+                                        <span style="font-size: 8.5px; color: var(--text-secondary); text-transform: uppercase; font-weight: 600; display: block; margin-bottom: 2px;">Expected Return %</span>
+                                        <div style="display: flex; align-items: baseline; gap: 8px;">
+                                            <strong id="port-opt-kpi-return-val" style="font-family: var(--font-heading); font-size: 16px; font-weight: 800; color: var(--text-primary);">0.00%</strong>
+                                            <span id="port-opt-kpi-return-diff" style="font-size: 10px; font-weight: 700;">+0.0%</span>
+                                        </div>
+                                    </div>
+                                    <div class="card kpi-card" style="margin: 0; padding: 12px; background: var(--bg-card-sub); border: 1px solid var(--border-sub);">
+                                        <span style="font-size: 8.5px; color: var(--text-secondary); text-transform: uppercase; font-weight: 600; display: block; margin-bottom: 2px;">Portfolio Sharpe Ratio</span>
+                                        <div style="display: flex; align-items: baseline; gap: 8px;">
+                                            <strong id="port-opt-kpi-sharpe-val" style="font-family: var(--font-heading); font-size: 16px; font-weight: 800; color: var(--text-primary);">0.00</strong>
+                                            <span id="port-opt-kpi-sharpe-diff" style="font-size: 10px; font-weight: 700;">+0.0</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Actionable Rebalancing Tickets checklist -->
+                                <div id="portfolio-optimizer-tickets-wrap" class="card" style="display: none; margin: 0; padding: 15px; background: rgba(255,255,255,0.01);">
+                                    <h4 style="font-size: 11px; text-transform: uppercase; color: var(--text-primary); margin: 0 0 12px 0; letter-spacing: 0.04em;">📋 ACTIONABLE REBALANCING TICKETS</h4>
+                                    <div id="portfolio-optimizer-tickets-list" style="display: flex; flex-direction: column; gap: 8px;">
+                                        <!-- Loaded dynamically -->
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
