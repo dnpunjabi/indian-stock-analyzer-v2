@@ -27496,7 +27496,7 @@ window.renderTVAdvancedChart = renderTVAdvancedChart;
             if (isFull) {
                 container.style.height = 'calc(100vh - 80px)';
             } else {
-                container.style.height = ''; // Let standard CSS flex/min-height control it
+                container.style.height = '520px';
             }
         }
     }
@@ -27524,7 +27524,7 @@ window.renderTVAdvancedChart = renderTVAdvancedChart;
                     fullscreenBtn.innerHTML = '🗖 Fullscreen';
                 }
                 if (container) {
-                    container.style.height = '';
+                    container.style.height = '520px';
                 }
             }
         }
