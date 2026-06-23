@@ -6663,8 +6663,56 @@ async def get_news_impact(symbol: str, refresh: bool = False):
         anomaly_data = await asyncio.to_thread(calculate_abnormal_returns, sym, 30)
         anomalies_list = anomaly_data.get("anomalies", [])
         
+        # 1. Fetch Google News RSS (Indian targets)
         search_query = sym.split('.')[0] + " stock news"
-        raw_news = await asyncio.to_thread(fetch_google_news_rss, search_query)
+        google_news = await asyncio.to_thread(fetch_google_news_rss, search_query)
+        
+        # 2. Fetch Yahoo Finance syndicated news (Global targets)
+        yf_news = []
+        try:
+            import yfinance as yf
+            stock = yf.Ticker(sym)
+            raw_yf = stock.news or []
+            for item in raw_yf[:4]:
+                content_dict = item.get("content", {})
+                title = content_dict.get("title") or item.get("title") or ""
+                publisher = content_dict.get("provider", {}).get("displayName") or item.get("publisher") or "Yahoo Finance"
+                link = content_dict.get("clickThroughUrl", {}).get("url") or item.get("link") or ""
+                
+                pub_date_raw = content_dict.get("pubDate") or item.get("date") or ""
+                formatted_date = ""
+                if pub_date_raw:
+                    try:
+                        if isinstance(pub_date_raw, int):
+                            formatted_date = datetime.fromtimestamp(pub_date_raw).strftime("%Y-%m-%d")
+                        else:
+                            formatted_date = str(pub_date_raw)[:10]
+                    except Exception:
+                        formatted_date = str(pub_date_raw)
+                        
+                if not formatted_date:
+                    formatted_date = datetime.now().strftime("%Y-%m-%d")
+                    
+                yf_news.append({
+                    "title": title,
+                    "link": link,
+                    "date": formatted_date,
+                    "source": publisher
+                })
+        except Exception as yf_err:
+            print(f"Error fetching yfinance news inside impact: {yf_err}")
+            
+        # 3. Merge and De-duplicate
+        seen_titles = set()
+        raw_news = []
+        for item in yf_news + google_news:
+            title_slug = "".join(c for c in item["title"].lower() if c.isalnum())[:35]
+            if title_slug not in seen_titles:
+                seen_titles.add(title_slug)
+                raw_news.append(item)
+                
+        # Limit to 6 items to keep performance high
+        raw_news = raw_news[:6]
         
         if not raw_news:
             return {
