@@ -3036,23 +3036,49 @@
                         <!-- Governance & News Feed -->
                         <div id="news-feed-card" class="card col-span-4 no-print" data-subtab="summary">
                             <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border: none; padding: 0; width: 100%;">
-                                <h3 style="margin:0;">CORPORATE CATALYSTS & NEWS FEED</h3>
-                                <span style="font-size: 9px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Real-time Scrapes & Sentiment Analysis</span>
+                                <h3 style="margin:0;">CORPORATE CATALYSTS & AI NEWS</h3>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span id="news-diagnostics-badge" style="font-size: 9px; color: var(--text-muted); text-transform: uppercase; font-family: monospace; border: 1px dashed var(--border-glass); padding: 2px 6px; border-radius: 4px;">Engine: Groq Llama 3</span>
+                                    <button id="news-refresh-btn" class="lock-btn-primary" style="font-size: 10px; padding: 3px 8px; margin: 0; display: flex; align-items: center; gap: 4px; cursor: pointer; background: rgba(255,255,255,0.06); border: 1px solid var(--border-glass); color: var(--text-secondary); border-radius: 4px;">
+                                        <span>🔄</span> Refetch
+                                    </button>
+                                </div>
                             </div>
-                            <p style="font-size: 11px; color: var(--text-secondary); margin-bottom: 12px;">Auditing live NSE news catalogs and corporate announcements with quantitative sentiment parsing.</p>
+                            <p style="font-size: 11px; color: var(--text-secondary); margin-bottom: 12px;">Auditing live news catalogues and corporate announcements cleaned via Jina Reader with Groq price-impact correlation.</p>
+                            
                             <!-- News Sentiment Thermometer -->
-                            <div class="news-sentiment-wrapper" id="news-sentiment-wrapper" style="display: none;">
-                                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; font-weight: 700;">
-                                    <span style="color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">📰 News Catalyst Sentiment Index</span>
-                                    <span style="color: var(--neon-green);" id="news-sentiment-index-val">0% Positive</span>
+                            <div class="news-sentiment-wrapper" id="news-sentiment-wrapper" style="display: block; margin-bottom: 16px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; font-weight: 700; margin-bottom: 6px;">
+                                    <span style="color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">📰 Aggregate Sentiment Index</span>
+                                    <span style="color: var(--neon-green);" id="news-sentiment-index-val">50% Neutral</span>
                                 </div>
-                                <div class="sentiment-thermometer-track">
-                                    <div class="sentiment-thermometer-fill" id="news-sentiment-thermometer-fill"></div>
+                                <div class="sentiment-thermometer-track" style="height: 8px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden; position: relative;">
+                                    <div class="sentiment-thermometer-fill" id="news-sentiment-thermometer-fill" style="height: 100%; width: 50%; background: linear-gradient(90deg, #ef4444, #eab308, #22c55e); transition: width 0.8s ease-in-out;"></div>
                                 </div>
-                                <div style="font-size: 10px; color: var(--text-muted); margin-top: 6px;" id="news-sentiment-index-desc">Calculating consensus sentiment index...</div>
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+                                    <div style="font-size: 10px; color: var(--text-muted);" id="news-sentiment-index-desc">Audited via Groq Llama 3 cognitive sentiment index</div>
+                                    <span id="news-cache-status-badge" style="font-size: 9px; color: var(--text-muted); font-family: monospace;">Cache: Active</span>
+                                </div>
                             </div>
-                            <div class="news-grid" id="news-feed-container">
-                                <!-- Loaded dynamically -->
+
+                            <!-- Interactive Sentiment Filter Chips -->
+                            <div class="news-filters-wrapper" style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
+                                <button class="news-filter-chip active" data-filter="all" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-glass); color: var(--text-secondary); border-radius: 20px; padding: 4px 12px; font-size: 10px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                                    All (<span id="count-all">0</span>)
+                                </button>
+                                <button class="news-filter-chip" data-filter="positive" style="background: rgba(34,197,94,0.05); border: 1px solid rgba(34,197,94,0.2); color: #22c55e; border-radius: 20px; padding: 4px 12px; font-size: 10px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                                    🟢 Bullish (<span id="count-positive">0</span>)
+                                </button>
+                                <button class="news-filter-chip" data-filter="negative" style="background: rgba(239,68,68,0.05); border: 1px solid rgba(239,68,68,0.2); color: #ef4444; border-radius: 20px; padding: 4px 12px; font-size: 10px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                                    🔴 Bearish (<span id="count-negative">0</span>)
+                                </button>
+                                <button class="news-filter-chip" data-filter="neutral" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-glass); color: var(--text-muted); border-radius: 20px; padding: 4px 12px; font-size: 10px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                                    ⚪ Neutral (<span id="count-neutral">0</span>)
+                                </button>
+                            </div>
+
+                            <div class="news-timeline-wrapper" id="news-feed-container">
+                                <!-- Loaded dynamically as a chronological timeline -->
                             </div>
                         </div>
 

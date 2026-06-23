@@ -5398,121 +5398,21 @@ function renderStockDashboard(p) {
         }
     }
 
-    const newsFeed = document.getElementById('news-feed-container');
-    const newsSentimentWrapper = document.getElementById('news-sentiment-wrapper');
-    const newsSentimentFill = document.getElementById('news-sentiment-thermometer-fill');
-    const newsSentimentVal = document.getElementById('news-sentiment-index-val');
-    const newsSentimentDesc = document.getElementById('news-sentiment-index-desc');
-
-    if (newsFeed) {
-        newsFeed.innerHTML = '';
-        if (p.news && p.news.length > 0) {
-            if (newsSentimentWrapper) newsSentimentWrapper.style.display = 'block';
-
-            let posCount = 0;
-            let negCount = 0;
-            const totalNews = p.news.length;
-
-            p.news.forEach(item => {
-                const card = document.createElement('a');
-                card.className = 'news-card';
-
-                // Safeguard to prevent opening internal dev server URLs
-                let finalLink = item.link;
-                if (!finalLink || finalLink.trim() === '#' || finalLink.trim() === '') {
-                    finalLink = `https://finance.yahoo.com/quote/${p.ticker}/news`;
-                }
-                card.href = finalLink;
-                card.target = '_blank';
-
-                // Simple sentiment analyzer based on words
-                const tLower = item.title.toLowerCase();
-                let sentimentText = "NEUTRAL";
-                let sentimentColor = "var(--text-muted)";
-                let borderLeftColor = "rgba(255, 255, 255, 0.1)";
-                let bgTint = "rgba(255, 255, 255, 0.02)";
-
-                const positiveWords = ["gain", "growth", "jump", "beat", "high", "surge", "rise", "record", "profit", "buy", "strong", "success", "expand", "expansion", "up", "bull", "outperform", "cagr", "dividend", "order", "win"];
-                const negativeWords = ["drop", "fall", "sink", "lower", "plunge", "miss", "loss", "decline", "warn", "debt", "down", "bear", "sell", "audit", "risk", "probe", "investigate", "alert", "pledge", "concern"];
-
-                let isPos = positiveWords.some(w => tLower.includes(w));
-                let isNeg = negativeWords.some(w => tLower.includes(w));
-
-                if (isPos && !isNeg) {
-                    sentimentText = "🟢 BULLISH";
-                    sentimentColor = "var(--neon-green)";
-                    borderLeftColor = "var(--neon-green)";
-                    bgTint = "rgba(0, 200, 115, 0.03)";
-                    posCount++;
-                } else if (isNeg) {
-                    sentimentText = "🔴 BEARISH";
-                    sentimentColor = "var(--neon-red)";
-                    borderLeftColor = "var(--neon-red)";
-                    bgTint = "rgba(255, 75, 75, 0.03)";
-                    negCount++;
-                }
-
-                card.style.borderLeft = `3.5px solid ${borderLeftColor}`;
-                card.style.background = bgTint;
-                card.style.boxShadow = "0 4px 6px rgba(0,0,0,0.15)";
-                card.style.borderRadius = "8px";
-                card.style.padding = "15px";
-                card.style.display = "flex";
-                card.style.flexDirection = "column";
-                card.style.justifyContent = "space-between";
-                card.style.transition = "all 0.2s ease";
-                card.style.textDecoration = "none";
-                card.style.color = "inherit";
-                card.style.minHeight = "110px";
-
-                card.innerHTML = `
-                    <div>
-                        <span style="font-size: 8px; color: ${sentimentColor}; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 6px;">${sentimentText}</span>
-                        <div class="news-title" style="font-size:12px; font-weight:600; line-height:1.4; color:var(--text-primary);">${item.title}</div>
-                    </div>
-                    <div class="news-footer" style="display:flex; justify-content:space-between; align-items:center; margin-top:12px; font-size:10px; color:var(--text-muted);">
-                        <span style="font-weight:500;">📰 ${item.publisher}</span>
-                        <span>🕒 ${item.date}</span>
-                    </div>
-                `;
-                newsFeed.appendChild(card);
-            });
-
-            // Calculate aggregate sentiment
-            const sentimentPct = totalNews > 0 ? Math.round(((posCount + (totalNews - posCount - negCount) * 0.5) / totalNews) * 100) : 50;
-
-            if (newsSentimentFill) {
-                newsSentimentFill.style.width = `${sentimentPct}%`;
+    window.activeStockSymbol = p.ticker;
+    setupNewsFilters();
+    const refreshBtn = document.getElementById('news-refresh-btn');
+    if (refreshBtn) {
+        const newRefreshBtn = refreshBtn.cloneNode(true);
+        refreshBtn.parentNode.replaceChild(newRefreshBtn, refreshBtn);
+        newRefreshBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (window.activeStockSymbol) {
+                loadPortfolioNewsImpact(window.activeStockSymbol, true);
             }
-
-            if (newsSentimentVal) {
-                if (sentimentPct >= 60) {
-                    newsSentimentVal.innerText = `${sentimentPct}% Bullish`;
-                    newsSentimentVal.style.color = 'var(--neon-green)';
-                } else if (sentimentPct <= 40) {
-                    newsSentimentVal.innerText = `${sentimentPct}% Bearish`;
-                    newsSentimentVal.style.color = 'var(--neon-red)';
-                } else {
-                    newsSentimentVal.innerText = `${sentimentPct}% Balanced`;
-                    newsSentimentVal.style.color = 'var(--color-amber)';
-                }
-            }
-
-            if (newsSentimentDesc) {
-                let contextText = "Neutral/mixed announcements; monitoring directional breakout catalysts.";
-                if (sentimentPct >= 60) {
-                    contextText = "Optimistic market narrative. Scrapes suggest robust institutional confidence and momentum.";
-                } else if (sentimentPct <= 40) {
-                    contextText = "Precautionary market narrative. News cycle highlights short-term warnings or earnings headwinds.";
-                }
-                newsSentimentDesc.innerHTML = `Consensus: <strong>${contextText}</strong> (Analysis based on ${totalNews} recent sources: ${posCount} Bullish, ${negCount} Bearish, ${totalNews - posCount - negCount} Neutral).`;
-            }
-        } else {
-            if (newsSentimentWrapper) newsSentimentWrapper.style.display = 'none';
-            newsFeed.innerHTML = '<div style="padding:20px; text-align: center; width: 100%; color: var(--text-muted);">No recent financial news articles found.</div>';
-        }
+        });
     }
-
+    loadPortfolioNewsImpact(p.ticker, false);
     // Initial fetch of the default chart duration (1 year daily)
     fetchAndRenderChart();
 
@@ -28119,4 +28019,201 @@ window.renderTVAdvancedChart = renderTVAdvancedChart;
         });
     }
 })();
+
+// Global scope helpers for AI news scraping and synthesis timeline
+async function loadPortfolioNewsImpact(symbol, forceRefresh = false) {
+    const newsFeed = document.getElementById('news-feed-container');
+    const newsSentimentWrapper = document.getElementById('news-sentiment-wrapper');
+    const newsSentimentFill = document.getElementById('news-sentiment-thermometer-fill');
+    const newsSentimentVal = document.getElementById('news-sentiment-index-val');
+    const newsSentimentDesc = document.getElementById('news-sentiment-index-desc');
+    const newsCacheStatus = document.getElementById('news-cache-status-badge');
+    const newsDiagnostics = document.getElementById('news-diagnostics-badge');
+    
+    const countAll = document.getElementById('count-all');
+    const countPositive = document.getElementById('count-positive');
+    const countNegative = document.getElementById('count-negative');
+    const countNeutral = document.getElementById('count-neutral');
+
+    if (!newsFeed) return;
+
+    // Show dynamic loaders
+    newsFeed.innerHTML = `
+        <div style="padding:40px; text-align: center; width: 100%; color: var(--text-secondary); display: flex; flex-direction: column; align-items: center; gap: 12px;">
+            <div class="loader-spinner" style="border: 2px solid rgba(255,255,255,0.1); border-top: 2px solid var(--color-primary); border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; box-sizing: border-box;"></div>
+            <span style="font-size: 11px;">Scraping news via Jina Reader & correlating with Groq Llama 3...</span>
+        </div>
+    `;
+
+    try {
+        const url = `/api/portfolio/news-impact?symbol=${encodeURIComponent(symbol)}&refresh=${forceRefresh ? 'true' : 'false'}`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("Failed to fetch news impact API");
+        const data = await res.json();
+
+        if (!data.news_items || data.news_items.length === 0) {
+            newsFeed.innerHTML = '<div style="padding:20px; text-align: center; width: 100%; color: var(--text-muted); font-size:11px;">No news catalysts identified for this ticker recently.</div>';
+            if (countAll) countAll.innerText = '0';
+            if (countPositive) countPositive.innerText = '0';
+            if (countNegative) countNegative.innerText = '0';
+            if (countNeutral) countNeutral.innerText = '0';
+            if (newsSentimentFill) newsSentimentFill.style.width = '50%';
+            if (newsSentimentVal) newsSentimentVal.innerText = '50% Neutral';
+            return;
+        }
+
+        if (newsCacheStatus) {
+            newsCacheStatus.innerText = data.cached ? "Cache: Active" : "Cache: Fresh Scrape";
+            newsCacheStatus.style.color = data.cached ? "var(--text-muted)" : "var(--neon-green)";
+        }
+        if (newsDiagnostics) {
+            const timeStr = data.updated_at ? data.updated_at.split(' ')[1] : "";
+            newsDiagnostics.innerText = `Engine: Groq Llama 3 | Refreshed: ${timeStr || "Just Now"}`;
+        }
+
+        const sentimentVal = data.sentiment_index;
+        if (newsSentimentFill) {
+            newsSentimentFill.style.width = `${sentimentVal}%`;
+        }
+        if (newsSentimentVal) {
+            if (sentimentVal >= 60) {
+                newsSentimentVal.innerText = `${sentimentVal.toFixed(1)}% Bullish`;
+                newsSentimentVal.style.color = 'var(--neon-green)';
+            } else if (sentimentVal <= 40) {
+                newsSentimentVal.innerText = `${sentimentVal.toFixed(1)}% Bearish`;
+                newsSentimentVal.style.color = '#ef4444';
+            } else {
+                newsSentimentVal.innerText = `${sentimentVal.toFixed(1)}% Neutral`;
+                newsSentimentVal.style.color = 'var(--color-amber)';
+            }
+        }
+        if (newsSentimentDesc) {
+            let descText = "Balanced or mixed sentiment. Stock movements are primarily driven by macro index flows.";
+            if (sentimentVal >= 60) {
+                descText = "Highly positive news sentiment. Press releases and filings signal strong expansion and operational performance.";
+            } else if (sentimentVal <= 40) {
+                descText = "Precautionary market consensus. Watch for margin pressures, regulatory tariffs, or short-term sector headwinds.";
+            }
+            newsSentimentDesc.innerHTML = `Consensus: <strong>${descText}</strong>`;
+        }
+
+        newsFeed.innerHTML = '';
+        let posCount = 0;
+        let negCount = 0;
+        let neutCount = 0;
+
+        data.news_items.forEach((item, index) => {
+            const score = item.sentiment_score;
+            let sentimentClass = 'neutral';
+            let sentimentText = 'Neutral';
+            if (score > 0.15) {
+                sentimentClass = 'positive';
+                sentimentText = `Bullish (+${score.toFixed(2)})`;
+                posCount++;
+            } else if (score < -0.15) {
+                sentimentClass = 'negative';
+                sentimentText = `Bearish (${score.toFixed(2)})`;
+                negCount++;
+            } else {
+                neutCount++;
+            }
+
+            const card = document.createElement('div');
+            card.className = `timeline-card ${sentimentClass}`;
+            card.dataset.sentiment = sentimentClass;
+            
+            let arHTML = "";
+            if (item.abnormal_return && item.is_anomaly) {
+                const arScore = item.abnormal_return;
+                const arClass = arScore >= 0 ? 'up' : 'down';
+                const arSign = arScore >= 0 ? '+' : '';
+                arHTML = `<span class="badge-ar ${arClass}">${arSign}${arScore.toFixed(1)}% vs Nifty 50</span>`;
+            }
+
+            card.innerHTML = `
+                <div class="news-card-header">
+                    <div class="news-card-metadata">
+                        <span>📰 ${item.publisher || 'Financial Feed'}</span>
+                        <span>•</span>
+                        <span>🕒 ${item.date || 'Today'}</span>
+                    </div>
+                    <div class="news-card-badges">
+                        <span class="badge-sentiment ${sentimentClass}">${sentimentText}</span>
+                        <span class="badge-driver">${item.category || 'General'}</span>
+                        ${arHTML}
+                    </div>
+                </div>
+                <div class="news-card-body">
+                    <a href="${item.link || '#'}" target="_blank" style="text-decoration:none; color:inherit; font-size:12.5px; font-weight:700; line-height:1.45; color:var(--text-primary); display:block; margin-bottom:6px; cursor:pointer;">
+                        ${item.title}
+                    </a>
+                </div>
+                <button class="news-expand-toggle-btn" id="news-toggle-${index}">
+                    <span>👁️</span> Show Price-Impact Synthesis
+                </button>
+                <div class="news-card-synthesis" id="news-synth-${index}">
+                    <strong>Groq Attribution Analysis:</strong><br>
+                    <p style="margin: 6px 0 0 0; color: var(--text-secondary);">${item.correlation_summary || 'No news-price correlation detected on this date.'}</p>
+                </div>
+            `;
+
+            newsFeed.appendChild(card);
+
+            const toggleBtn = card.querySelector(`#news-toggle-${index}`);
+            const synthBlock = card.querySelector(`#news-synth-${index}`);
+            if (toggleBtn && synthBlock) {
+                toggleBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const isVisible = synthBlock.classList.toggle('visible');
+                    toggleBtn.innerHTML = isVisible ? `<span>🙈</span> Hide Synthesis` : `<span>👁️</span> Show Price-Impact Synthesis`;
+                });
+            }
+        });
+
+        if (countAll) countAll.innerText = data.news_items.length;
+        if (countPositive) countPositive.innerText = posCount;
+        if (countNegative) countNegative.innerText = negCount;
+        if (countNeutral) countNeutral.innerText = neutCount;
+
+        const chips = document.querySelectorAll('.news-filter-chip');
+        chips.forEach(chip => {
+            if (chip.dataset.filter === 'all') chip.classList.add('active');
+            else chip.classList.remove('active');
+        });
+
+    } catch (err) {
+        console.error("Error loading news impact:", err);
+        newsFeed.innerHTML = `<div style="padding:20px; text-align: center; width: 100%; color: var(--color-crimson); font-size:11.5px;">Failed to scrape and correlate live catalysts: ${err.message}.</div>`;
+    }
+}
+
+function setupNewsFilters() {
+    const chips = document.querySelectorAll('.news-filter-chip');
+    chips.forEach(chip => {
+        const newChip = chip.cloneNode(true);
+        chip.parentNode.replaceChild(newChip, chip);
+        
+        newChip.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            document.querySelectorAll('.news-filter-chip').forEach(c => c.classList.remove('active'));
+            newChip.classList.add('active');
+            
+            const filterValue = newChip.dataset.filter;
+            const cards = document.querySelectorAll('#news-feed-container .timeline-card');
+            
+            cards.forEach(card => {
+                if (filterValue === 'all') {
+                    card.style.display = 'block';
+                } else if (card.dataset.sentiment === filterValue) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        });
+    });
+}
 

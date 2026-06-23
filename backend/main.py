@@ -262,6 +262,15 @@ def init_db():
         )
         """)
 
+        # Cache table for AI news sentiment and abnormal returns timeline
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS cached_news_impact (
+            symbol TEXT PRIMARY KEY,
+            sentiment_json TEXT NOT NULL,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """)
+
         
         # Mock loader for history, block deals, and corporate actions if empty
         cursor.execute("SELECT COUNT(*) as cnt FROM daily_delivery_history")
@@ -6421,6 +6430,304 @@ async def post_optimizer_synthesis(data: OptimizerSynthesisRequest):
         return {"synthesis": synthesis}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Optimizer Synthesis Error: {str(e)}")
+
+
+def calculate_abnormal_returns(stock_symbol: str, days: int = 30):
+    import yfinance as yf
+    import pandas as pd
+    
+    try:
+        stock = yf.Ticker(stock_symbol)
+        hist = stock.history(period=f"{days}d")
+        
+        nifty = yf.Ticker("^NSEI")
+        nifty_hist = nifty.history(period=f"{days}d")
+        
+        if hist.empty or nifty_hist.empty:
+            return {"anomalies": []}
+            
+        hist.index = hist.index.tz_localize(None)
+        nifty_hist.index = nifty_hist.index.tz_localize(None)
+        
+        hist['Return'] = hist['Close'].pct_change() * 100.0
+        nifty_hist['Return'] = nifty_hist['Close'].pct_change() * 100.0
+        
+        df = pd.merge(hist[['Return', 'Close']], nifty_hist[['Return']], left_index=True, right_index=True, suffixes=('_stock', '_nifty'))
+        df['Abnormal_Return'] = df['Return_stock'] - df['Return_nifty']
+        
+        std_dev = df['Return_stock'].std()
+        if pd.isna(std_dev) or std_dev == 0:
+            std_dev = 1.5
+            
+        anomalies = []
+        for date, row in df.iterrows():
+            ret = row['Return_stock']
+            ab_ret = row['Abnormal_Return']
+            if pd.isna(ret) or pd.isna(ab_ret):
+                continue
+            
+            is_anomaly = abs(ret) > (1.5 * std_dev) or abs(ret) > 2.0
+            
+            anomalies.append({
+                "date": date.strftime("%Y-%m-%d"),
+                "price": float(row['Close']),
+                "return": float(ret),
+                "abnormal_return": float(ab_ret),
+                "is_anomaly": bool(is_anomaly)
+            })
+        return {"anomalies": anomalies, "std_dev": std_dev}
+    except Exception as e:
+        print(f"Error calculating abnormal returns: {e}")
+        return {"anomalies": []}
+
+
+def fetch_google_news_rss(query: str):
+    import urllib.request
+    import xml.etree.ElementTree as ET
+    import urllib.parse
+    from datetime import datetime
+    
+    encoded_query = urllib.parse.quote(query)
+    url = f"https://news.google.com/rss/search?q={encoded_query}&hl=en-IN&gl=IN&ceid=IN:en"
+    
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
+    
+    try:
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req, timeout=8) as response:
+            xml_data = response.read()
+            
+        root = ET.fromstring(xml_data)
+        news_items = []
+        for item in root.findall('.//item')[:4]:
+            title = item.find('title').text
+            link = item.find('link').text
+            pub_date = item.find('pubDate').text
+            source = item.find('source').text if item.find('source') is not None else "Unknown"
+            
+            try:
+                dt = datetime.strptime(pub_date, "%a, %d %b %Y %H:%M:%S %Z")
+                formatted_date = dt.strftime("%Y-%m-%d")
+            except Exception:
+                formatted_date = pub_date[:16]
+                
+            news_items.append({
+                "title": title,
+                "link": link,
+                "date": formatted_date,
+                "source": source
+            })
+        return news_items
+    except Exception as e:
+        print(f"Error fetching RSS news: {e}")
+        return []
+
+
+def fetch_jina_markdown(url: str) -> str:
+    import urllib.request
+    
+    jina_url = f"https://r.jina.ai/{url}"
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
+    
+    try:
+        req = urllib.request.Request(jina_url, headers=headers)
+        with urllib.request.urlopen(req, timeout=5) as response:
+            content = response.read().decode('utf-8')
+        return content[:3000]
+    except Exception as e:
+        print(f"Jina scraping failed for {url}: {e}")
+        return ""
+
+
+def run_groq_news_sentiment_analysis(symbol: str, news_list: list, anomalies_list: list) -> dict:
+    from backend.agent import call_groq_llm
+    import json
+    
+    system_prompt = (
+        "You are an expert Wall Street equity research analyst and forensic market researcher.\n"
+        "Your task is to analyze scraped corporate news articles and correlate them with a stock's historical price movement.\n"
+        "You MUST return your output strictly in JSON format (enclosed inside a single JSON object block).\n"
+        "Do not output any introductory or explanatory text outside the JSON block.\n\n"
+        "Required Output JSON Schema:\n"
+        "{\n"
+        '  "sentiment_index": 72.5, // Float between 0.0 (Extremely Bearish) and 100.0 (Extremely Bullish) representing average sentiment rating\n'
+        '  "news_items": [\n'
+        "    {\n"
+        '      "title": "Cleaned article title",\n'
+        '      "publisher": "Source publisher name",\n'
+        '      "date": "YYYY-MM-DD", // Match with news release date\n'
+        '      "sentiment_score": 0.85, // Float between -1.0 (very negative) and +1.0 (very positive)\n'
+        '      "category": "Macro Policy" or "Corporate Actions" or "Earnings Report" or "Market Sentiment" or "Industry Tailwinds",\n'
+        '      "correlation_summary": "Brief 2-sentence explanation of what happened and if it had any impact on share price (positive/negative correlation)."\n'
+        "    }\n"
+        "  ]\n"
+        "}"
+    )
+    
+    news_input_text = ""
+    for idx, item in enumerate(news_list):
+        news_input_text += (
+            f"--- ARTICLE {idx+1} ---\n"
+            f"Title: {item['title']}\n"
+            f"Publisher: {item['source']}\n"
+            f"Date: {item['date']}\n"
+            f"Link: {item['link']}\n"
+            f"Content Snippet: {item['content']}\n\n"
+        )
+        
+    anomalies_text = "\n".join([
+        f"- Date: {a['date']} | Price: Rs.{a['price']:.1f} | Daily Return: {a['return']:.2f}% | Abnormal Return vs Nifty 50: {a['abnormal_return']:.2f}% | Volatility Anomaly: {a['is_anomaly']}"
+        for a in anomalies_list if a['is_anomaly']
+    ])
+    
+    user_prompt = (
+        f"Stock Symbol: {symbol}\n\n"
+        f"Scraped Live News Context:\n"
+        f"{news_input_text}\n"
+        f"Significant Stock Price Anomalies (Past 30 Days):\n"
+        f"{anomalies_text}\n\n"
+        f"Please analyze these inputs. For each article, determine the date (MUST fit in the past 30 days or matches the publication date), "
+        f"rate the sentiment_score, categorize its impact driver_type under 'category', and write a correlation_summary. "
+        f"Also calculate the aggregated overall sentiment_index rating from 0 to 100 based on all articles."
+    )
+    
+    raw_response = call_groq_llm(system_prompt, user_prompt, max_tokens=1500)
+    
+    try:
+        clean_json = raw_response.strip()
+        if clean_json.startswith("```json"):
+            clean_json = clean_json[7:]
+        if clean_json.endswith("```"):
+            clean_json = clean_json[:-3]
+        clean_json = clean_json.strip()
+        
+        parsed = json.loads(clean_json)
+        return parsed
+    except Exception as e:
+        print(f"Error parsing Groq news sentiment JSON response: {e}\nRaw: {raw_response}")
+        default_items = []
+        for item in news_list:
+            default_items.append({
+                "title": item["title"],
+                "publisher": item["source"],
+                "date": item["date"],
+                "sentiment_score": 0.0,
+                "category": "Market Sentiment",
+                "correlation_summary": "Auto-parsed news. LLM synthesis failed to return valid JSON format."
+            })
+        return {
+            "sentiment_index": 50.0,
+            "news_items": default_items
+        }
+
+
+@app.get("/api/portfolio/news-impact")
+async def get_news_impact(symbol: str, refresh: bool = False):
+    import json
+    import sqlite3
+    from datetime import datetime, timedelta
+    
+    sym = symbol.strip().upper()
+    if not sym:
+        raise HTTPException(status_code=400, detail="Invalid stock symbol")
+
+    if not refresh:
+        try:
+            with get_db() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT sentiment_json, updated_at FROM cached_news_impact WHERE symbol = ?", (sym,))
+                row = cursor.fetchone()
+                if row:
+                    cached_time = datetime.strptime(row["updated_at"], "%Y-%m-%d %H:%M:%S")
+                    if datetime.now() - cached_time < timedelta(hours=24):
+                        parsed_json = json.loads(row["sentiment_json"])
+                        return {
+                            "symbol": sym,
+                            "sentiment_index": parsed_json.get("sentiment_index", 50.0),
+                            "news_items": parsed_json.get("news_items", []),
+                            "updated_at": row["updated_at"],
+                            "cached": True
+                        }
+        except Exception as cache_err:
+            print(f"Error reading news impact cache for {sym}: {cache_err}")
+
+    try:
+        anomaly_data = await asyncio.to_thread(calculate_abnormal_returns, sym, 30)
+        anomalies_list = anomaly_data.get("anomalies", [])
+        
+        search_query = sym.split('.')[0] + " stock news"
+        raw_news = await asyncio.to_thread(fetch_google_news_rss, search_query)
+        
+        if not raw_news:
+            return {
+                "symbol": sym,
+                "sentiment_index": 50.0,
+                "news_items": [],
+                "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "cached": False,
+                "error": "No news items found."
+            }
+            
+        scraped_tasks = [asyncio.to_thread(fetch_jina_markdown, item["link"]) for item in raw_news]
+        scraped_texts = await asyncio.gather(*scraped_tasks)
+        
+        for idx, text in enumerate(scraped_texts):
+            raw_news[idx]["content"] = text or ""
+            
+        synthesis_payload = await asyncio.to_thread(
+            run_groq_news_sentiment_analysis, 
+            sym, 
+            raw_news, 
+            anomalies_list
+        )
+        
+        anomaly_map = {item["date"]: item for item in anomalies_list}
+        
+        updated_news_items = []
+        for item in synthesis_payload.get("news_items", []):
+            news_date = item.get("date", "")
+            ab_ret = 0.0
+            price_change = 0.0
+            is_anomaly = False
+            
+            if news_date in anomaly_map:
+                ab_ret = anomaly_map[news_date]["abnormal_return"]
+                price_change = anomaly_map[news_date]["return"]
+                is_anomaly = anomaly_map[news_date]["is_anomaly"]
+                
+            item["abnormal_return"] = ab_ret
+            item["price_change"] = price_change
+            item["is_anomaly"] = is_anomaly
+            updated_news_items.append(item)
+            
+        synthesis_payload["news_items"] = updated_news_items
+        
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        try:
+            with get_db() as conn:
+                conn.execute(
+                    "INSERT OR REPLACE INTO cached_news_impact (symbol, sentiment_json, updated_at) VALUES (?, ?, ?)",
+                    (sym, json.dumps(synthesis_payload), now_str)
+                )
+                conn.commit()
+        except Exception as db_err:
+            print(f"Error saving news cache to DB for {sym}: {db_err}")
+            
+        return {
+            "symbol": sym,
+            "sentiment_index": synthesis_payload.get("sentiment_index", 50.0),
+            "news_items": synthesis_payload.get("news_items", []),
+            "updated_at": now_str,
+            "cached": False
+        }
+        
+    except Exception as run_err:
+        print(f"Error running news impact synthesis: {run_err}")
+        raise HTTPException(status_code=500, detail=f"News Synthesis Error: {str(run_err)}")
 
 
 class SwingSynthesisRequest(BaseModel):
