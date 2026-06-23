@@ -27602,19 +27602,22 @@ window.renderTVAdvancedChart = renderTVAdvancedChart;
     async function loadPortfolioOptimizerPanel() {
         if (!emptyState || !workspace || !assetsListContainer) return;
 
-        // Ensure activePortfolioLedgerItems are synced
-        if (typeof activePortfolioLedgerItems === 'undefined' || !activePortfolioLedgerItems || activePortfolioLedgerItems.length === 0) {
+        let items = (typeof activePortfolioLedgerItems !== 'undefined' && activePortfolioLedgerItems) ? activePortfolioLedgerItems : [];
+        if (items.length === 0) {
             try {
                 const response = await fetch('/api/portfolio');
                 if (response.ok) {
-                    window.activePortfolioLedgerItems = await response.json();
+                    const fetchedItems = await response.json();
+                    if (typeof activePortfolioLedgerItems !== 'undefined') {
+                        activePortfolioLedgerItems = fetchedItems;
+                    }
+                    items = fetchedItems;
                 }
             } catch (err) {
                 console.error("Failed to sync ledger items: ", err);
             }
         }
 
-        const items = window.activePortfolioLedgerItems || [];
         if (items.length === 0) {
             emptyState.style.display = 'block';
             workspace.style.display = 'none';
@@ -27696,7 +27699,7 @@ window.renderTVAdvancedChart = renderTVAdvancedChart;
         if (!cachedOptimizationResult || !tableBody || !tableWrap || !kpiGrid || !ticketsList || !ticketsWrap) return;
 
         const targetData = activeOptimizationTarget === 'sharpe' ? cachedOptimizationResult.max_sharpe : cachedOptimizationResult.min_vol;
-        const items = window.activePortfolioLedgerItems || [];
+        const items = (typeof activePortfolioLedgerItems !== 'undefined' && activePortfolioLedgerItems) ? activePortfolioLedgerItems : [];
         
         // Calculate total invested capital in active items
         const selectedHoldings = items.filter(item => {
