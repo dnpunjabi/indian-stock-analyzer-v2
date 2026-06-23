@@ -6570,13 +6570,17 @@ def run_groq_news_sentiment_analysis(symbol: str, news_list: list, anomalies_lis
     
     news_input_text = ""
     for idx, item in enumerate(news_list):
+        content_snippet = item['content'].strip() if item.get('content') else ""
+        if not content_snippet:
+            content_snippet = "(Full article text paywalled/restricted by publisher. Perform your sentiment analysis and price correlation attribution based entirely on the Title Headline, Publisher, and Date above.)"
+            
         news_input_text += (
             f"--- ARTICLE {idx+1} ---\n"
             f"Title: {item['title']}\n"
             f"Publisher: {item['source']}\n"
             f"Date: {item['date']}\n"
             f"Link: {item['link']}\n"
-            f"Content Snippet: {item['content']}\n\n"
+            f"Content Snippet: {content_snippet}\n\n"
         )
         
     anomalies_text = "\n".join([
