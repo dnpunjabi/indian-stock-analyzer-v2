@@ -6695,14 +6695,52 @@ async def get_news_impact(symbol: str, refresh: bool = False, run_llm: bool = Fa
         except Exception as yf_err:
             print(f"Error fetching profile news inside impact: {yf_err}")
             
-        # 3. Merge and De-duplicate
+        # 3. Filter by last 30 days and Parse dates
+        parsed_news = []
+        one_month_ago = datetime.now() - timedelta(days=30)
+        
+        for item in yf_news + google_news:
+            date_str = item.get("date")
+            parsed_dt = None
+            if date_str:
+                for fmt in ("%Y-%m-%d", "%Y-%m-%d %H:%M:%S", "%a, %d %b %Y %H:%M:%S %Z", "%d %b %Y"):
+                    try:
+                        parsed_dt = datetime.strptime(date_str.strip(), fmt)
+                        break
+                    except ValueError:
+                        continue
+                if not parsed_dt:
+                    try:
+                        parsed_dt = datetime.strptime(date_str.strip()[:10], "%Y-%m-%d")
+                    except Exception:
+                        pass
+            
+            # Default to now if not parseable
+            if not parsed_dt:
+                parsed_dt = datetime.now()
+                
+            # Filter: discard if older than 30 days
+            if parsed_dt >= one_month_ago:
+                item["parsed_date"] = parsed_dt
+                # Standardize the date field for response consistency
+                item["date"] = parsed_dt.strftime("%Y-%m-%d")
+                parsed_news.append(item)
+                
+        # Sort by date descending (newest first)
+        parsed_news.sort(key=lambda x: x["parsed_date"], reverse=True)
+        
+        # De-duplicate preserving the sorted order
         seen_titles = set()
         raw_news = []
-        for item in yf_news + google_news:
+        for item in parsed_news:
             title_slug = "".join(c for c in item["title"].lower() if c.isalnum())[:35]
             if title_slug not in seen_titles:
                 seen_titles.add(title_slug)
-                raw_news.append(item)
+                # Remove parsed_date object before serialization
+                item_copy = item.copy()
+                if "parsed_date" in item_copy:
+                    del item_copy["parsed_date"]
+                raw_news.append(item_copy)
                 
         # Limit to 6 items to keep performance high
         raw_news = raw_news[:6]
