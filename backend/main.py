@@ -6159,6 +6159,7 @@ async def post_optimize_weights(data: OptimizeWeightsRequest):
 class OptimizeSharpeRequest(BaseModel):
     tickers: list[str]
     cash_pct: float = 0.0
+    current_weights: Optional[dict[str, float]] = None
 
 
 @app.post("/api/portfolio/optimize-sharpe")
@@ -6168,6 +6169,7 @@ async def post_optimize_sharpe(data: OptimizeSharpeRequest):
             return {
                 "max_sharpe": {"weights": {}, "return": 0.0, "volatility": 0.0, "sharpe": 0.0},
                 "min_vol": {"weights": {}, "return": 0.0, "volatility": 0.0, "sharpe": 0.0},
+                "current_portfolio": {"return": 0.0, "volatility": 0.0, "sharpe": 0.0},
                 "simulations": []
             }
 
@@ -6224,6 +6226,7 @@ async def post_optimize_sharpe(data: OptimizeSharpeRequest):
             return {
                 "max_sharpe": fallback_res,
                 "min_vol": fallback_res,
+                "current_portfolio": fallback_res,
                 "simulations": []
             }
 
@@ -6238,14 +6241,34 @@ async def post_optimize_sharpe(data: OptimizeSharpeRequest):
         cash_weight = data.cash_pct / 100.0
         equity_weight_avail = 1.0 - cash_weight
 
+        # Convert to numpy arrays for speed
+        exp_rets_np = exp_rets.values
+        cov_matrix_np = cov_matrix.values
+
+        # 4.5. Compute exact statistics of the current portfolio
+        curr_w_np = np.zeros(num_assets)
+        if data.current_weights:
+            for idx, col in enumerate(returns_df.columns):
+                orig_t = ticker_map[col]
+                curr_w_np[idx] = data.current_weights.get(orig_t, 0.0) / 100.0
+            
+            # Normalize to sum to available equity weight
+            s = np.sum(curr_w_np)
+            if s > 0:
+                curr_w_np = (curr_w_np / s) * equity_weight_avail
+            else:
+                curr_w_np = np.ones(num_assets) * (equity_weight_avail / num_assets)
+        else:
+            curr_w_np = np.ones(num_assets) * (equity_weight_avail / num_assets)
+
+        curr_ret = np.dot(curr_w_np, exp_rets_np) + cash_weight * rf_rate
+        curr_vol = np.sqrt(np.dot(curr_w_np.T, np.dot(cov_matrix_np, curr_w_np)))
+        curr_sharpe = (curr_ret - rf_rate) / curr_vol if curr_vol > 0.0 else 0.0
+
         # 5. Run Monte Carlo simulation (1,000 runs)
         num_portfolios = 1000
         results = []
         portfolio_weights = []
-
-        # Convert to numpy arrays for speed
-        exp_rets_np = exp_rets.values
-        cov_matrix_np = cov_matrix.values
 
         for _ in range(num_portfolios):
             # Generate random weights for equities
@@ -6336,11 +6359,69 @@ async def post_optimize_sharpe(data: OptimizeSharpeRequest):
                 "volatility": round(float(results[min_vol_idx, 1] * 100.0), 2),
                 "sharpe": round(float(results[min_vol_idx, 2]), 2)
             },
+            "current_portfolio": {
+                "return": round(float(curr_ret * 100.0), 2),
+                "volatility": round(float(curr_vol * 100.0), 2),
+                "sharpe": round(float(curr_sharpe), 2)
+            },
             "simulations": sim_points
         }
     except Exception as e:
         print(f"Optimize Sharpe Error: {e}")
         raise HTTPException(status_code=500, detail=f"Optimize Sharpe Error: {str(e)}")
+
+
+class OptimizerSynthesisRequest(BaseModel):
+    target_type: str
+    current_return: float
+    current_sharpe: float
+    target_return: float
+    target_sharpe: float
+    target_weights: dict[str, float]
+    rebalance_tickets: list[dict]
+
+
+@app.post("/api/portfolio/optimizer-synthesis")
+async def post_optimizer_synthesis(data: OptimizerSynthesisRequest):
+    try:
+        from backend.agent import call_groq_llm
+        
+        system_prompt = (
+            "You are an elite quantitative portfolio manager and investment strategist. "
+            "Analyze the Sharpe/Risk portfolio optimization results and provide institutional-grade rebalancing commentary. "
+            "Keep the tone professional, objective, and clear. Format the response in concise HTML/Markdown paragraphs, "
+            "highlighting specific ticker shifts and tactical advice. Do not use markdown headers, write directly in styled paragraphs."
+        )
+        
+        tickets_str = "\n".join([
+            f"- {t.get('ticker')}: {t.get('action')} {t.get('weight_diff')}% (Est. value: {t.get('value_str')})"
+            for t in data.rebalance_tickets
+        ])
+        
+        user_prompt = (
+            f"Optimization Objective: {data.target_type.upper()} Rebalancing\n\n"
+            f"Baseline Portfolio Performance:\n"
+            f"- Expected Annualized Return: {data.current_return:.2f}%\n"
+            f"- Sharpe Ratio: {data.current_sharpe:.2f}\n\n"
+            f"Optimized Target Portfolio Performance:\n"
+            f"- Expected Annualized Return: {data.target_return:.2f}%\n"
+            f"- Sharpe Ratio: {data.target_sharpe:.2f}\n\n"
+            f"Suggested Asset Allocations (Target Weights):\n"
+            f"{json.dumps(data.target_weights, indent=2)}\n\n"
+            f"Required Rebalancing Actions:\n"
+            f"{tickets_str}\n\n"
+            f"Please synthesize a professional-grade portfolio rebalancing advisory in 2 clear, structured paragraphs:\n"
+            f"Paragraph 1: Strategic rationale for this shift. Explain how shifting from the current portfolio baseline "
+            f"to the optimized target improves the risk-adjusted return landscape and Sharpe ratio.\n"
+            f"Paragraph 2: Tactical execution advice. Highlight critical actions (e.g. key trims or cash reserves) "
+            f"and warning metrics to watch in the current macro regime."
+        )
+        
+        synthesis = await asyncio.to_thread(call_groq_llm, system_prompt, user_prompt)
+        return {"synthesis": synthesis}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Optimizer Synthesis Error: {str(e)}")
+
 
 class SwingSynthesisRequest(BaseModel):
     symbol: str

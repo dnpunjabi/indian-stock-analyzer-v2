@@ -27567,6 +27567,10 @@ window.renderTVAdvancedChart = renderTVAdvancedChart;
     const ticketsWrap = document.getElementById('portfolio-optimizer-tickets-wrap');
     const ticketsList = document.getElementById('portfolio-optimizer-tickets-list');
 
+    const aiWrap = document.getElementById('portfolio-optimizer-ai-wrap');
+    const aiResult = document.getElementById('portfolio-optimizer-ai-result');
+    const runAiBtn = document.getElementById('run-optimizer-ai-btn');
+
     const targetSharpeBtn = document.getElementById('port-opt-target-sharpe');
     const targetVolBtn = document.getElementById('port-opt-target-vol');
 
@@ -27688,13 +27692,25 @@ window.renderTVAdvancedChart = renderTVAdvancedChart;
 
         const cashPct = parseFloat(cashRange ? cashRange.value : 0) || 0;
 
+        // Calculate current weights for baseline comparison
+        const items = window.uniqueOptimizerAssets || [];
+        const selectedHoldings = items.filter(item => checkedTickers.includes(item.symbol));
+        const totalValue = selectedHoldings.reduce((sum, item) => sum + (parseFloat(item.current_value) || 0), 0);
+
+        const currentWeights = {};
+        selectedHoldings.forEach(item => {
+            const val = parseFloat(item.current_value) || 0;
+            currentWeights[item.symbol] = totalValue > 0 ? (val / totalValue) * 100.0 : 0.0;
+        });
+
         try {
             const response = await fetch('/api/portfolio/optimize-sharpe', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     tickers: checkedTickers,
-                    cash_pct: cashPct
+                    cash_pct: cashPct,
+                    current_weights: currentWeights
                 })
             });
 
@@ -27775,17 +27791,18 @@ window.renderTVAdvancedChart = renderTVAdvancedChart;
         kpiGrid.style.display = 'grid';
         if (kpiReturnVal && kpiReturnDiff) {
             kpiReturnVal.innerText = targetData.return.toFixed(2) + '%';
-            // Mock baseline current return
-            const mockCurrentReturn = selectedHoldings.length > 0 ? 11.5 : 12.0; 
-            const retDiff = targetData.return - mockCurrentReturn;
-            kpiReturnDiff.innerText = (retDiff >= 0 ? '+' : '') + retDiff.toFixed(2) + '% vs Current';
+            
+            const currReturn = (cachedOptimizationResult.current_portfolio && typeof cachedOptimizationResult.current_portfolio.return !== 'undefined') ? cachedOptimizationResult.current_portfolio.return : 11.5;
+            const retDiff = targetData.return - currReturn;
+            kpiReturnDiff.innerText = `Current: ${currReturn.toFixed(2)}% (${(retDiff >= 0 ? '+' : '') + retDiff.toFixed(2)}% diff)`;
             kpiReturnDiff.style.color = retDiff >= 0 ? '#10b981' : '#ef4444';
         }
         if (kpiSharpeVal && kpiSharpeDiff) {
             kpiSharpeVal.innerText = targetData.sharpe.toFixed(2);
-            const mockCurrentSharpe = 0.35;
-            const sharpeDiff = targetData.sharpe - mockCurrentSharpe;
-            kpiSharpeDiff.innerText = (sharpeDiff >= 0 ? '+' : '') + sharpeDiff.toFixed(2) + ' vs Current';
+            
+            const currSharpe = (cachedOptimizationResult.current_portfolio && typeof cachedOptimizationResult.current_portfolio.sharpe !== 'undefined') ? cachedOptimizationResult.current_portfolio.sharpe : 0.35;
+            const sharpeDiff = targetData.sharpe - currSharpe;
+            kpiSharpeDiff.innerText = `Current: ${currSharpe.toFixed(2)} (${(sharpeDiff >= 0 ? '+' : '') + sharpeDiff.toFixed(2)} diff)`;
             kpiSharpeDiff.style.color = sharpeDiff >= 0 ? '#10b981' : '#ef4444';
         }
 
@@ -27803,7 +27820,12 @@ window.renderTVAdvancedChart = renderTVAdvancedChart;
 
             hasTrades = true;
             const isBuy = diff > 0;
-            const actionText = isBuy ? 'Buy / Top-up' : 'Sell / Trim';
+            let actionText = isBuy ? 'Buy / Top-up' : 'Sell / Trim';
+            let labelText = isBuy ? 'Allocate additional' : 'Liquidate approximately';
+            if (key === 'CASH') {
+                actionText = isBuy ? 'Hold in Cash' : 'Draw from Cash';
+                labelText = isBuy ? 'Transfer additional' : 'Withdraw approximately';
+            }
             const cls = isBuy ? 'buy' : 'sell';
             const diffPct = Math.abs(diff).toFixed(1);
 
@@ -27819,7 +27841,7 @@ window.renderTVAdvancedChart = renderTVAdvancedChart;
                             Current Weight: ${curW.toFixed(1)}% | Target Weight: ${tarW.toFixed(1)}%
                         </span>
                         <span style="font-weight: 600; font-size: 11px; margin-top: 2px;">
-                            ${isBuy ? 'Allocate additional' : 'Liquidate approximately'} ${capitalText}
+                            ${labelText} ${capitalText}
                         </span>
                     </div>
                     <span class="optimizer-ticket-action">${actionText} ${diffPct}%</span>
@@ -27833,6 +27855,17 @@ window.renderTVAdvancedChart = renderTVAdvancedChart;
                     Portfolio weights already align within a 1.0% threshold of optimized coordinates. No rebalancing actions required.
                 </div>
             `;
+        }
+
+        if (aiWrap) {
+            aiWrap.style.display = 'block';
+            if (aiResult) {
+                aiResult.innerHTML = `<p style="margin: 0; font-style: italic; color: var(--text-muted);">Click "Generate Report" to run institutional-grade LLM synthesis on your frontier portfolio shifts.</p>`;
+            }
+            if (runAiBtn) {
+                runAiBtn.disabled = false;
+                runAiBtn.innerHTML = `✨ Generate Report`;
+            }
         }
     }
 
@@ -27943,6 +27976,99 @@ window.renderTVAdvancedChart = renderTVAdvancedChart;
 
     if (runBtn) {
         runBtn.addEventListener('click', runPortfolioOptimization);
+    }
+
+    if (runAiBtn) {
+        runAiBtn.addEventListener('click', async () => {
+            if (!cachedOptimizationResult) return;
+            
+            runAiBtn.disabled = true;
+            runAiBtn.innerHTML = `<span>⏳ Synthesizing Report...</span>`;
+            if (aiResult) {
+                aiResult.innerHTML = `<p style="margin: 0; color: var(--text-secondary); font-style: italic;">🤖 Quantitative agent connecting to Groq LLM. Parsing covariance matrix and trade tickets...</p>`;
+            }
+
+            try {
+                const targetData = activeOptimizationTarget === 'sharpe' ? cachedOptimizationResult.max_sharpe : cachedOptimizationResult.min_vol;
+                const items = window.uniqueOptimizerAssets || [];
+                const checkboxes = document.querySelectorAll('.optimizer-asset-checkbox');
+                const checkedTickers = [];
+                checkboxes.forEach(cb => {
+                    if (cb.checked) checkedTickers.push(cb.getAttribute('data-symbol'));
+                });
+
+                const selectedHoldings = items.filter(item => checkedTickers.includes(item.symbol));
+                const totalValue = selectedHoldings.reduce((sum, item) => sum + (parseFloat(item.current_value) || 0), 0);
+
+                const currentWeights = {};
+                selectedHoldings.forEach(item => {
+                    const val = parseFloat(item.current_value) || 0;
+                    currentWeights[item.symbol] = totalValue > 0 ? (val / totalValue) * 100.0 : 0.0;
+                });
+
+                const tickets = [];
+                const allKeysSet = new Set([
+                    ...Object.keys(targetData.weights),
+                    ...Object.keys(currentWeights)
+                ]);
+                
+                allKeysSet.forEach(key => {
+                    const curW = currentWeights[key] || 0.0;
+                    const tarW = targetData.weights[key] || 0.0;
+                    const diff = tarW - curW;
+                    if (Math.abs(diff) < 1.0) return; // ignore minor offsets
+                    
+                    const isBuy = diff > 0;
+                    const actionText = isBuy ? (key === 'CASH' ? 'Hold in Cash' : 'Buy / Top-up') : (key === 'CASH' ? 'Draw from Cash' : 'Sell / Trim');
+                    const capitalOffset = (diff / 100.0) * totalValue;
+                    const capitalText = Math.abs(capitalOffset).toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
+                    
+                    tickets.push({
+                        ticker: key,
+                        action: actionText,
+                        weight_diff: diff.toFixed(1),
+                        value_str: capitalText
+                    });
+                });
+
+                const currReturn = (cachedOptimizationResult.current_portfolio && typeof cachedOptimizationResult.current_portfolio.return !== 'undefined') ? cachedOptimizationResult.current_portfolio.return : 11.5;
+                const currSharpe = (cachedOptimizationResult.current_portfolio && typeof cachedOptimizationResult.current_portfolio.sharpe !== 'undefined') ? cachedOptimizationResult.current_portfolio.sharpe : 0.35;
+
+                const response = await fetch('/api/portfolio/optimizer-synthesis', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        target_type: activeOptimizationTarget,
+                        current_return: currReturn,
+                        current_sharpe: currSharpe,
+                        target_return: targetData.return,
+                        target_sharpe: targetData.sharpe,
+                        target_weights: targetData.weights,
+                        rebalance_tickets: tickets
+                    })
+                });
+
+                if (!response.ok) throw new Error("Synthesis query returned error status.");
+                const data = await response.json();
+                
+                if (data.synthesis) {
+                    if (aiResult) {
+                        aiResult.innerHTML = `<div style="line-height: 1.7; font-family: 'Inter', sans-serif; color: var(--text-secondary);">${data.synthesis}</div>`;
+                    }
+                } else {
+                    throw new Error("Empty AI synthesis response.");
+                }
+            } catch (err) {
+                console.error("AI Rebalancing Synthesis failed: ", err);
+                showToast("Failed to generate AI Rebalancing Report.", "error");
+                if (aiResult) {
+                    aiResult.innerHTML = `<p style="margin: 0; color: #ef4444; font-style: italic;">⚠️ AI generation failed. Verify Groq API connection or model availability.</p>`;
+                }
+            } finally {
+                runAiBtn.disabled = false;
+                runAiBtn.innerHTML = `✨ Regenerate`;
+            }
+        });
     }
 })();
 
