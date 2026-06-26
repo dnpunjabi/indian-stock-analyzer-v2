@@ -13399,3 +13399,15 @@ tr.active-peer-row td:first-child {
         width: 100%;
     }
 }
+
+
+/* Light Theme Academy Status Bar Overrides */
+[data-mode="light"] .academy-hud-info,
+[data-theme="light"] .academy-hud-info {
+    background: rgba(0, 0, 0, 0.06);
+}
+
+[data-mode="light"] .academy-hud-progress-bar,
+[data-theme="light"] .academy-hud-progress-bar {
+    background: rgba(0, 0, 0, 0.12) !important;
+}
