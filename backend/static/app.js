@@ -29106,6 +29106,9 @@ function loadAcademyTopic(topicId) {
     // Scroll workbench to top
     const wb = document.getElementById('academy-workbench');
     if (wb) wb.scrollTop = 0;
+
+    // Render prompt suggestions
+    renderAcademyPromptSuggestions(module);
 }
 
 const ACADEMY_BASE_PRICES = [
@@ -29169,6 +29172,33 @@ function computeEMA(prices, period) {
 }
 
 function renderAcademyChart(module) {
+    const chartWorkspace = document.getElementById('academy-widget-container');
+    const customWorkspace = document.getElementById('academy-custom-widget-workspace');
+    const controls = document.getElementById('academy-chart-controls');
+    const drawToolbar = document.getElementById('academy-draw-toolbar');
+    
+    if (module.cat === 'fundamental' || module.cat === 'bonds') {
+        if (chartWorkspace) chartWorkspace.style.display = 'none';
+        if (controls) controls.style.display = 'none';
+        if (drawToolbar) drawToolbar.style.display = 'none';
+        if (customWorkspace) customWorkspace.style.display = 'flex';
+        
+        // Clean up previous chart instance
+        if (window.activeAcademyLightweightChart) {
+            window.activeAcademyLightweightChart.remove();
+            window.activeAcademyLightweightChart = null;
+        }
+        
+        const sbVals = { ...academyActiveSliderValues, ...academyActiveSandboxValues };
+        renderCustomAcademyWidget(module, sbVals);
+        return;
+    }
+    
+    if (chartWorkspace) chartWorkspace.style.display = 'block';
+    if (controls) controls.style.display = 'flex';
+    if (drawToolbar) drawToolbar.style.display = academyDrawMode ? 'flex' : 'none';
+    if (customWorkspace) customWorkspace.style.display = 'none';
+
     const container = document.getElementById('academy-lightweight-chart-container');
     if (!container) return;
 
@@ -29802,6 +29832,654 @@ function renderAcademyChart(module) {
     resizeObserver.observe(container);
 }
 
+
+// ==================== LEARNING ACADEMY CUSTOM WORKSPACE WIDGETS ====================
+
+const ACADEMY_PRESETS = {
+    dupont: [
+        { name: 'TCS (High Margin Compounder)', values: { nm: 21.5, at: 0.82, em: 1.3 } },
+        { name: 'HDFC Bank (Leveraged Finance)', values: { nm: 16.0, at: 0.12, em: 9.5 } },
+        { name: 'Reliance Industries (Capital Intensive)', values: { nm: 9.5, at: 0.55, em: 2.1 } }
+    ],
+    three_statements: [
+        { name: 'Steady Growth (TCS)', values: { rev: 10000, pat: 1500 } },
+        { name: 'High Leverage Expansion', values: { rev: 15000, pat: 1200 } }
+    ],
+    valuation_multiples: [
+        { name: 'Value Stock (Undervalued)', values: { price: 1800, eps: 95, bv: 450, ebitda: 140, debt: 80 } },
+        { name: 'Premium Tech (Overvalued)', values: { price: 3400, eps: 65, bv: 320, ebitda: 110, debt: 200 } }
+    ],
+    dcf_wacc: [
+        { name: 'Infosys (Stable Compounder)', values: { fcf: 1000, wacc: 9.5, g: 6 } },
+        { name: 'Zomato (High Hurdle Growth)', values: { fcf: 400, wacc: 14.5, g: 18 } }
+    ],
+    yield_curve: [
+        { name: 'Normal Yield Curve (Growth)', values: { y2: 6.8, y10: 7.4 } },
+        { name: 'Inverted Yield Curve (Stress)', values: { y2: 7.9, y10: 7.1 } },
+        { name: 'Flat Yield Curve (Transition)', values: { y2: 7.2, y10: 7.2 } }
+    ],
+    credit_spreads: [
+        { name: 'Sovereign Grade (Low Spread)', values: { corp: 7.5, gsec: 7.2 } },
+        { name: 'High Yield Junk Grade (High Spread)', values: { corp: 11.8, gsec: 7.2 } }
+    ],
+    central_bank: [
+        { name: 'Inflation Fight (Rate Hike)', values: { repo: 6.5 } },
+        { name: 'Economic Stimulus (Rate Cut)', values: { repo: 4.0 } }
+    ]
+};
+
+function renderCustomAcademyWidget(module, sbVals) {
+    const board = document.getElementById('academy-custom-visual-board');
+    const select = document.getElementById('academy-preset-select');
+    const toolbar = document.getElementById('academy-preset-toolbar');
+    const auditorText = document.getElementById('academy-ai-auditor-text');
+    
+    if (!board) return;
+
+    // Set up Presets select
+    const presets = ACADEMY_PRESETS[module.id];
+    if (presets && toolbar && select) {
+        toolbar.style.display = 'flex';
+        let options = '<option value="">-- Choose a Preset --</option>';
+        presets.forEach((p, idx) => {
+            options += `<option value="${idx}">${p.name}</option>`;
+        });
+        select.innerHTML = options;
+        
+        // Remove old change listeners by cloning
+        const newSelect = select.cloneNode(true);
+        select.parentNode.replaceChild(newSelect, select);
+        
+        newSelect.addEventListener('change', (e) => {
+            const idx = e.target.value;
+            if (idx === "") return;
+            const chosen = presets[idx];
+            
+            // Set sandbox slider values
+            for (const [key, val] of Object.entries(chosen.values)) {
+                const slider = document.getElementById('academy-sb-' + key);
+                if (slider) {
+                    slider.value = val;
+                    academyActiveSandboxValues[key] = val;
+                    const valEl = document.getElementById('academy-sb-val-' + key);
+                    if (valEl) valEl.textContent = val;
+                }
+            }
+            // Trigger calculation recalculation & re-render
+            const calcEl = document.getElementById('academy-sandbox-body');
+            if (calcEl) {
+                const inputs = calcEl.querySelectorAll('.academy-slider-input');
+                const vals = {};
+                inputs.forEach(inp => {
+                    const key = inp.id.replace('academy-sb-', '');
+                    vals[key] = parseFloat(inp.value);
+                });
+                const res = module.sandbox.calc(vals);
+                const resEl = document.getElementById('academy-sb-result');
+                if (resEl) resEl.textContent = res;
+            }
+            renderCustomAcademyWidget(module, { ...academyActiveSliderValues, ...academyActiveSandboxValues });
+        });
+    } else if (toolbar) {
+        toolbar.style.display = 'none';
+    }
+
+    let html = '';
+    let audit = '';
+
+    // Render by module ID
+    if (module.id === 'dupont') {
+        const nm = sbVals['nm'] !== undefined ? sbVals['nm'] : 15;
+        const at = sbVals['at'] !== undefined ? sbVals['at'] : 0.8;
+        const em = sbVals['em'] !== undefined ? sbVals['em'] : 1.5;
+        const roe = nm * at * em;
+        
+        html = `
+            <div class="dupont-tree-container">
+                <div class="dupont-node primary">
+                    <div class="dupont-node-title">Return on Equity (ROE)</div>
+                    <div class="dupont-node-value">${roe.toFixed(2)}%</div>
+                </div>
+                <div class="dupont-operator">＝</div>
+                <div class="dupont-row">
+                    <div class="dupont-node">
+                        <div class="dupont-node-title">Profit Margin</div>
+                        <div class="dupont-node-value">${nm.toFixed(1)}%</div>
+                    </div>
+                    <div class="dupont-operator">✕</div>
+                    <div class="dupont-node">
+                        <div class="dupont-node-title">Asset Turnover</div>
+                        <div class="dupont-node-value">${at.toFixed(2)}x</div>
+                    </div>
+                    <div class="dupont-operator">✕</div>
+                    <div class="dupont-node">
+                        <div class="dupont-node-title">Leverage (EM)</div>
+                        <div class="dupont-node-value">${em.toFixed(2)}x</div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        audit = roe > 20 
+            ? `ROE is premium (${roe.toFixed(1)}%). Profitability driven by a ${(nm/roe*100).toFixed(0)}% contribution from margins and asset turns. Leverage is balanced.` 
+            : `ROE is conservative (${roe.toFixed(1)}%). Consider boosting profit margins or optimizing assets to drive premium returns.`;
+    }
+    else if (module.id === 'three_statements') {
+        const rev = sbVals['rev'] !== undefined ? sbVals['rev'] : 10000;
+        const pat = sbVals['pat'] !== undefined ? sbVals['pat'] : 1500;
+        const growth = 0.10;
+        const tax = 0.25;
+
+        const cal = (r, p) => {
+            let ys = [];
+            for (let i = 0; i < 3; i++) {
+                const c = r * 0.60;
+                const e = r * 0.22;
+                const ebt = p / (1 - tax);
+                const tx = ebt * tax;
+                ys.push({ rev: r, cogs: c, ebitda: e, ebt: ebt, tax: tx, pat: p });
+                r *= (1 + growth);
+                p *= (1 + growth);
+            }
+            return ys;
+        };
+        const ys = cal(rev, pat);
+        
+        html = `
+            <table class="spreadsheet-table">
+                <thead>
+                    <tr>
+                        <th>Financial Item</th>
+                        <th>Year 1 (Base)</th>
+                        <th>Year 2 (+10%)</th>
+                        <th>Year 3 (+21%)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>Revenue (Sales)</td><td>₹${ys[0].rev.toFixed(0)} Cr</td><td>₹${ys[1].rev.toFixed(0)} Cr</td><td>₹${ys[2].rev.toFixed(0)} Cr</td></tr>
+                    <tr><td>COGS (60% cost)</td><td>₹${ys[0].cogs.toFixed(0)} Cr</td><td>₹${ys[1].cogs.toFixed(0)} Cr</td><td>₹${ys[2].cogs.toFixed(0)} Cr</td></tr>
+                    <tr class="spreadsheet-total-row"><td>EBITDA (22%)</td><td>₹${ys[0].ebitda.toFixed(0)} Cr</td><td>₹${ys[1].ebitda.toFixed(0)} Cr</td><td>₹${ys[2].ebitda.toFixed(0)} Cr</td></tr>
+                    <tr><td>EBT</td><td>₹${ys[0].ebt.toFixed(0)} Cr</td><td>₹${ys[1].ebt.toFixed(0)} Cr</td><td>₹${ys[2].ebt.toFixed(0)} Cr</td></tr>
+                    <tr><td>Tax (25%)</td><td>₹${ys[0].tax.toFixed(0)} Cr</td><td>₹${ys[1].tax.toFixed(0)} Cr</td><td>₹${ys[2].tax.toFixed(0)} Cr</td></tr>
+                    <tr class="spreadsheet-total-row" style="background:rgba(16,185,129,0.12) !important;"><td>PAT (Net Income)</td><td>₹${ys[0].pat.toFixed(0)} Cr</td><td>₹${ys[1].pat.toFixed(0)} Cr</td><td>₹${ys[2].pat.toFixed(0)} Cr</td></tr>
+                </tbody>
+            </table>
+        `;
+        audit = `Flow-through model is working. Base Year 1 PAT margins are ${(pat/rev*100).toFixed(1)}%. Revenue growth compounding expands PAT to ₹${ys[2].pat.toFixed(0)} Cr by Year 3.`;
+    }
+    else if (module.id === 'valuation_multiples') {
+        const price = sbVals['price'] !== undefined ? sbVals['price'] : 2500;
+        const eps = sbVals['eps'] !== undefined ? sbVals['eps'] : 80;
+        const bv = sbVals['bv'] !== undefined ? sbVals['bv'] : 450;
+        const ebitda = sbVals['ebitda'] !== undefined ? sbVals['ebitda'] : 200;
+        const debt = sbVals['debt'] !== undefined ? sbVals['debt'] : 150;
+        
+        const pe = price / Math.max(eps, 0.1);
+        const pb = price / Math.max(bv, 0.1);
+        const ev = price + debt;
+        const evEbit = ev / Math.max(ebitda, 0.1);
+        
+        const peBadge = pe < 15 ? 'safe' : pe < 30 ? 'warning' : 'danger';
+        const peText = pe < 15 ? 'Undervalued' : pe < 30 ? 'Fair Value' : 'Premium';
+        
+        const pbBadge = pb < 2.5 ? 'safe' : pb < 5 ? 'warning' : 'danger';
+        const pbText = pb < 2.5 ? 'Value' : pb < 5 ? 'Fair' : 'Premium';
+        
+        const evBadge = evEbit < 8 ? 'safe' : evEbit < 15 ? 'warning' : 'danger';
+        const evText = evEbit < 8 ? 'Value' : evEbit < 15 ? 'Fair' : 'Premium';
+        
+        html = `
+            <div class="custom-metrics-grid">
+                <div class="custom-metric-card">
+                    <div class="custom-metric-title">P/E Ratio</div>
+                    <div class="custom-metric-value">${pe.toFixed(1)}x</div>
+                    <span class="custom-badge ${peBadge}">${peText}</span>
+                </div>
+                <div class="custom-metric-card">
+                    <div class="custom-metric-title">P/B Ratio</div>
+                    <div class="custom-metric-value">${pb.toFixed(1)}x</div>
+                    <span class="custom-badge ${pbBadge}">${pbText}</span>
+                </div>
+                <div class="custom-metric-card">
+                    <div class="custom-metric-title">EV/EBITDA</div>
+                    <div class="custom-metric-value">${evEbit.toFixed(1)}x</div>
+                    <span class="custom-badge ${evBadge}">${evText}</span>
+                </div>
+            </div>
+        `;
+        audit = pe > 30 
+            ? `Warning: P/E is high (${pe.toFixed(1)}x). This implies valuation discounts a high structural growth run. Consider if PEG < 1.5 to justify.` 
+            : `P/E ratio (${pe.toFixed(1)}x) suggests healthy valuation multiples compared to peer group index.`;
+    }
+    else if (module.id === 'return_ratios') {
+        const pat = sbVals['pat'] !== undefined ? sbVals['pat'] : 1500;
+        const equity = sbVals['equity'] !== undefined ? sbVals['equity'] : 8000;
+        const ebit = sbVals['ebit'] !== undefined ? sbVals['ebit'] : 2200;
+        const ce = sbVals['ce'] !== undefined ? sbVals['ce'] : 12000;
+        
+        const roe = (pat / Math.max(equity, 1)) * 100;
+        const roce = (ebit / Math.max(ce, 1)) * 100;
+        
+        const c = (val) => val > 15 ? '#10b981' : val > 8 ? '#f59e0b' : '#ef4444';
+        const t = (val) => val > 15 ? 'Premium' : val > 8 ? 'Fair' : 'Substandard';
+        
+        html = `
+            <div style="display:flex; flex-direction:column; gap:12px; width:100%;">
+                <div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                        <span style="font-weight:600;">ROE (Equity Return)</span>
+                        <span style="font-weight:700; color:${c(roe)};">${roe.toFixed(1)}% (${t(roe)})</span>
+                    </div>
+                    <div class="custom-progress-bar"><div class="custom-progress-fill" style="width: ${Math.min(roe*2.5, 100)}%; background: ${c(roe)};"></div></div>
+                </div>
+                <div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                        <span style="font-weight:600;">ROCE (Capital Return)</span>
+                        <span style="font-weight:700; color:${c(roce)};">${roce.toFixed(1)}% (${t(roce)})</span>
+                    </div>
+                    <div class="custom-progress-bar"><div class="custom-progress-fill" style="width: ${Math.min(roce*2.5, 100)}%; background: ${c(roce)};"></div></div>
+                </div>
+            </div>
+        `;
+        audit = roce > roe 
+            ? `ROCE (${roce.toFixed(1)}%) exceeds ROE (${roe.toFixed(1)}%), suggesting capital is highly optimized, but low debt levels suppress leverage multiplier gains.`
+            : `ROE (${roe.toFixed(1)}%) exceeds ROCE (${roce.toFixed(1)}%), verifying leverage amplifies shareholder equity gains. Watch solvency levels.`;
+    }
+    else if (module.id === 'dcf_wacc') {
+        const fcf = sbVals['fcf'] !== undefined ? sbVals['fcf'] : 1000;
+        const wacc = sbVals['wacc'] !== undefined ? sbVals['wacc'] : 12;
+        const g = sbVals['g'] !== undefined ? sbVals['g'] : 5;
+        const tg = 4; // terminal growth
+        
+        let years = '';
+        let total = 0;
+        for (let t = 1; t <= 5; t++) {
+            const projected = fcf * Math.pow(1 + g / 100, t);
+            const df = 1 / Math.pow(1 + wacc / 100, t);
+            const pv = projected * df;
+            total += pv;
+            years += `<tr><td>Year ${t}</td><td>₹${projected.toFixed(0)} Cr</td><td>${df.toFixed(3)}</td><td>₹${pv.toFixed(0)} Cr</td></tr>`;
+        }
+        const tv = (fcf * Math.pow(1 + g / 100, 5) * (1 + tg / 100)) / (wacc / 100 - tg / 100);
+        const pvTV = tv / Math.pow(1 + wacc / 100, 5);
+        const iv = total + pvTV;
+        const price = fcf * 14;
+        const safety = ((iv - price) / iv) * 100;
+        
+        html = `
+            <table class="spreadsheet-table" style="margin-bottom:10px;">
+                <thead>
+                    <tr><th>Year</th><th>FCF</th><th>DF</th><th>PV</th></tr>
+                </thead>
+                <tbody>
+                    ${years}
+                    <tr><td>Terminal Value</td><td>₹${tv.toFixed(0)} Cr</td><td>${(1 / Math.pow(1 + wacc / 100, 5)).toFixed(3)}</td><td>₹${pvTV.toFixed(0)} Cr</td></tr>
+                    <tr class="spreadsheet-total-row"><td>Intrinsic Value</td><td colspan="2">-</td><td>₹${iv.toFixed(0)} Cr</td></tr>
+                </tbody>
+            </table>
+        `;
+        audit = wacc > 13 
+            ? `High discount rate (${wacc.toFixed(1)}%) penalizes cash flows heavily, requiring massive growth rates (g=${g}%) to sustain margins.` 
+            : `Standard discount rate used. Implied margin of safety is ${safety > 0 ? safety.toFixed(1) + '%' : 'None (Overvalued)'}.`;
+    }
+    else if (module.id === 'solvency_liquidity') {
+        const debt = sbVals['debt'] !== undefined ? sbVals['debt'] : 3000;
+        const equity = sbVals['equity'] !== undefined ? sbVals['equity'] : 8000;
+        const de = debt / Math.max(equity, 1);
+        const deB = de < 1.5 ? 'safe' : de < 2.5 ? 'warning' : 'danger';
+        
+        const ebit = 1800;
+        const interest = debt * 0.08;
+        const icr = ebit / Math.max(interest, 0.1);
+        const icrB = icr > 3.0 ? 'safe' : icr > 1.5 ? 'warning' : 'danger';
+        
+        html = `
+            <div class="custom-metrics-grid">
+                <div class="custom-metric-card">
+                    <div class="custom-metric-title">Debt/Equity (D/E)</div>
+                    <div class="custom-metric-value">${de.toFixed(2)}x</div>
+                    <span class="custom-badge ${deB}">${de < 1.5 ? 'Healthy' : 'Highly Leveraged'}</span>
+                </div>
+                <div class="custom-metric-card">
+                    <div class="custom-metric-title">Interest Coverage (ICR)</div>
+                    <div class="custom-metric-value">${icr.toFixed(1)}x</div>
+                    <span class="custom-badge ${icrB}">${icr > 3.0 ? 'Safe' : 'Default Risk'}</span>
+                </div>
+            </div>
+        `;
+        audit = icr < 1.5 
+            ? `Warning: Interest coverage ratio (${icr.toFixed(1)}x) is below safe target. Operating profits barely buffer against debt obligations.` 
+            : `Solvency metrics are safe. Interest coverage ratio is ${icr.toFixed(1)}x, indicating healthy interest repayment buffer.`;
+    }
+    else if (module.id === 'dividend_metrics') {
+        const dps = sbVals['dps'] !== undefined ? sbVals['dps'] : 20;
+        const price = sbVals['price'] !== undefined ? sbVals['price'] : 800;
+        const eps = sbVals['eps'] !== undefined ? sbVals['eps'] : 50;
+        
+        const divYield = (dps / price) * 100;
+        const payout = (dps / eps) * 100;
+        const payoutB = payout < 50 ? 'safe' : payout < 80 ? 'warning' : 'danger';
+        
+        html = `
+            <div class="custom-metrics-grid" style="margin-bottom:10px;">
+                <div class="custom-metric-card">
+                    <div class="custom-metric-title">Dividend Yield</div>
+                    <div class="custom-metric-value">${divYield.toFixed(2)}%</div>
+                </div>
+                <div class="custom-metric-card">
+                    <div class="custom-metric-title">Payout Ratio</div>
+                    <div class="custom-metric-value">${payout.toFixed(1)}%</div>
+                    <span class="custom-badge ${payoutB}">${payout < 60 ? 'Sustainable' : 'High Risk'}</span>
+                </div>
+            </div>
+        `;
+        audit = payout > 80 
+            ? `Caution: Dividend payout ratio is high (${payout.toFixed(1)}%). Retained earnings are insufficient to fund capital expansion.` 
+            : `Dividend payout ratio of ${payout.toFixed(1)}% is healthy and sustainable.`;
+    }
+    else if (module.id === 'earnings_quality') {
+        const ni = sbVals['ni'] !== undefined ? sbVals['ni'] : 1500;
+        const ocf = sbVals['ocf'] !== undefined ? sbVals['ocf'] : 1800;
+        const assets = sbVals['assets'] !== undefined ? sbVals['assets'] : 10000;
+        
+        const sloan = ((ni - ocf) / assets) * 100;
+        const sloanAbs = Math.abs(sloan);
+        const q = sloanAbs < 4 ? 'safe' : sloanAbs < 10 ? 'warning' : 'danger';
+        const qText = sloanAbs < 4 ? 'High Quality' : sloanAbs < 10 ? 'Moderate' : 'Accruals Risk';
+        
+        html = `
+            <div style="display:flex; flex-direction:column; align-items:center; gap:8px;">
+                <div style="font-size:11px; color:var(--text-muted);">Sloan Accrual Ratio</div>
+                <div style="font-size:24px; font-weight:800; color:${sloanAbs < 4 ? '#10b981' : sloanAbs < 10 ? '#f59e0b' : '#ef4444'};">${sloan.toFixed(2)}%</div>
+                <span class="custom-badge ${q}">${qText}</span>
+            </div>
+        `;
+        audit = sloanAbs > 10 
+            ? `Accrual ratio is high (${sloan.toFixed(1)}%), suggesting non-cash accounting items make up a large portion of reported net profits.` 
+            : `Earnings quality is high. Cash flow from operations backs reported net profits.`;
+    }
+    else if (module.id === 'peg_ratio') {
+        const pe = sbVals['pe'] !== undefined ? sbVals['pe'] : 25;
+        const growth = sbVals['growth'] !== undefined ? sbVals['growth'] : 20;
+        const peg = pe / Math.max(growth, 0.1);
+        const pegB = peg < 1.0 ? 'safe' : peg < 2.0 ? 'warning' : 'danger';
+        
+        html = `
+            <div style="display:flex; flex-direction:column; align-items:center; gap:8px;">
+                <div style="font-size:11px; color:var(--text-muted);">PEG Ratio</div>
+                <div style="font-size:24px; font-weight:800; color:${peg < 1 ? '#10b981' : '#ef4444'};">${peg.toFixed(2)}x</div>
+                <span class="custom-badge ${pegB}">${peg < 1 ? 'Undervalued GARP' : 'Overvalued'}</span>
+            </div>
+        `;
+        audit = peg < 1.0 
+            ? `At a PEG of ${peg.toFixed(2)}, the stock represents a GARP (Growth at a Reasonable Price) play, offering cheap growth.` 
+            : `At a PEG of ${peg.toFixed(2)}, valuations are slightly stretched relative to implied growth rates.`;
+    }
+    else if (module.id === 'ev_equity') {
+        const cap = sbVals['cap'] !== undefined ? sbVals['cap'] : 15000;
+        const debt = sbVals['debt'] !== undefined ? sbVals['debt'] : 3000;
+        const cash = sbVals['cash'] !== undefined ? sbVals['cash'] : 1500;
+        const ev = cap + debt - cash;
+        
+        const capPct = (cap / (cap + debt)) * 100;
+        const debtPct = (debt / (cap + debt)) * 100;
+        
+        html = `
+            <div style="display:flex; flex-direction:column; gap:12px; width:100%;">
+                <div style="display:flex; justify-content:space-between;">
+                    <span>Enterprise Value (EV):</span>
+                    <span style="font-weight:700; color:#3b82f6;">₹${ev.toFixed(0)} Cr</span>
+                </div>
+                <div style="display:flex; height:20px; border-radius:4px; overflow:hidden; border:1px solid var(--border-glass);">
+                    <div style="width:${capPct}%; background:#3b82f6; display:flex; align-items:center; justify-content:center; color:#fff; font-size:10px; font-weight:bold;">Equity (${capPct.toFixed(0)}%)</div>
+                    <div style="width:${debtPct}%; background:#ef4444; display:flex; align-items:center; justify-content:center; color:#fff; font-size:10px; font-weight:bold;">Debt (${debtPct.toFixed(0)}%)</div>
+                </div>
+            </div>
+        `;
+        audit = `Net debt additions contribute ${(debt-cash).toFixed(0)} Cr to corporate enterprise value calculations.`;
+    }
+    else if (module.id === 'bond_basics') {
+        const fv = sbVals['fv'] !== undefined ? sbVals['fv'] : 1000;
+        const coupon = sbVals['coupon'] !== undefined ? sbVals['coupon'] : 8;
+        const currentYield = sbVals['yield'] !== undefined ? sbVals['yield'] : 7;
+        const n = sbVals['n'] !== undefined ? sbVals['n'] : 5;
+        
+        const couponVal = fv * coupon / 100;
+        let ledger = '';
+        let totalPV = 0;
+        
+        for (let t = 1; t <= n; t++) {
+            const isLast = (t === n);
+            const cf = isLast ? (couponVal + fv) : couponVal;
+            const df = 1 / Math.pow(1 + currentYield / 100, t);
+            const pv = cf * df;
+            totalPV += pv;
+            ledger += `<tr><td>Year ${t}</td><td>₹${cf.toFixed(0)}</td><td>${df.toFixed(3)}</td><td>₹${pv.toFixed(0)}</td></tr>`;
+        }
+        
+        html = `
+            <table class="spreadsheet-table">
+                <thead><tr><th>Year</th><th>Cash Flow</th><th>DF</th><th>PV</th></tr></thead>
+                <tbody>
+                    ${ledger}
+                    <tr class="spreadsheet-total-row"><td>Bond Price</td><td colspan="2">-</td><td>₹${totalPV.toFixed(0)}</td></tr>
+                </tbody>
+            </table>
+        `;
+        audit = totalPV > fv 
+            ? `Bond trades at a Premium (₹${totalPV.toFixed(0)}) because coupon rate (${coupon}%) exceeds current yield (${currentYield}%).` 
+            : `Bond trades at a Discount (₹${totalPV.toFixed(0)}) because coupon rate (${coupon}%) is below current yield (${currentYield}%).`;
+    }
+    else if (module.id === 'ytm') {
+        const price = sbVals['price'] !== undefined ? sbVals['price'] : 950;
+        const coupon = sbVals['coupon'] !== undefined ? sbVals['coupon'] : 8;
+        const n = sbVals['n'] !== undefined ? sbVals['n'] : 5;
+        const fv = 1000;
+        
+        const cVal = fv * coupon / 100;
+        const ytm = (cVal + (fv - price)/n) / ((fv + price)/2) * 100;
+        
+        html = `
+            <div style="display:flex; flex-direction:column; align-items:center; gap:8px;">
+                <div style="font-size:11px; color:var(--text-muted);">Approximated Yield to Maturity (YTM)</div>
+                <div style="font-size:26px; font-weight:800; color:#10b981;">${ytm.toFixed(2)}%</div>
+                <span class="custom-badge safe">${price < fv ? 'Discount Buy' : 'Premium'}</span>
+            </div>
+        `;
+        audit = price < fv 
+            ? `Buying the bond below par value (₹${price}) expands the YTM to ${ytm.toFixed(1)}%, creating capital gain opportunities at maturity.` 
+            : `Paying premium yields lower return than standard coupons.`;
+    }
+    else if (module.id === 'yield_curve') {
+        const y2 = sbVals['y2'] !== undefined ? sbVals['y2'] : 7.0;
+        const y10 = sbVals['y10'] !== undefined ? sbVals['y10'] : 7.5;
+        
+        const svgH = 150;
+        const svgW = 400;
+        
+        const getX = (idx) => 30 + (idx / 4) * 340;
+        const getY = (y) => svgH - 20 - ((y - 5.0) / (10.0 - 5.0)) * (svgH - 40);
+        
+        const pts = [
+            { label: '3M', yield: y2 - 0.4 },
+            { label: '1Y', yield: y2 - 0.2 },
+            { label: '2Y', yield: y2 },
+            { label: '5Y', yield: y2 + (y10 - y2) * 0.5 },
+            { label: '10Y', yield: y10 }
+        ];
+        
+        let path = `M ${getX(0)} ${getY(pts[0].yield)}`;
+        let dots = '';
+        let labels = '';
+        pts.forEach((p, idx) => {
+            const x = getX(idx);
+            const y = getY(p.yield);
+            if (idx > 0) path += ` L ${x} ${y}`;
+            dots += `<circle cx="${x}" cy="${y}" r="4" fill="#3b82f6"/>`;
+            labels += `
+                <text x="${x}" y="${svgH - 4}" fill="#9ca3af" font-size="9" text-anchor="middle">${p.label}</text>
+                <text x="${x}" y="${y - 8}" fill="var(--text-primary)" font-size="9" font-weight="bold" text-anchor="middle">${p.yield.toFixed(1)}%</text>
+            `;
+        });
+        
+        const isInverted = y2 > y10;
+        
+        html = `
+            <div style="display:flex; flex-direction:column; align-items:center; gap:8px;">
+                <svg width="100%" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}">
+                    <line x1="30" y1="${svgH - 20}" x2="380" y2="${svgH - 20}" stroke="var(--border-glass)" stroke-width="1.5"/>
+                    <path d="${path}" fill="none" stroke="#3b82f6" stroke-width="2.5"/>
+                    ${dots}
+                    ${labels}
+                </svg>
+            </div>
+        `;
+        audit = isInverted 
+            ? "Alert: The yield curve is INVERTED. Short-term yields exceeding long-term sovereign rates is a reliable historical indicator of tight money markets and economic slowdown." 
+            : "The yield curve is normal, showing typical expansionary term structure spreads.";
+    }
+    else if (module.id === 'bond_duration') {
+        const fv = sbVals['fv'] !== undefined ? sbVals['fv'] : 1000;
+        const coupon = sbVals['coupon'] !== undefined ? sbVals['coupon'] : 8;
+        const yieldVal = sbVals['yield'] !== undefined ? sbVals['yield'] : 7;
+        const n = sbVals['n'] !== undefined ? sbVals['n'] : 5;
+        
+        const cVal = fv * coupon / 100;
+        let weighted = 0, pvs = 0;
+        for (let t = 1; t <= n; t++) {
+            const cf = (t === n) ? (cVal + fv) : cVal;
+            const pv = cf / Math.pow(1 + yieldVal / 100, t);
+            pvs += pv;
+            weighted += t * pv;
+        }
+        const mac = weighted / pvs;
+        const mod = mac / (1 + yieldVal / 100);
+        
+        html = `
+            <div class="custom-metrics-grid">
+                <div class="custom-metric-card">
+                    <div class="custom-metric-title">Macaulay Duration</div>
+                    <div class="custom-metric-value">${mac.toFixed(2)} yrs</div>
+                </div>
+                <div class="custom-metric-card">
+                    <div class="custom-metric-title">Modified Duration</div>
+                    <div class="custom-metric-value">${mod.toFixed(2)}%</div>
+                </div>
+            </div>
+        `;
+        audit = `Modified duration of ${mod.toFixed(1)}% indicates high yield volatility sensitivity. A 1% yield rise causes bond price contraction of ~${mod.toFixed(1)}%.`;
+    }
+    else if (module.id === 'bond_convexity') {
+        const yieldVal = sbVals['yield'] !== undefined ? sbVals['yield'] : 7;
+        html = `
+            <div style="display:flex; flex-direction:column; align-items:center; gap:8px; width:100%;">
+                <svg width="100%" height="150" viewBox="0 0 400 150">
+                    <line x1="30" y1="130" x2="380" y2="130" stroke="var(--border-glass)" stroke-width="1"/>
+                    <path d="M 50 120 Q 200 60 350 40" fill="none" stroke="#10b981" stroke-width="2.5"/>
+                    <line x1="100" y1="110" x2="300" y2="50" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4"/>
+                    <circle cx="200" cy="80" r="4" fill="#3b82f6"/>
+                    <text x="350" y="30" fill="#10b981" font-size="9">Price Curve</text>
+                    <text x="300" y="45" fill="#f59e0b" font-size="9">Tangent</text>
+                </svg>
+            </div>
+        `;
+        audit = `Convexity is secondary risk overlay. Curved path represents actual cash flow shifts at yield changes.`;
+    }
+    else if (module.id === 'credit_spreads') {
+        const corp = sbVals['corp'] !== undefined ? sbVals['corp'] : 9.5;
+        const gsec = sbVals['gsec'] !== undefined ? sbVals['gsec'] : 7.2;
+        const spread = (corp - gsec) * 100;
+        
+        html = `
+            <div class="credit-ladder-container">
+                <div class="credit-ladder-row active"><span>G-Sec Yield:</span><span>${gsec.toFixed(2)}%</span></div>
+                <div class="credit-ladder-row active" style="border-color:#ef4444;"><span>Corporate Bond Yield:</span><span>${corp.toFixed(2)}%</span></div>
+                <div style="display:flex; justify-content:space-between; background:rgba(255,255,255,0.03); padding:8px 12px; border-radius:6px; border:1px solid var(--border-glass); margin-top:8px;">
+                    <span style="font-weight:600;">Credit Spread:</span><span style="font-weight:700; color:#f59e0b;">${spread.toFixed(0)} bps</span>
+                </div>
+            </div>
+        `;
+        audit = spread > 300 
+            ? `Credit spreads are wide (${spread.toFixed(0)} bps). High risk premiums suggested, typically showing stress in credit markets.` 
+            : `Credit spreads are narrow (${spread.toFixed(0)} bps), indicating confidence in corporate loan default risk profiles.`;
+    }
+    else if (module.id === 'tips_real_yields') {
+        const nominal = sbVals['yield'] !== undefined ? sbVals['yield'] : 7.2;
+        const inflation = sbVals['inflation'] !== undefined ? sbVals['inflation'] : 5.0;
+        const real = nominal - inflation;
+        
+        html = `
+            <div style="display:flex; flex-direction:column; gap:12px; width:100%;">
+                <div style="display:flex; justify-content:space-between;"><span>Nominal Yield:</span><span>${nominal.toFixed(2)}%</span></div>
+                <div style="display:flex; justify-content:space-between; color:#ef4444;"><span>Inflation Expectation:</span><span>-${inflation.toFixed(2)}%</span></div>
+                <hr style="border:none; border-top:1px solid var(--border-glass);">
+                <div style="display:flex; justify-content:space-between; font-weight:700; font-size:13px;"><span>Real Yield:</span><span style="color:${real > 0 ? '#10b981' : '#ef4444'};">${real.toFixed(2)}%</span></div>
+            </div>
+        `;
+        audit = real < 0 
+            ? `Purchasing power is decaying (Real Yield is negative: ${real.toFixed(1)}%). Investors holding nominal bonds lose capital value in inflation-adjusted terms.` 
+            : `Positive real yield protects purchasing power gains.`;
+    }
+    else if (module.id === 'central_bank') {
+        const repo = sbVals['repo'] !== undefined ? sbVals['repo'] : 6.5;
+        
+        const infl = repo > 6.0 ? 'Under Control' : 'Rising Risk';
+        const bonds = repo > 6.0 ? 'Yields rising (Prices down)' : 'Yields falling (Prices up)';
+        const stocks = repo > 6.0 ? 'Tight liquidity (Bearish bias)' : 'Loose liquidity (Bullish bias)';
+        
+        html = `
+            <div class="credit-ladder-container">
+                <div class="credit-ladder-row active" style="border-color:#8b5cf6; background:rgba(139,92,246,0.06);">
+                    <span>Repo Rate:</span><span style="color:#8b5cf6; font-size:16px;">${repo.toFixed(2)}%</span>
+                </div>
+                <div class="repo-flow-container">
+                    <div class="repo-flow-step"><div style="color:var(--text-muted);">Inflation</div><div style="font-weight:bold; margin-top:4px;">${infl}</div></div>
+                    <div class="repo-flow-arrow">➔</div>
+                    <div class="repo-flow-step"><div style="color:var(--text-muted);">Bonds</div><div style="font-weight:bold; margin-top:4px;">${bonds}</div></div>
+                    <div class="repo-flow-arrow">➔</div>
+                    <div class="repo-flow-step"><div style="color:var(--text-muted);">Equities</div><div style="font-weight:bold; margin-top:4px;">${stocks}</div></div>
+                </div>
+            </div>
+        `;
+        audit = repo > 6.0 
+            ? `Tight monetary policy Repo Rate of ${repo.toFixed(1)}% focuses on dampening inflation. High cost of capital will reduce corporate growth multiples.` 
+            : `Accommodative repo rate (${repo.toFixed(1)}%) boosts growth assets and equity valuation targets.`;
+    }
+    else if (module.id === 'pv_bond_math') {
+        const rate = sbVals['rate'] !== undefined ? sbVals['rate'] : 7;
+        const fv = 1000;
+        
+        let decay = '';
+        for (let t = 1; t <= 5; t++) {
+            const pv = fv / Math.pow(1 + rate / 100, t);
+            const pct = (pv / fv) * 100;
+            decay += `
+                <div style="margin-bottom:6px;">
+                    <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:2px;">
+                        <span>Year ${t} PV:</span><span>₹${pv.toFixed(0)}</span>
+                    </div>
+                    <div class="custom-progress-bar"><div class="custom-progress-fill" style="width: ${pct}%; background:#8b5cf6;"></div></div>
+                </div>
+            `;
+        }
+        
+        html = `
+            <div style="display:flex; flex-direction:column; gap:8px; width:100%;">
+                ${decay}
+            </div>
+        `;
+        audit = `Time value of money decay visual: ₹1,000 cash flows lose value at an annualized discount rate of ${rate}%.`;
+    }
+    else {
+        html = `<div style="color:var(--text-muted); font-size:12px; text-align:center; padding:20px;">No customized interactive workspace available for this topic yet. Check back soon!</div>`;
+        audit = `No dynamic insights available.`;
+    }
+
+    board.innerHTML = html;
+    if (auditorText) auditorText.textContent = audit;
+}
+
+
 function renderAcademySandbox(module) {
     const body = document.getElementById('academy-sandbox-body');
     if (!body || !module.sandbox) { 
@@ -29871,6 +30549,11 @@ function renderAcademySandbox(module) {
         
         // Redraw chart dynamically in response to slider changes
         renderAcademyChart(module);
+
+        // Update suggested prompts dynamically to match the current sandbox settings
+        if (typeof renderAcademyPromptSuggestions === 'function') {
+            renderAcademyPromptSuggestions(module);
+        }
     };
 
     calcAndDisplay();
@@ -30100,6 +30783,107 @@ function setupAcademyDrawCanvas() {
     const snapshotBtn = document.getElementById('academy-snapshot-btn');
     if (snapshotBtn) {
         snapshotBtn.addEventListener('click', () => {
+            if (module.cat === 'fundamental' || module.cat === 'bonds') {
+                const board = document.getElementById('academy-custom-visual-board');
+                const auditText = document.getElementById('academy-ai-auditor-text')?.textContent || '';
+                const boardHtml = board ? board.innerHTML : '';
+                
+                const isDark = document.documentElement.getAttribute('data-theme') !== 'light' && !document.body.classList.contains('light-mode');
+                const bgColor = isDark ? '#060913' : '#ffffff';
+                const textColor = isDark ? '#f3f4f6' : '#111827';
+                const cardColor = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)';
+                const borderColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
+                
+                const memoHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Institutional Research Memo - ${module.title}</title>
+    <style>
+        body {
+            background-color: ${bgColor};
+            color: ${textColor};
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            padding: 40px;
+            max-width: 800px;
+            margin: 0 auto;
+            border: 1px solid ${borderColor};
+            border-radius: 8px;
+            margin-top: 40px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        h1 { font-size: 24px; border-bottom: 2px solid ${borderColor}; padding-bottom: 10px; margin-top: 0; }
+        .meta { display: flex; justify-content: space-between; font-size: 12px; color: #9ca3af; margin-bottom: 20px; }
+        .board-container { background: ${cardColor}; border: 1px solid ${borderColor}; border-radius: 8px; padding: 20px; margin-bottom: 20px; }
+        .auditor-box { background: rgba(59, 130, 246, 0.08); border-left: 4px solid #3b82f6; padding: 15px; border-radius: 4px; font-size: 13px; line-height: 1.5; margin-bottom: 20px; }
+        .spreadsheet-table { width: 100%; border-collapse: collapse; font-family: monospace; font-size: 13px; margin: 15px 0; }
+        .spreadsheet-table th, .spreadsheet-table td { padding: 8px 12px; border: 1px solid ${borderColor}; text-align: right; }
+        .spreadsheet-table th { background: rgba(255, 255, 255, 0.05); text-align: center; }
+        .spreadsheet-table td:first-child, .spreadsheet-table th:first-child { text-align: left; }
+        .spreadsheet-total-row { background: rgba(59, 130, 246, 0.1) !important; font-weight: bold; }
+        .dupont-tree-container { display: flex; flex-direction: column; align-items: center; gap: 20px; }
+        .dupont-row { display: flex; justify-content: space-around; width: 100%; }
+        .dupont-node { border: 1px solid ${borderColor}; border-radius: 6px; padding: 10px 15px; min-width: 120px; text-align: center; background: ${bgColor}; }
+        .dupont-node.primary { border-color: #8b5cf6; background: rgba(139, 92, 246, 0.05); }
+        .dupont-node-title { font-size: 10px; color: #9ca3af; text-transform: uppercase; }
+        .dupont-node-value { font-size: 16px; font-weight: bold; }
+        .dupont-operator { font-size: 20px; align-self: center; color: #9ca3af; }
+        .custom-metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; }
+        .custom-metric-card { border: 1px solid ${borderColor}; border-radius: 6px; padding: 15px; text-align: center; background: ${bgColor}; }
+        .custom-metric-title { font-size: 12px; color: #9ca3af; }
+        .custom-metric-value { font-size: 18px; font-weight: bold; }
+        .custom-badge { display: inline-block; padding: 2px 8px; font-size: 10px; font-weight: bold; border-radius: 4px; margin-top: 6px; }
+        .custom-badge.safe { background: rgba(16, 185, 129, 0.15); color: #10b981; }
+        .custom-badge.warning { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
+        .custom-badge.danger { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+        .custom-progress-bar { width: 100%; height: 8px; background: rgba(255, 255, 255, 0.1); border-radius: 4px; overflow: hidden; margin-top: 6px; }
+        .custom-progress-fill { height: 100%; background: #3b82f6; }
+        .credit-ladder-container { display: flex; flex-direction: column; gap: 8px; }
+        .credit-ladder-row { display: flex; justify-content: space-between; border: 1px solid ${borderColor}; padding: 8px 15px; border-radius: 6px; }
+        .credit-ladder-row.active { border-color: #3b82f6; background: rgba(59, 130, 246, 0.05); font-weight: bold; }
+        .repo-flow-container { display: flex; align-items: center; justify-content: space-around; width: 100%; gap: 15px; }
+        .repo-flow-step { flex: 1; border: 1px solid ${borderColor}; border-radius: 6px; padding: 10px; text-align: center; }
+        circle { fill: #3b82f6; }
+        path { stroke: #3b82f6; }
+        text { fill: ${textColor}; }
+    </style>
+</head>
+<body>
+    <h1>${module.title}</h1>
+    <div class="meta">
+        <span>Category: ${module.cat.toUpperCase()}</span>
+        <span>Date: ${new Date().toLocaleDateString('en-IN')}</span>
+    </div>
+    
+    <div class="auditor-box">
+        <strong>🔍 AI Auditor Insights</strong>
+        <p>${auditText}</p>
+    </div>
+    
+    <div class="board-container">
+        ${boardHtml}
+    </div>
+    
+    <div style="font-size: 11px; text-align: center; color: #9ca3af; margin-top: 40px; border-top: 1px solid ${borderColor}; padding-top: 15px;">
+        Generated via Indian Stock Analysis AI Workstation v2.0
+    </div>
+</body>
+</html>`;
+                
+                const blob = new Blob([memoHtml], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `ResearchNote_${module.id}.html`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showToast('📝 Investment Research Note exported successfully!');
+                return;
+            }
+
             const chartContainer = document.getElementById('academy-lightweight-chart-container');
             if (!chartContainer) return;
             const chartCanvases = chartContainer.querySelectorAll('canvas');
@@ -30162,13 +30946,18 @@ function setupAcademyAICoach() {
         messagesEl.scrollTop = messagesEl.scrollHeight;
 
         try {
+            const activeSub = academyActiveSubPattern[academyActiveTopicId] || (module && ACADEMY_SUB_PATTERNS[academyActiveTopicId] ? ACADEMY_SUB_PATTERNS[academyActiveTopicId][0] : null);
+            const sbVals = { ...academyActiveSliderValues, ...academyActiveSandboxValues };
+
             const res = await fetch('/api/learning/ask', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     question: question,
                     topic: module ? module.title : null,
-                    category: module ? module.cat : null
+                    category: module ? module.cat : null,
+                    sandbox_values: sbVals,
+                    sub_pattern: activeSub
                 })
             });
             const data = await res.json();
@@ -30807,3 +31596,126 @@ function formatMarkdown(md) {
 
     return html;
 }
+
+function getPromptTemplatesForModule(module) {
+    const title = module.title || module.id;
+    const cat = module.cat || 'technical';
+    
+    // Retrieve current values from sandbox inputs if they exist
+    const inputs = {};
+    let inputsText = '';
+    if (module.sandbox && module.sandbox.inputs) {
+        const parts = [];
+        module.sandbox.inputs.forEach(inp => {
+            const val = academyActiveSandboxValues[inp.key] !== undefined ? academyActiveSandboxValues[inp.key] : inp.val;
+            inputs[inp.key] = val;
+            parts.push(`${inp.label}: ${val}`);
+        });
+        inputsText = parts.join(', ');
+    }
+
+    const templates = [];
+
+    if (cat === 'technical') {
+        templates.push(`Explain how to interpret ${title} in a volatile market like India's Nifty 50.`);
+        templates.push(`How does changing the inputs (currently ${inputsText}) affect the sensitivity and false signal rate of ${title}?`);
+        templates.push(`Can you explain the mathematical calculation behind ${title} and how it derives its values?`);
+        templates.push(`What are the key differences between SMA and EMA when using them alongside ${title}?`);
+        templates.push(`How do I spot bullish and bearish divergences using ${title} on a daily chart?`);
+        templates.push(`Under what market conditions does ${title} fail or give the most false signals?`);
+        templates.push(`Explain a complete swing trading strategy combining ${title} with volume analysis.`);
+        templates.push(`What are the recommended stop-loss and target placement rules when trading based on ${title} crossovers?`);
+        templates.push(`Can you provide a simple Python code snippet using pandas to calculate ${title} for a stock's historical data?`);
+        templates.push(`How can I use ${title} to determine if a trend is exhausted or has strong momentum?`);
+        templates.push(`Explain how the current active settings (${inputsText}) compare to the industry standard settings.`);
+        templates.push(`What other momentum indicators (like RSI or MACD) complement ${title} best to form a reliable trading system?`);
+    } else if (cat === 'candlestick') {
+        const o = inputs.open !== undefined ? inputs.open : 100;
+        const h = inputs.high !== undefined ? inputs.high : 105;
+        const l = inputs.low !== undefined ? inputs.low : 95;
+        const c = inputs.close !== undefined ? inputs.close : 102;
+        const body = Math.abs(c - o);
+        const lowerWick = l < Math.min(o, c) ? Math.min(o, c) - l : 0;
+        const ratio = body > 0 ? (lowerWick / body).toFixed(1) : 0;
+
+        templates.push(`Analyze the current candlestick parameters: Open=${o}, High=${h}, Low=${l}, Close=${c}. Is this a strong ${title} pattern?`);
+        templates.push(`Is this a strong hammer? Let's analyze the body size (${body}) vs the lower shadow (${lowerWick}) ratio of ${ratio}x.`);
+        templates.push(`What is the market psychology behind the formation of a ${title} pattern?`);
+        templates.push(`Explain the significance of the upper and lower shadows in a ${title} candle.`);
+        templates.push(`How does trading volume during the formation of ${title} validate or invalidate its reversal signal?`);
+        templates.push(`Can you compare ${title} with its opposite pattern and explain their differences in reliability?`);
+        templates.push(`What confirmation candle should I wait for after detecting a ${title} before entering a trade?`);
+        templates.push(`How do I set stop-loss levels and profit targets based on the high/low of a ${title} pattern?`);
+        templates.push(`Can you write a Python snippet to scan a stock chart's daily candles for a ${title} pattern?`);
+        templates.push(`Does ${title} work better on higher timeframes (like Daily/Weekly) compared to intraday (5-minute) charts?`);
+        templates.push(`What is the failure rate of the ${title} pattern in Indian stock markets, and what causes it to fail?`);
+        templates.push(`How do support and resistance levels act as a multiplier for ${title} pattern accuracy?`);
+        templates.push(`Explain how a trend change is confirmed when ${title} appears after a long downtrend or uptrend.`);
+    } else if (cat === 'fundamental') {
+        templates.push(`Based on the current sandbox inputs (${inputsText}), explain how these numbers affect the overall health of the business.`);
+        templates.push(`What are the target benchmarks for ${title} in Indian banking vs IT vs manufacturing sectors?`);
+        templates.push(`How would a 10% decline in sales or operating profit impact the calculated ${title} value?`);
+        templates.push(`What are the common accounting manipulation tricks that companies use to inflate ${title}?`);
+        templates.push(`Explain how a long-term investor uses ${title} to select high-quality compounding stocks.`);
+        templates.push(`How does capital structure (debt vs equity) affect the calculation and interpretation of ${title}?`);
+        templates.push(`If ${title} is improving year-over-year but cash flows are negative, what does that indicate?`);
+        templates.push(`Compare ${title} with similar valuation ratios. When is ${title} the superior metric?`);
+        templates.push(`Provide a real-world case study of an Indian listed company that had a deteriorating ${title} before its stock crashed.`);
+        templates.push(`How does inflation and interest rate hikes in India impact ${title} across capital-intensive industries?`);
+        templates.push(`Can you show me a step-by-step Excel/Python model to calculate ${title} using raw balance sheet/PL statement data?`);
+        templates.push(`What are the structural limitations of relying on ${title} for evaluating fast-growing startup companies?`);
+    } else if (cat === 'bonds') {
+        templates.push(`Given the current bond settings (${inputsText}), explain why the bond is priced this way.`);
+        templates.push(`How will a 100 basis point (1%) increase in RBI repo rate affect the price or yield of this bond?`);
+        templates.push(`What is the difference between current yield, coupon rate, and yield to maturity (YTM) for this bond?`);
+        templates.push(`Explain Macaulay duration and Modified duration. How do they measure the interest rate risk of this bond?`);
+        templates.push(`How does the maturity profile of this bond affect its price volatility when yields fluctuate?`);
+        templates.push(`Explain the relationship between bond prices, coupons, and market interest rates in simple terms.`);
+        templates.push(`What is credit rating (AAA, AA, etc.) and how does a downgrade affect the yield spread of this bond?`);
+        templates.push(`How does the shape of the yield curve (normal, inverted, flat) reflect the Indian economy's future outlook?`);
+        templates.push(`What is bond convexity, and why is it a positive characteristic for bond investors?`);
+        templates.push(`If inflation in India rises to 6%, what strategy should a fixed-income portfolio manager adopt?`);
+        templates.push(`Can you write a Python code block using numpy-financial to calculate the YTM and price of this bond?`);
+        templates.push(`Explain how corporate bonds differ from government securities (G-Secs) in terms of liquidity and default risk.`);
+    } else {
+        templates.push(`Explain how to interpret ${title} in a volatile market like India's Nifty 50.`);
+        templates.push(`Under what market conditions does ${title} fail or give the most false signals?`);
+        templates.push(`Provide a real-world case study of an Indian listed company related to ${title}.`);
+        templates.push(`Can you provide a simple Python code snippet to calculate or simulate ${title}?`);
+        templates.push(`What are the recommended risk management rules when using ${title}?`);
+    }
+
+    return templates;
+}
+
+function renderAcademyPromptSuggestions(module) {
+    const listContainer = document.getElementById('academy-prompt-suggestions-list');
+    if (!listContainer) return;
+
+    const templates = getPromptTemplatesForModule(module);
+    
+    let html = '';
+    templates.forEach(prompt => {
+        const escapedPrompt = prompt.replace(/'/g, "\\'").replace(/"/g, "&quot;");
+        html += `
+            <button class="academy-suggestion-chip" onclick="selectAcademyPrompt('${escapedPrompt}')">
+                ✨ ${prompt}
+            </button>
+        `;
+    });
+    
+    listContainer.innerHTML = html;
+}
+
+window.selectAcademyPrompt = function(promptText) {
+    const input = document.getElementById('academy-ai-input');
+    if (input) {
+        input.value = promptText;
+        input.focus();
+        input.style.border = '1px solid var(--color-primary)';
+        setTimeout(() => {
+            input.style.border = '';
+        }, 800);
+    }
+};
+

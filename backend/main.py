@@ -1639,10 +1639,10 @@ class AISectorChatRequest(BaseModel):
 
 class LearningAskRequest(BaseModel):
     question: str
-    topic: str = None
-    category: str = None
-    sandbox_values: dict = None
-    sub_pattern: str = None
+    topic: Optional[str] = None
+    category: Optional[str] = None
+    sandbox_values: Optional[dict] = None
+    sub_pattern: Optional[str] = None
 
 @app.get("/api/search")
 async def search_ticker(q: str):
@@ -9447,6 +9447,7 @@ async def learning_ask(req: LearningAskRequest):
         "- Step-by-step calculation walkthroughs\n"
         "- Practical trading/investment application tips\n"
         "- Common mistakes and pitfalls to avoid\n\n"
+        "Crucially, if the query contains 'Active Sandbox Inputs' (e.g., o = 152, c = 155, l = 145, or rsi_length = 14, etc.), you MUST perform the math calculations using those exact numbers, explain the ratios (e.g., lower shadow-to-body size for a hammer), and explicitly comment on whether those values constitute a valid or strong pattern.\n\n"
         "Keep responses concise (under 400 words), educational, and actionable.\n"
         "Use markdown formatting for headers, bold, lists, and code blocks for formulas.\n"
         "If the question is about a specific indicator or pattern, always include its formula and interpretation rules."
