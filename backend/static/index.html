@@ -5855,8 +5855,9 @@
                                 <div class="academy-card-header"><h4>📊 Interactive Chart</h4></div>
                                 <div class="academy-card-body" style="padding: 10px; position: relative;">
                                     <div id="academy-widget-container" style="position: relative; width: 100%; height: 300px;">
-                                        <canvas id="academy-widget-canvas" width="700" height="300" style="width: 100%; height: 100%;"></canvas>
-                                        <canvas id="academy-draw-canvas" width="700" height="300" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; cursor: crosshair;"></canvas>
+                                        <div id="academy-lightweight-chart-container" style="width: 100%; height: 100%;"></div>
+                                        <canvas id="academy-draw-canvas" class="academy-draw-overlay" width="700" height="300" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; cursor: crosshair;"></canvas>
+                                        <div id="academy-chart-tooltip" class="academy-chart-tooltip" style="display: none; position: absolute; pointer-events: none; width: 160px;"></div>
                                     </div>
                                     <div id="academy-chart-controls" class="academy-widget-controls" style="margin-top: 12px; padding: 10px; border-top: 1px solid var(--border-glass); display: flex; flex-wrap: wrap; gap: 15px; align-items: center; justify-content: flex-start; min-height: 40px; box-sizing: border-box; width: 100%;"></div>
                                     <div class="academy-draw-toolbar" id="academy-draw-toolbar" style="display: none;">
@@ -5866,6 +5867,7 @@
                                         <button class="academy-draw-tool-btn" data-tool="clear" title="Clear All">🗑️</button>
                                         <input type="color" id="academy-draw-color" value="#10b981" title="Color" style="width: 28px; height: 28px; border: none; cursor: pointer; background: none;">
                                         <input type="range" id="academy-draw-width" min="1" max="8" value="2" title="Width" style="width: 60px;">
+                                        <button class="academy-snapshot-btn" id="academy-snapshot-btn" title="Save Chart Snapshot">📷 Snapshot</button>
                                     </div>
                                 </div>
                             </div>

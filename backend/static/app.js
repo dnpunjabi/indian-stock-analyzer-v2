@@ -13837,6 +13837,7 @@ function updateLightweightChartsThemeColors() {
     applyToLightweightChart(window.activeLightweightChart);
     applyToLightweightChart(window.activeFibLightweightChart);
     applyToLightweightChart(activeTVWorkstationChart);
+    applyToLightweightChart(window.activeAcademyLightweightChart);
 
     if (window.activeVolatilityLightweightCharts) {
         applyToLightweightChart(window.activeVolatilityLightweightCharts.bb);
@@ -28622,14 +28623,14 @@ const ACADEMY_CATALOG = [
 {id:'rsi',cat:'technical',emoji:'📊',title:'RSI (Relative Strength Index)',
  explanation:`<h5>What is RSI?</h5><p>The Relative Strength Index (RSI) is a momentum oscillator that measures the speed and magnitude of recent price changes to evaluate overbought or oversold conditions. Developed by J. Welles Wilder Jr. in 1978, it oscillates between 0 and 100.</p><h5>Interpretation Rules</h5><ul><li><b>RSI > 70</b> — Overbought (potential reversal down)</li><li><b>RSI < 30</b> — Oversold (potential reversal up)</li><li><b>RSI 40–60</b> — Neutral zone</li><li>Divergence between RSI and price signals trend exhaustion</li></ul><div class="academy-example-box">📌 <b>Example:</b> If Reliance Industries RSI drops to 25 after a sharp sell-off, it signals extreme oversold conditions — a potential bounce candidate for swing traders.</div>`,
  formula:`<div class="academy-formula-block">RSI = 100 − (100 / (1 + RS))</div><p>Where:</p><ul class="academy-formula-vars"><li><b>RS</b> = Average Gain over N periods / Average Loss over N periods</li><li><b>N</b> = Lookback period (default 14)</li><li>First RS uses simple average; subsequent values use exponential smoothing</li></ul>`,
- sandbox:{inputs:[{label:'Average Gain',key:'avgGain',val:1.5},{label:'Average Loss',key:'avgLoss',val:1.0}],calc:(v)=>{const rs=v.avgGain/Math.max(v.avgLoss,0.0001);return `RSI = ${(100-(100/(1+rs))).toFixed(2)}`;}},
+ sandbox:{inputs:[{label:'RSI Period',key:'length',val:14},{label:'Overbought level',key:'overbought',val:70},{label:'Oversold level',key:'oversold',val:30}],calc:(v)=>`RSI Period: ${v.length} | Overbought: ${v.overbought}% | Oversold: ${v.oversold}%`},
  quiz:[{q:'An RSI reading of 25 typically indicates:',opts:['Overbought','Oversold','Neutral','No signal'],ans:1},{q:'The default RSI period is:',opts:['7','14','21','50'],ans:1},{q:'RSI divergence occurs when:',opts:['Price and RSI move together','Price makes new high but RSI does not','RSI stays at 50','Volume increases'],ans:1}],
  chartType:'line',chartLabel:'RSI Value',chartData:[45,52,58,62,71,74,68,55,42,35,28,32,40,48,55,60,65,72,78,70,62,55,48,42,38]},
 
 {id:'macd',cat:'technical',emoji:'📈',title:'MACD (Moving Average Convergence Divergence)',
  explanation:`<h5>What is MACD?</h5><p>MACD is a trend-following momentum indicator that shows the relationship between two exponential moving averages of a security's price. It consists of the MACD line, signal line, and histogram.</p><h5>Components</h5><ul><li><b>MACD Line</b> = 12-period EMA − 26-period EMA</li><li><b>Signal Line</b> = 9-period EMA of MACD Line</li><li><b>Histogram</b> = MACD Line − Signal Line</li></ul><h5>Trading Signals</h5><ul><li><b>Bullish Crossover:</b> MACD crosses above Signal → Buy</li><li><b>Bearish Crossover:</b> MACD crosses below Signal → Sell</li><li><b>Zero Line Cross:</b> Confirms trend direction change</li></ul><div class="academy-example-box">📌 <b>Example:</b> TCS shows a MACD bullish crossover at −15 with histogram turning positive — early momentum shift signaling potential uptrend.</div>`,
  formula:`<div class="academy-formula-block">MACD Line = EMA(12) − EMA(26)<br>Signal = EMA(9) of MACD Line<br>Histogram = MACD − Signal</div><ul class="academy-formula-vars"><li><b>EMA(n)</b> = Exponential Moving Average over n periods</li><li>Multiplier = 2 / (n + 1)</li></ul>`,
- sandbox:{inputs:[{label:'EMA 12',key:'ema12',val:150},{label:'EMA 26',key:'ema26',val:145}],calc:(v)=>`MACD Line = ${(v.ema12-v.ema26).toFixed(2)}`},
+ sandbox:{inputs:[{label:'Fast Period',key:'fast',val:12},{label:'Slow Period',key:'slow',val:26},{label:'Signal Period',key:'signal',val:9}],calc:(v)=>`Fast: ${v.fast} | Slow: ${v.slow} | Signal: ${v.signal}`},
  quiz:[{q:'MACD is calculated as:',opts:['SMA(12) − SMA(26)','EMA(12) − EMA(26)','EMA(26) − EMA(12)','RSI(14) − RSI(26)'],ans:1},{q:'A bullish MACD crossover occurs when:',opts:['MACD crosses below signal','MACD crosses above signal','Histogram is zero','Signal crosses above zero'],ans:1}],
  chartType:'line',chartLabel:'MACD',chartData:[-5,-3,-1,1,3,5,7,8,6,4,2,0,-2,-4,-6,-4,-2,0,3,6,8,10,8,5,2]},
 
@@ -28650,7 +28651,7 @@ const ACADEMY_CATALOG = [
 {id:'bollinger',cat:'technical',emoji:'🎯',title:'Bollinger Bands',
  explanation:`<h5>What are Bollinger Bands?</h5><p>Bollinger Bands consist of a middle band (20-period SMA) with an upper and lower band set at 2 standard deviations above and below. They expand during high volatility and contract during low volatility.</p><h5>Trading Applications</h5><ul><li><b>Squeeze:</b> Bands narrow → Volatility contraction → Breakout imminent</li><li><b>Walk the Band:</b> Price riding the upper band = Strong uptrend</li><li><b>Mean Reversion:</b> Price touching lower band in a range = Buy signal</li><li>Bandwidth = (Upper − Lower) / Middle</li></ul>`,
  formula:`<div class="academy-formula-block">Middle Band = SMA(20)<br>Upper Band = SMA(20) + 2 × σ<br>Lower Band = SMA(20) − 2 × σ</div><ul class="academy-formula-vars"><li><b>σ</b> = Standard deviation of closing prices over 20 periods</li></ul>`,
- sandbox:{inputs:[{label:'SMA(20)',key:'sma',val:500},{label:'Std Dev',key:'std',val:15}],calc:(v)=>`Upper: ₹${(v.sma+2*v.std).toFixed(0)} | Lower: ₹${(v.sma-2*v.std).toFixed(0)} | Width: ₹${(4*v.std).toFixed(0)}`},
+ sandbox:{inputs:[{label:'MA Period',key:'period',val:20},{label:'Std Dev',key:'stddev',val:2.0}],calc:(v)=>`Middle Band = SMA(${v.period}) | Upper/Lower = ±${v.stddev}σ`},
  quiz:[{q:'Bollinger Band Squeeze indicates:',opts:['High volatility','Low volatility and potential breakout','Trend reversal','Overbought condition'],ans:1}],
  chartType:'line',chartLabel:'Price',chartData:[495,498,502,505,510,515,520,518,512,505,500,498,495,492,488,490,495,500,508,515,522,530,525,518,510]},
 
@@ -28866,7 +28867,7 @@ const ACADEMY_CATALOG = [
 // ── FUNDAMENTAL ANALYSIS (10) ──
 {id:'three_statements',cat:'fundamental',emoji:'📑',title:'Three-Statement Financial Model',explanation:`<h5>The Three Core Statements</h5><ul><li><b>Income Statement:</b> Revenue → COGS → Gross Profit → EBITDA → EBIT → PAT (Profit After Tax)</li><li><b>Balance Sheet:</b> Assets = Liabilities + Shareholders' Equity</li><li><b>Cash Flow Statement:</b> CFO (Operating) + CFI (Investing) + CFF (Financing) = Net Change in Cash</li></ul><p>These three statements are interconnected: Net Income flows to Retained Earnings, Capex links Income Statement to Balance Sheet, and Depreciation is a non-cash adjustment in CFO.</p>`,formula:`<div class="academy-formula-block">Net Profit Margin = PAT / Revenue × 100<br>Operating Margin = EBIT / Revenue × 100</div>`,sandbox:{inputs:[{label:'Revenue (Cr)',key:'rev',val:10000},{label:'PAT (Cr)',key:'pat',val:1500}],calc:(v)=>`Net Margin = ${(v.pat/v.rev*100).toFixed(2)}%`},quiz:[{q:'The accounting equation is:',opts:['Assets = Revenue − Expenses','Assets = Liabilities + Equity','Revenue = Expenses + Profit','Cash = Assets − Liabilities'],ans:1}],chartType:'bar',chartLabel:'Margins (%)',chartData:[12,13,14,15,14,13,15,16,17,18,17,16,18,19,20,19,18,20,21,22,21,20,22,23,24]},
 
-{id:'valuation_multiples',cat:'fundamental',emoji:'📊',title:'Valuation Multiples (P/E, P/B, EV/EBITDA)',explanation:`<h5>Key Valuation Ratios</h5><ul><li><b>P/E Ratio:</b> Price / Earnings Per Share — most widely used equity valuation metric</li><li><b>P/B Ratio:</b> Price / Book Value per share — useful for banks and asset-heavy companies</li><li><b>EV/EBITDA:</b> Enterprise Value / EBITDA — capital-structure neutral comparison</li></ul><p>Compare to sector median and historical averages to assess premium/discount.</p>`,formula:`<div class="academy-formula-block">P/E = Market Price / EPS<br>P/B = Market Price / Book Value per Share<br>EV = Market Cap + Debt − Cash<br>EV/EBITDA = EV / EBITDA</div>`,sandbox:{inputs:[{label:'Price (₹)',key:'price',val:2500},{label:'EPS (₹)',key:'eps',val:80},{label:'Book Value',key:'bv',val:450}],calc:(v)=>`P/E = ${(v.price/v.eps).toFixed(2)}x | P/B = ${(v.price/v.bv).toFixed(2)}x`},quiz:[{q:'EV/EBITDA is preferred over P/E because:',opts:['It includes dividends','It is capital-structure neutral','It uses cash flow','It ignores debt'],ans:1}],chartType:'line',chartLabel:'P/E Ratio',chartData:[18,20,22,25,28,30,28,25,22,20,18,20,22,25,30,35,32,28,25,22,20,22,25,28,30]},
+{id:'valuation_multiples',cat:'fundamental',emoji:'📊',title:'Valuation Multiples (P/E, P/B, EV/EBITDA)',explanation:`<h5>Key Valuation Ratios</h5><ul><li><b>P/E Ratio:</b> Price / Earnings Per Share — most widely used equity valuation metric</li><li><b>P/B Ratio:</b> Price / Book Value per share — useful for banks and asset-heavy companies</li><li><b>EV/EBITDA:</b> Enterprise Value / EBITDA — capital-structure neutral comparison</li></ul><p>Compare to sector median and historical averages to assess premium/discount.</p>`,formula:`<div class="academy-formula-block">P/E = Market Price / EPS<br>P/B = Market Price / Book Value per Share<br>EV = Market Cap + Debt − Cash<br>EV/EBITDA = EV / EBITDA</div>`,sandbox:{inputs:[{label:'Price (₹)',key:'price',val:2500},{label:'EPS (₹)',key:'eps',val:80},{label:'Book Value (₹)',key:'bv',val:450},{label:'EBITDA/Share (₹)',key:'ebitda',val:200},{label:'Net Debt/Share (₹)',key:'debt',val:150}],calc:(v)=>`P/E = ${(v.price/v.eps).toFixed(2)}x | P/B = ${(v.price/v.bv).toFixed(2)}x | EV/EBITDA = ${((v.price+v.debt)/v.ebitda).toFixed(2)}x`},quiz:[{q:'EV/EBITDA is preferred over P/E because:',opts:['It includes dividends','It is capital-structure neutral','It uses cash flow','It ignores debt'],ans:1}],chartType:'line',chartLabel:'P/E Ratio',chartData:[18,20,22,25,28,30,28,25,22,20,18,20,22,25,30,35,32,28,25,22,20,22,25,28,30]},
 
 {id:'return_ratios',cat:'fundamental',emoji:'💹',title:'Return Ratios (ROE, ROCE, ROA)',explanation:`<h5>Return on Equity (ROE)</h5><p>Measures profitability relative to shareholders' equity. High ROE (>15%) indicates efficient capital usage.</p><h5>Return on Capital Employed (ROCE)</h5><p>Measures returns generated on total capital (equity + debt). Better for comparing companies with different capital structures.</p><h5>Return on Assets (ROA)</h5><p>Measures how efficiently assets generate profits.</p>`,formula:`<div class="academy-formula-block">ROE = PAT / Shareholders' Equity × 100<br>ROCE = EBIT / Capital Employed × 100<br>ROA = PAT / Total Assets × 100</div>`,sandbox:{inputs:[{label:'PAT (Cr)',key:'pat',val:1500},{label:'Equity (Cr)',key:'equity',val:8000},{label:'EBIT (Cr)',key:'ebit',val:2200},{label:'Capital Employed',key:'ce',val:12000}],calc:(v)=>`ROE = ${(v.pat/v.equity*100).toFixed(2)}% | ROCE = ${(v.ebit/v.ce*100).toFixed(2)}%`},quiz:[{q:'ROCE is better than ROE for comparing companies with:',opts:['Same sector','Different capital structures','Same size','High growth'],ans:1}],chartType:'line',chartLabel:'ROE (%)',chartData:[14,15,16,18,20,22,21,19,17,16,18,20,22,24,23,21,19,20,22,24,26,25,23,21,22]},
 
@@ -28952,6 +28953,12 @@ function setupLearningAcademy() {
                 const ctx = canvas.getContext('2d');
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
             }
+        }
+        if (window.activeAcademyLightweightChart) {
+            window.activeAcademyLightweightChart.applyOptions({
+                handleScroll: !academyDrawMode,
+                handleScale: !academyDrawMode,
+            });
         }
         if (toolbar) toolbar.style.display = academyDrawMode ? 'flex' : 'none';
         drawBtn.style.color = academyDrawMode ? 'var(--color-primary)' : '';
@@ -29162,101 +29169,143 @@ function computeEMA(prices, period) {
 }
 
 function renderAcademyChart(module) {
-    const canvas = document.getElementById('academy-widget-canvas');
-    if (!canvas) return;
+    const container = document.getElementById('academy-lightweight-chart-container');
+    if (!container) return;
 
-    const container = document.getElementById('academy-widget-container');
-    if (container) {
-        canvas.width = container.clientWidth || 700;
-        canvas.height = 300;
-        const drawCanvas = document.getElementById('academy-draw-canvas');
-        if (drawCanvas) { drawCanvas.width = canvas.width; drawCanvas.height = canvas.height; }
+    // Clean up previous chart instance
+    if (window.activeAcademyLightweightChart) {
+        window.activeAcademyLightweightChart.remove();
+        window.activeAcademyLightweightChart = null;
     }
 
-    const ctx = canvas.getContext('2d');
-    const w = canvas.width, h = canvas.height;
-    const padding = { top: 40, right: 30, bottom: 30, left: 50 };
-    const chartW = w - padding.left - padding.right;
-    const chartH = h - padding.top - padding.bottom;
-
-    ctx.clearRect(0, 0, w, h);
+    const parentContainer = document.getElementById('academy-widget-container');
+    const drawCanvas = document.getElementById('academy-draw-canvas');
+    if (parentContainer && drawCanvas) {
+        drawCanvas.width = parentContainer.clientWidth || 700;
+        drawCanvas.height = 300;
+    }
 
     const isDark = document.documentElement.getAttribute('data-theme') !== 'light' && !document.body.classList.contains('light-mode');
-    ctx.fillStyle = isDark ? 'rgba(6,9,19,0.9)' : 'rgba(248,250,252,0.95)';
-    ctx.fillRect(0, 0, w, h);
+    
+    // Choose colors based on theme
+    const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+    const textColor = isDark ? '#9ca3af' : '#4b5563';
+    
+    // Initialize chart
+    const chart = LightweightCharts.createChart(container, {
+        width: parentContainer.clientWidth || 700,
+        height: 300,
+        layout: {
+            background: { type: LightweightCharts.ColorType.Solid, color: 'transparent' },
+            textColor: textColor,
+        },
+        grid: {
+            vertLines: { color: gridColor },
+            horzLines: { color: gridColor },
+        },
+        crosshair: {
+            mode: LightweightCharts.CrosshairMode.Normal,
+        },
+        handleScroll: !academyDrawMode,
+        handleScale: !academyDrawMode,
+    });
+    
+    window.activeAcademyLightweightChart = chart;
+    
+    // Track series to populate tooltip
+    const activeSeriesMap = {};
 
-    // Initialize interactive points store
-    academyActiveChartData = {
-        module: module,
-        padding: padding,
-        chartW: chartW,
-        chartH: chartH,
-        w: w,
-        h: h,
-        isDark: isDark,
-        points: []
-    };
+    // Get active values (Indicators use academyActiveSliderValues, Candlesticks/patterns use academyActiveSandboxValues)
+    const sbVals = { ...academyActiveSliderValues, ...academyActiveSandboxValues };
+    const activeSub = academyActiveSubPattern[module.id] || (ACADEMY_SUB_PATTERNS[module.id] ? ACADEMY_SUB_PATTERNS[module.id][0] : null);
 
-    let drawGridAndLabels = (minVal, maxVal) => {
-        const range = maxVal - minVal || 1;
-        ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)';
-        ctx.lineWidth = 0.5;
-        for (let i = 0; i <= 5; i++) {
-            const y = padding.top + (chartH / 5) * i;
-            ctx.beginPath(); ctx.moveTo(padding.left, y); ctx.lineTo(w - padding.right, y); ctx.stroke();
-            const label = (maxVal - (range / 5) * i).toFixed(1);
-            ctx.fillStyle = isDark ? '#9ca3af' : '#6b7280';
-            ctx.font = '9px Inter';
-            ctx.textAlign = 'right';
-            ctx.fillText(label, padding.left - 6, y + 3);
+    // Render depending on topic type or category
+    if (module.cat === 'candlestick') {
+        const candles = getDynamicCandleData(module, activeSub, sbVals);
+        const formattedCandles = candles.map((c, idx) => {
+            const date = new Date(2026, 5, idx + 1);
+            return {
+                time: date.toISOString().split('T')[0],
+                open: c.open,
+                high: c.high,
+                low: c.low,
+                close: c.close
+            };
+        });
+        
+        const candleSeries = chart.addCandlestickSeries({
+            upColor: '#10b981',
+            downColor: '#ef4444',
+            borderVisible: true,
+            wickVisible: true,
+            borderUpColor: '#10b981',
+            borderDownColor: '#ef4444',
+            wickUpColor: '#10b981',
+            wickDownColor: '#ef4444',
+        });
+        candleSeries.setData(formattedCandles);
+        activeSeriesMap['Candle'] = candleSeries;
+
+        // Set native markers on target candles if applicable
+        if (formattedCandles.length > 0) {
+            let targetIdx = formattedCandles.length - 1;
+            if (module.id === 'doji' || module.id === 'hammer' || module.id === 'hanging_man' || module.id === 'shooting_star' || module.id === 'inverted_hammer') {
+                targetIdx = module.id === 'doji' ? 2 : 4;
+            }
+            if (formattedCandles[targetIdx]) {
+                candleSeries.setMarkers([
+                    {
+                        time: formattedCandles[targetIdx].time,
+                        position: 'aboveBar',
+                        color: '#f59e0b',
+                        shape: 'arrowDown',
+                        text: module.emoji + ' ' + (activeSub || module.title),
+                    }
+                ]);
+            }
         }
-    };
-
-    if (module.id === 'rsi') {
-        const length = academyActiveSliderValues['rsi_length'] || 14;
-        const overbought = academyActiveSliderValues['rsi_overbought'] || 70;
-        const oversold = academyActiveSliderValues['rsi_oversold'] || 30;
+    } 
+    else if (module.id === 'rsi') {
+        const length = sbVals['rsi_length'] !== undefined ? sbVals['rsi_length'] : 14;
+        const overbought = sbVals['rsi_overbought'] !== undefined ? sbVals['rsi_overbought'] : 70;
+        const oversold = sbVals['rsi_oversold'] !== undefined ? sbVals['rsi_oversold'] : 30;
         const rsiData = computeRSI(ACADEMY_BASE_PRICES, length);
 
-        drawGridAndLabels(0, 100);
-
-        ctx.strokeStyle = 'rgba(239, 68, 68, 0.4)';
-        ctx.lineWidth = 1;
-        ctx.setLineDash([5, 5]);
-        const yOB = padding.top + chartH - (overbought / 100) * chartH;
-        ctx.beginPath(); ctx.moveTo(padding.left, yOB); ctx.lineTo(w - padding.right, yOB); ctx.stroke();
-        ctx.fillStyle = 'rgba(239, 68, 68, 0.8)';
-        ctx.font = '9px Inter';
-        ctx.textAlign = 'left';
-        ctx.fillText(`OB (${overbought})`, padding.left + 5, yOB - 4);
-
-        ctx.strokeStyle = 'rgba(16, 185, 129, 0.4)';
-        const yOS = padding.top + chartH - (oversold / 100) * chartH;
-        ctx.beginPath(); ctx.moveTo(padding.left, yOS); ctx.lineTo(w - padding.right, yOS); ctx.stroke();
-        ctx.fillStyle = 'rgba(16, 185, 129, 0.8)';
-        ctx.fillText(`OS (${oversold})`, padding.left + 5, yOS + 12);
-        ctx.setLineDash([]);
-
-        ctx.beginPath();
-        ctx.strokeStyle = '#8b5cf6';
-        ctx.lineWidth = 2;
-        rsiData.forEach((v, i) => {
-            const x = padding.left + (chartW / (rsiData.length - 1)) * i;
-            const y = padding.top + chartH - (v / 100) * chartH;
-            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-
-            academyActiveChartData.points.push({
-                x: x,
-                y: y,
-                values: { 'RSI': v.toFixed(2) }
-            });
+        const rsiSeries = chart.addLineSeries({
+            color: '#8b5cf6',
+            lineWidth: 2,
         });
-        ctx.stroke();
+        const formattedData = rsiData.map((v, idx) => {
+            const date = new Date(2026, 5, idx + 1);
+            return { time: date.toISOString().split('T')[0], value: v };
+        });
+        rsiSeries.setData(formattedData);
+        activeSeriesMap['RSI'] = rsiSeries;
 
-    } else if (module.id === 'macd') {
-        const fast = academyActiveSliderValues['macd_fast'] || 12;
-        const slow = academyActiveSliderValues['macd_slow'] || 26;
-        const signal = academyActiveSliderValues['macd_signal'] || 9;
+        // Overbought PriceLine
+        rsiSeries.createPriceLine({
+            price: overbought,
+            color: 'rgba(239, 68, 68, 0.6)',
+            lineWidth: 1,
+            lineStyle: LightweightCharts.LineStyle.Dashed,
+            axisLabelVisible: true,
+            title: `OB (${overbought})`,
+        });
+
+        // Oversold PriceLine
+        rsiSeries.createPriceLine({
+            price: oversold,
+            color: 'rgba(16, 185, 129, 0.6)',
+            lineWidth: 1,
+            lineStyle: LightweightCharts.LineStyle.Dashed,
+            axisLabelVisible: true,
+            title: `OS (${oversold})`,
+        });
+    } 
+    else if (module.id === 'macd') {
+        const fast = sbVals['macd_fast'] !== undefined ? sbVals['macd_fast'] : 12;
+        const slow = sbVals['macd_slow'] !== undefined ? sbVals['macd_slow'] : 26;
+        const signal = sbVals['macd_signal'] !== undefined ? sbVals['macd_signal'] : 9;
 
         const fastEMA = computeEMA(ACADEMY_BASE_PRICES, fast);
         const slowEMA = computeEMA(ACADEMY_BASE_PRICES, slow);
@@ -29272,55 +29321,37 @@ function renderAcademyChart(module) {
             hist.push(macdLine[i] - signalLine[i]);
         }
 
-        const allVals = [...macdLine, ...signalLine, ...hist];
-        const minVal = Math.min(...allVals);
-        const maxVal = Math.max(...allVals);
-        const range = Math.max(Math.abs(minVal), Math.abs(maxVal)) * 2;
-
-        drawGridAndLabels(-range / 2, range / 2);
-
-        const barW = chartW / hist.length * 0.6;
-        const gap = chartW / hist.length;
-        hist.forEach((v, i) => {
-            const x = padding.left + gap * i + (gap - barW) / 2;
-            const barH = (v / (range / 2)) * (chartH / 2);
-            ctx.fillStyle = v >= 0 ? 'rgba(16, 185, 129, 0.5)' : 'rgba(239, 68, 68, 0.5)';
-            ctx.fillRect(x, padding.top + chartH / 2 - (v >= 0 ? barH : 0), barW, Math.abs(barH));
+        const macdSeries = chart.addLineSeries({
+            color: '#3b82f6',
+            lineWidth: 1.5,
+            title: 'MACD'
+        });
+        const sigSeries = chart.addLineSeries({
+            color: '#f97316',
+            lineWidth: 1.5,
+            title: 'Signal'
+        });
+        const histSeries = chart.addHistogramSeries({
+            color: '#10b981',
+            title: 'Histogram'
         });
 
-        ctx.beginPath();
-        ctx.strokeStyle = '#3b82f6';
-        ctx.lineWidth = 1.5;
-        macdLine.forEach((v, i) => {
-            const x = padding.left + (chartW / (macdLine.length - 1)) * i;
-            const y = padding.top + chartH / 2 - (v / (range / 2)) * (chartH / 2);
-            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        const dates = ACADEMY_BASE_PRICES.map((_, idx) => new Date(2026, 5, idx + 1).toISOString().split('T')[0]);
+        macdSeries.setData(macdLine.map((v, i) => ({ time: dates[i], value: v })));
+        sigSeries.setData(signalLine.map((v, i) => ({ time: dates[i], value: v })));
+        histSeries.setData(hist.map((v, i) => ({ 
+            time: dates[i], 
+            value: v,
+            color: v >= 0 ? 'rgba(16, 185, 129, 0.5)' : 'rgba(239, 68, 68, 0.5)'
+        })));
 
-            academyActiveChartData.points.push({
-                x: x,
-                y: y,
-                values: {
-                    'MACD': v.toFixed(3),
-                    'Signal': signalLine[i].toFixed(3),
-                    'Histogram': hist[i].toFixed(3)
-                }
-            });
-        });
-        ctx.stroke();
-
-        ctx.beginPath();
-        ctx.strokeStyle = '#f97316';
-        ctx.lineWidth = 1.5;
-        signalLine.forEach((v, i) => {
-            const x = padding.left + (chartW / (signalLine.length - 1)) * i;
-            const y = padding.top + chartH / 2 - (v / (range / 2)) * (chartH / 2);
-            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-        });
-        ctx.stroke();
-
-    } else if (module.id === 'bollinger') {
-        const period = academyActiveSliderValues['bb_period'] || 20;
-        const stddevVal = academyActiveSliderValues['bb_stddev'] || 2.0;
+        activeSeriesMap['MACD'] = macdSeries;
+        activeSeriesMap['Signal'] = sigSeries;
+        activeSeriesMap['Histogram'] = histSeries;
+    } 
+    else if (module.id === 'bollinger') {
+        const period = sbVals['bb_period'] !== undefined ? sbVals['bb_period'] : 20;
+        const stddevVal = sbVals['bb_stddev'] !== undefined ? sbVals['bb_stddev'] : 2.0;
 
         let middle = computeSMA(ACADEMY_BASE_PRICES, period);
         let upper = [];
@@ -29341,137 +29372,434 @@ function renderAcademyChart(module) {
             lower.push(mean - stddevVal * std);
         }
 
-        const minVal = Math.min(...lower, ...ACADEMY_BASE_PRICES);
-        const maxVal = Math.max(...upper, ...ACADEMY_BASE_PRICES);
-        const range = maxVal - minVal || 1;
-
-        drawGridAndLabels(minVal, maxVal);
-
-        ctx.beginPath();
-        upper.forEach((v, i) => {
-            const x = padding.left + (chartW / (upper.length - 1)) * i;
-            const y = padding.top + chartH - ((v - minVal) / range) * chartH;
-            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        const priceSeries = chart.addAreaSeries({
+            color: '#6366f1',
+            topColor: 'rgba(99, 102, 241, 0.05)',
+            bottomColor: 'rgba(99, 102, 241, 0)',
+            lineWidth: 2,
+            title: 'Price'
         });
-        for (let i = lower.length - 1; i >= 0; i--) {
-            const x = padding.left + (chartW / (lower.length - 1)) * i;
-            const y = padding.top + chartH - ((lower[i] - minVal) / range) * chartH;
-            ctx.lineTo(x, y);
+        const midSeries = chart.addLineSeries({
+            color: 'rgba(245, 158, 11, 0.6)',
+            lineWidth: 1,
+            lineStyle: LightweightCharts.LineStyle.Dashed,
+            title: 'Basis'
+        });
+        const upperSeries = chart.addLineSeries({
+            color: 'rgba(99, 102, 241, 0.4)',
+            lineWidth: 1,
+            title: 'Upper'
+        });
+        const lowerSeries = chart.addLineSeries({
+            color: 'rgba(99, 102, 241, 0.4)',
+            lineWidth: 1,
+            title: 'Lower'
+        });
+
+        const dates = ACADEMY_BASE_PRICES.map((_, idx) => new Date(2026, 5, idx + 1).toISOString().split('T')[0]);
+        priceSeries.setData(ACADEMY_BASE_PRICES.map((v, i) => ({ time: dates[i], value: v })));
+        midSeries.setData(middle.map((v, i) => ({ time: dates[i], value: v })));
+        upperSeries.setData(upper.map((v, i) => ({ time: dates[i], value: v })));
+        lowerSeries.setData(lower.map((v, i) => ({ time: dates[i], value: v })));
+
+        activeSeriesMap['Stock Price'] = priceSeries;
+        activeSeriesMap['Middle Band'] = midSeries;
+        activeSeriesMap['Upper Band'] = upperSeries;
+        activeSeriesMap['Lower Band'] = lowerSeries;
+    } 
+    else if (module.id === 'dcf_wacc') {
+        const fcf = sbVals['fcf'] !== undefined ? sbVals['fcf'] : 500;
+        const wacc = sbVals['wacc'] !== undefined ? sbVals['wacc'] : 12;
+        const g = sbVals['g'] !== undefined ? sbVals['g'] : 5;
+
+        const fcfSeries = chart.addHistogramSeries({
+            color: 'rgba(16, 185, 129, 0.6)',
+            title: 'FCF (Cr)'
+        });
+        const pvSeries = chart.addLineSeries({
+            color: '#3b82f6',
+            lineWidth: 2.5,
+            title: 'PV of FCF (Cr)'
+        });
+
+        const fcfData = [];
+        const pvData = [];
+        const dates = Array.from({length: 5}, (_, i) => new Date(2026, 5, i + 1).toISOString().split('T')[0]);
+
+        for (let i = 0; i < 5; i++) {
+            const f = fcf * Math.pow(1 + g / 100, i);
+            const pv = f / Math.pow(1 + wacc / 100, i + 1);
+            fcfData.push({ time: dates[i], value: f });
+            pvData.push({ time: dates[i], value: pv });
         }
-        ctx.closePath();
-        ctx.fillStyle = isDark ? 'rgba(99, 102, 241, 0.05)' : 'rgba(99, 102, 241, 0.08)';
-        ctx.fill();
 
-        ctx.beginPath();
-        ctx.strokeStyle = 'rgba(99, 102, 241, 0.5)';
-        ctx.lineWidth = 1;
-        upper.forEach((v, i) => {
-            const x = padding.left + (chartW / (upper.length - 1)) * i;
-            const y = padding.top + chartH - ((v - minVal) / range) * chartH;
-            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        fcfSeries.setData(fcfData);
+        pvSeries.setData(pvData);
+
+        activeSeriesMap['Proj FCF'] = fcfSeries;
+        activeSeriesMap['Discounted PV'] = pvSeries;
+    }
+    else if (module.id === 'three_statements') {
+        const rev = sbVals['rev'] !== undefined ? sbVals['rev'] : 10000;
+        const pat = sbVals['pat'] !== undefined ? sbVals['pat'] : 1500;
+        const ebitda = rev * 0.22; // simulated EBITDA
+
+        const statementsSeries = chart.addHistogramSeries({
+            color: '#3b82f6',
+            title: '₹ Cr'
         });
-        ctx.stroke();
+        const dates = ['2026-06-01', '2026-06-02', '2026-06-03'];
+        const data = [
+            { time: dates[0], value: rev, color: '#3b82f6' },      // Revenue
+            { time: dates[1], value: ebitda, color: '#f59e0b' },   // EBITDA
+            { time: dates[2], value: pat, color: '#10b981' }       // PAT
+        ];
+        statementsSeries.setData(data);
+        activeSeriesMap['Financial Value'] = statementsSeries;
+    }
+    else if (module.id === 'dupont') {
+        const nm = sbVals['nm'] !== undefined ? sbVals['nm'] : 15;
+        const at = sbVals['at'] !== undefined ? sbVals['at'] : 0.8;
+        const em = sbVals['em'] !== undefined ? sbVals['em'] : 1.5;
+        const roe = nm * at * em;
 
-        ctx.beginPath();
-        ctx.strokeStyle = 'rgba(99, 102, 241, 0.5)';
-        ctx.lineWidth = 1;
-        lower.forEach((v, i) => {
-            const x = padding.left + (chartW / (lower.length - 1)) * i;
-            const y = padding.top + chartH - ((v - minVal) / range) * chartH;
-            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        const dupontSeries = chart.addHistogramSeries({
+            color: '#8b5cf6',
+            title: 'DuPont Drivers'
         });
-        ctx.stroke();
+        const dates = ['2026-06-01', '2026-06-02', '2026-06-03', '2026-06-04'];
+        const data = [
+            { time: dates[0], value: nm, color: '#3b82f6' },             // Net Margin %
+            { time: dates[1], value: at * 10, color: '#f59e0b' },        // Asset Turnover x10
+            { time: dates[2], value: em * 10, color: '#10b981' },        // Equity Multiplier x10
+            { time: dates[3], value: roe, color: '#8b5cf6' }             // Resulting ROE %
+        ];
+        dupontSeries.setData(data);
+        activeSeriesMap['DuPont Driver'] = dupontSeries;
+    }
+    else if (module.id === 'bond_basics') {
+        const fv = sbVals['fv'] !== undefined ? sbVals['fv'] : 1000;
+        const couponRate = sbVals['coupon'] !== undefined ? sbVals['coupon'] : 8;
+        const currentYield = sbVals['yield'] !== undefined ? sbVals['yield'] : 7;
+        const n = sbVals['n'] !== undefined ? sbVals['n'] : 5;
 
-        ctx.beginPath();
-        ctx.strokeStyle = 'rgba(245, 158, 11, 0.6)';
-        ctx.lineWidth = 1;
-        ctx.setLineDash([4, 4]);
-        middle.forEach((v, i) => {
-            const x = padding.left + (chartW / (middle.length - 1)) * i;
-            const y = padding.top + chartH - ((v - minVal) / range) * chartH;
-            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        const priceSeries = chart.addLineSeries({
+            color: '#3b82f6',
+            lineWidth: 2.5,
+            title: 'Price vs Yield'
         });
-        ctx.stroke();
-        ctx.setLineDash([]);
 
-        ctx.beginPath();
-        ctx.strokeStyle = '#6366f1';
-        ctx.lineWidth = 2;
-        ACADEMY_BASE_PRICES.forEach((v, i) => {
-            const x = padding.left + (chartW / (ACADEMY_BASE_PRICES.length - 1)) * i;
-            const y = padding.top + chartH - ((v - minVal) / range) * chartH;
-            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        const curveData = [];
+        const couponVal = fv * couponRate / 100;
+        
+        // Generate yields from 2% to 15%
+        for (let y = 2; y <= 15; y += 0.5) {
+            let price = 0;
+            for (let t = 1; t <= n; t++) {
+                price += couponVal / Math.pow(1 + y / 100, t);
+            }
+            price += fv / Math.pow(1 + y / 100, n);
+            
+            const date = new Date(2026, 5, Math.floor((y - 2) * 2) + 1).toISOString().split('T')[0];
+            curveData.push({ time: date, value: price });
+        }
 
-            academyActiveChartData.points.push({
-                x: x,
-                y: y,
-                values: {
-                    'Stock Price': '₹' + v.toFixed(2),
-                    'Upper Band': '₹' + upper[i].toFixed(2),
-                    'Middle Band': '₹' + middle[i].toFixed(2),
-                    'Lower Band': '₹' + lower[i].toFixed(2)
-                }
-            });
+        priceSeries.setData(curveData);
+        activeSeriesMap['Bond Price'] = priceSeries;
+
+        // Draw a price line at the CURRENT yield's price
+        let currentPrice = 0;
+        for (let t = 1; t <= n; t++) {
+            currentPrice += couponVal / Math.pow(1 + currentYield / 100, t);
+        }
+        currentPrice += fv / Math.pow(1 + currentYield / 100, n);
+
+        priceSeries.createPriceLine({
+            price: currentPrice,
+            color: '#ef4444',
+            lineWidth: 1.5,
+            lineStyle: LightweightCharts.LineStyle.Solid,
+            axisLabelVisible: true,
+            title: `Price at ${currentYield}% Yield (₹${currentPrice.toFixed(0)})`,
         });
-        ctx.stroke();
-
-    } else {
+    }
+    else {
         const data = getDynamicChartData(module);
-        if (!data || data.length === 0) return;
-        const minVal = Math.min(...data);
-        const maxVal = Math.max(...data);
-        const range = maxVal - minVal || 1;
-
-        drawGridAndLabels(minVal, maxVal);
-
-        if (module.chartType === 'bar') {
-            const barW = chartW / data.length * 0.7;
-            const gap = chartW / data.length;
-            data.forEach((v, i) => {
-                const x = padding.left + gap * i + (gap - barW) / 2;
-                const barH = (Math.abs(v) / range) * chartH;
-                const y = v >= 0 ? padding.top + chartH - (v - minVal) / range * chartH : padding.top + chartH - (-minVal) / range * chartH;
-                ctx.fillStyle = v >= 0 ? 'rgba(16, 185, 129, 0.7)' : 'rgba(239, 68, 68, 0.7)';
-                ctx.fillRect(x, y, barW, v >= 0 ? (v - Math.max(0, minVal)) / range * chartH : Math.abs(v) / range * chartH);
-
-                academyActiveChartData.points.push({
-                    x: x + barW / 2,
-                    y: y + (v >= 0 ? 0 : barH),
-                    values: { 'Value': v.toFixed(2) }
+        if (data && data.length > 0) {
+            const dates = data.map((_, idx) => new Date(2026, 5, idx + 1).toISOString().split('T')[0]);
+            
+            if (module.chartType === 'bar') {
+                const barSeries = chart.addHistogramSeries({
+                    color: '#10b981',
                 });
-            });
-        } else {
-            ctx.beginPath();
-            ctx.strokeStyle = '#6366f1';
-            ctx.lineWidth = 2;
-            data.forEach((v, i) => {
-                const x = padding.left + (chartW / (data.length - 1)) * i;
-                const y = padding.top + chartH - ((v - minVal) / range) * chartH;
-                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                barSeries.setData(data.map((v, i) => ({
+                    time: dates[i],
+                    value: v,
+                    color: v >= 0 ? 'rgba(16, 185, 129, 0.7)' : 'rgba(239, 68, 68, 0.7)'
+                })));
+                activeSeriesMap[module.chartLabel || 'Value'] = barSeries;
+            } 
+            else if (module.id === 'valuation_multiples') {
+                const peSeries = chart.addLineSeries({ color: '#3b82f6', lineWidth: 2, title: 'P/E' });
+                const pbSeries = chart.addLineSeries({ color: '#f97316', lineWidth: 2, title: 'P/B' });
+                const evSeries = chart.addLineSeries({ color: '#8b5cf6', lineWidth: 2, title: 'EV/EBITDA' });
 
-                academyActiveChartData.points.push({
-                    x: x,
-                    y: y,
-                    values: { 'Value': v.toFixed(2) }
+                const peData = [];
+                const pbData = [];
+                const evData = [];
+
+                const basePrice = sbVals['price'] !== undefined ? sbVals['price'] : 2500;
+                const eps = sbVals['eps'] !== undefined ? sbVals['eps'] : 80;
+                const bv = sbVals['bv'] !== undefined ? sbVals['bv'] : 450;
+                const ebitda = sbVals['ebitda'] !== undefined ? sbVals['ebitda'] : 200;
+                const debt = sbVals['debt'] !== undefined ? sbVals['debt'] : 150;
+
+                dates.forEach((date, i) => {
+                    const fluctuation = Math.sin(i / 3) * 0.15;
+                    const price = basePrice * (1 + fluctuation);
+                    
+                    peData.push({ time: date, value: price / Math.max(eps, 0.1) });
+                    pbData.push({ time: date, value: price / Math.max(bv, 0.1) });
+                    evData.push({ time: date, value: (price + debt) / Math.max(ebitda, 0.1) });
                 });
-            });
-            ctx.stroke();
 
-            const gradient = ctx.createLinearGradient(0, padding.top, 0, h - padding.bottom);
-            gradient.addColorStop(0, 'rgba(99,102,241,0.15)');
-            gradient.addColorStop(1, 'rgba(99,102,241,0)');
-            ctx.lineTo(padding.left + chartW, h - padding.bottom);
-            ctx.lineTo(padding.left, h - padding.bottom);
-            ctx.closePath();
-            ctx.fillStyle = gradient;
-            ctx.fill();
+                peSeries.setData(peData);
+                pbSeries.setData(pbData);
+                evSeries.setData(evData);
+
+                activeSeriesMap['P/E Ratio'] = peSeries;
+                activeSeriesMap['P/B Ratio'] = pbSeries;
+                activeSeriesMap['EV/EBITDA'] = evSeries;
+            }
+            else if (module.id === 'return_ratios') {
+                const roeSeries = chart.addLineSeries({ color: '#10b981', lineWidth: 2, title: 'ROE' });
+                const roceSeries = chart.addLineSeries({ color: '#3b82f6', lineWidth: 2, title: 'ROCE' });
+                
+                const pat = sbVals['pat'] !== undefined ? sbVals['pat'] : 1500;
+                const equity = sbVals['equity'] !== undefined ? sbVals['equity'] : 8000;
+                const ebit = sbVals['ebit'] !== undefined ? sbVals['ebit'] : 2200;
+                const ce = sbVals['ce'] !== undefined ? sbVals['ce'] : 12000;
+
+                const roeData = [];
+                const roceData = [];
+                dates.forEach((date, i) => {
+                    const fluctuation = Math.sin(i / 4) * 0.1;
+                    roeData.push({ time: date, value: (pat * (1 + fluctuation)) / Math.max(equity, 1) * 100 });
+                    roceData.push({ time: date, value: (ebit * (1 + fluctuation)) / Math.max(ce, 1) * 100 });
+                });
+                roeSeries.setData(roeData);
+                roceSeries.setData(roceData);
+                activeSeriesMap['ROE (%)'] = roeSeries;
+                activeSeriesMap['ROCE (%)'] = roceSeries;
+            }
+            else if (module.id === 'solvency_liquidity') {
+                const deSeries = chart.addLineSeries({ color: '#f59e0b', lineWidth: 2, title: 'D/E' });
+                const icrSeries = chart.addLineSeries({ color: '#3b82f6', lineWidth: 2, title: 'ICR' });
+
+                const debt = sbVals['debt'] !== undefined ? sbVals['debt'] : 3000;
+                const equity = sbVals['equity'] !== undefined ? sbVals['equity'] : 8000;
+                const ebit = sbVals['ebit'] !== undefined ? sbVals['ebit'] : 2200;
+                const interest = sbVals['interest'] !== undefined ? sbVals['interest'] : 300;
+
+                const deData = [];
+                const icrData = [];
+                dates.forEach((date, i) => {
+                    const fluctuation = Math.sin(i / 5) * 0.08;
+                    deData.push({ time: date, value: (debt * (1 + fluctuation)) / Math.max(equity, 1) });
+                    icrData.push({ time: date, value: (ebit * (1 + fluctuation)) / Math.max(interest, 1) });
+                });
+                deSeries.setData(deData);
+                icrSeries.setData(icrData);
+                activeSeriesMap['Debt-to-Equity'] = deSeries;
+                activeSeriesMap['Interest Coverage'] = icrSeries;
+            }
+            else if (module.id === 'dividend_metrics') {
+                const yieldSeries = chart.addLineSeries({ color: '#10b981', lineWidth: 2, title: 'Yield' });
+                const payoutSeries = chart.addLineSeries({ color: '#3b82f6', lineWidth: 2, title: 'Payout' });
+
+                const dps = sbVals['dps'] !== undefined ? sbVals['dps'] : 20;
+                const price = sbVals['price'] !== undefined ? sbVals['price'] : 800;
+                const eps = sbVals['eps'] !== undefined ? sbVals['eps'] : 50;
+
+                const yieldData = [];
+                const payoutData = [];
+                dates.forEach((date, i) => {
+                    const fluctuation = Math.sin(i / 6) * 0.12;
+                    const curPrice = price * (1 + fluctuation);
+                    yieldData.push({ time: date, value: dps / curPrice * 100 });
+                    payoutData.push({ time: date, value: dps / eps * 100 });
+                });
+                yieldSeries.setData(yieldData);
+                payoutSeries.setData(payoutData);
+                activeSeriesMap['Yield (%)'] = yieldSeries;
+                activeSeriesMap['Payout Ratio (%)'] = payoutSeries;
+            }
+            else if (module.id === 'yield_curve') {
+                const curveSeries = chart.addAreaSeries({ 
+                    color: '#3b82f6', 
+                    topColor: 'rgba(59, 130, 246, 0.2)',
+                    bottomColor: 'rgba(59, 130, 246, 0)',
+                    lineWidth: 3, 
+                    title: 'Yield Curve' 
+                });
+                const y2 = sbVals['y2'] !== undefined ? sbVals['y2'] : 7.0;
+                const y10 = sbVals['y10'] !== undefined ? sbVals['y10'] : 7.5;
+                
+                const yields = [
+                    y2 - 0.5, y2 - 0.3, y2 - 0.1, y2, 
+                    y2 + (y10 - y2) * 0.2, y2 + (y10 - y2) * 0.5, y10, y10 + 0.1, y10 + 0.2
+                ];
+                const datesCustom = yields.map((_, idx) => new Date(2026, 5, idx + 1).toISOString().split('T')[0]);
+                curveSeries.setData(yields.map((val, idx) => ({ time: datesCustom[idx], value: val })));
+                activeSeriesMap['Yield (%)'] = curveSeries;
+            }
+            else if (module.id === 'credit_spreads') {
+                const corpSeries = chart.addLineSeries({ color: '#ef4444', lineWidth: 2, title: 'Corporate' });
+                const gsecSeries = chart.addLineSeries({ color: '#10b981', lineWidth: 2, title: 'G-Sec' });
+
+                const corp = sbVals['corp'] !== undefined ? sbVals['corp'] : 9.5;
+                const gsec = sbVals['gsec'] !== undefined ? sbVals['gsec'] : 7.2;
+
+                const corpData = [];
+                const gsecData = [];
+                dates.forEach((date, i) => {
+                    const fluctuation = Math.sin(i / 4) * 0.2;
+                    corpData.push({ time: date, value: corp + fluctuation });
+                    gsecData.push({ time: date, value: gsec + fluctuation * 0.6 });
+                });
+                corpSeries.setData(corpData);
+                gsecSeries.setData(gsecData);
+                activeSeriesMap['Corporate Yield (%)'] = corpSeries;
+                activeSeriesMap['G-Sec Yield (%)'] = gsecSeries;
+            }
+            else if (module.id === 'fib_retracement') {
+                const priceSeries = chart.addAreaSeries({
+                    color: '#6366f1',
+                    topColor: 'rgba(99, 102, 241, 0.1)',
+                    bottomColor: 'rgba(99, 102, 241, 0)',
+                    lineWidth: 2,
+                    title: 'Price'
+                });
+                
+                const high = sbVals['high'] !== undefined ? sbVals['high'] : 2000;
+                const low = sbVals['low'] !== undefined ? sbVals['low'] : 1600;
+                const diff = high - low;
+
+                priceSeries.setData(data.map((v, i) => ({ time: dates[i], value: v })));
+                activeSeriesMap['Price'] = priceSeries;
+
+                const levels = [0, 0.236, 0.382, 0.5, 0.618, 1.0];
+                levels.forEach(lvl => {
+                    priceSeries.createPriceLine({
+                        price: high - diff * lvl,
+                        color: 'rgba(245, 158, 11, 0.4)',
+                        lineWidth: 1,
+                        lineStyle: LightweightCharts.LineStyle.Dashed,
+                        axisLabelVisible: true,
+                        title: `${(100 * (1 - lvl)).toFixed(1)}% Fib (${(high - diff * lvl).toFixed(0)})`,
+                    });
+                });
+            }
+            else {
+                const areaSeries = chart.addAreaSeries({
+                    color: '#6366f1',
+                    topColor: 'rgba(99, 102, 241, 0.15)',
+                    bottomColor: 'rgba(99, 102, 241, 0)',
+                    lineWidth: 2,
+                });
+                areaSeries.setData(data.map((v, i) => ({ time: dates[i], value: v })));
+                activeSeriesMap[module.chartLabel || 'Price'] = areaSeries;
+            }
         }
     }
 
-    ctx.fillStyle = isDark ? '#f3f4f6' : '#1f2937';
-    ctx.font = 'bold 11px Outfit';
-    ctx.textAlign = 'left';
-    ctx.fillText(module.chartLabel || module.title, padding.left, 20);
+    // Set custom HTML floating tooltip on hover
+    const tooltip = document.getElementById('academy-chart-tooltip');
+    chart.subscribeCrosshairMove(param => {
+        if (!tooltip) return;
+        if (academyDrawMode || !param.point || !param.time || param.point.x < 0 || param.point.y < 0) {
+            tooltip.style.display = 'none';
+            return;
+        }
+
+        let html = `<div style="font-weight:bold; margin-bottom:6px; color:var(--text-primary); font-family:var(--font-heading); border-bottom:1px solid var(--border-glass); padding-bottom:4px;">${module.title}</div>`;
+        let hasData = false;
+        
+        for (const [name, series] of Object.entries(activeSeriesMap)) {
+            const data = param.seriesData.get(series);
+            if (data !== undefined) {
+                hasData = true;
+                if (data.open !== undefined) {
+                    html += `
+                        <div style="display:flex; justify-content:space-between; margin-bottom:2px; color:var(--text-muted);">
+                            <span>O:</span><span style="font-weight:bold; color:var(--text-primary);">₹${data.open.toFixed(1)}</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:2px; color:var(--text-muted);">
+                            <span>H:</span><span style="font-weight:bold; color:var(--color-emerald);">₹${data.high.toFixed(1)}</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:2px; color:var(--text-muted);">
+                            <span>L:</span><span style="font-weight:bold; color:var(--color-rose);">₹${data.low.toFixed(1)}</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; color:var(--text-muted);">
+                            <span>C:</span><span style="font-weight:bold; color:var(--text-primary);">₹${data.close.toFixed(1)}</span>
+                        </div>
+                    `;
+                } else {
+                    const val = data.value !== undefined ? data.value : 0;
+                    let color = 'var(--text-primary)';
+                    if (name.includes('RSI')) color = '#8b5cf6';
+                    else if (name.includes('MACD')) color = '#3b82f6';
+                    else if (name.includes('Signal')) color = '#f97316';
+                    else if (name.includes('Histogram')) color = val >= 0 ? '#10b981' : '#ef4444';
+                    else if (name.includes('Upper')) color = 'rgba(99, 102, 241, 0.8)';
+                    else if (name.includes('Lower')) color = 'rgba(99, 102, 241, 0.8)';
+                    else if (name.includes('Middle') || name.includes('Basis')) color = 'rgba(245, 158, 11, 0.8)';
+                    
+                    html += `
+                        <div style="display:flex; justify-content:space-between; margin-bottom:2px; color:var(--text-muted);">
+                            <span>${name}:</span><span style="font-weight:bold; color:${color};">${val.toFixed(2)}</span>
+                        </div>
+                    `;
+                }
+            }
+        }
+        
+        if (hasData) {
+            tooltip.innerHTML = html;
+            tooltip.style.display = 'block';
+            
+            let tx = param.point.x + 15;
+            let ty = param.point.y + 15;
+            const tooltipW = 160;
+            const tooltipH = tooltip.offsetHeight || 120;
+            const containerW = container.clientWidth || 700;
+            
+            if (tx + tooltipW > containerW) {
+                tx = param.point.x - tooltipW - 15;
+            }
+            if (ty + tooltipH > 300) {
+                ty = 300 - tooltipH - 10;
+            }
+            
+            tooltip.style.left = tx + 'px';
+            tooltip.style.top = ty + 'px';
+        } else {
+            tooltip.style.display = 'none';
+        }
+    });
+
+    const resizeObserver = new ResizeObserver(entries => {
+        for (let entry of entries) {
+            if (window.activeAcademyLightweightChart) {
+                window.activeAcademyLightweightChart.resize(entry.contentRect.width, 300);
+            }
+            if (drawCanvas) {
+                drawCanvas.width = entry.contentRect.width;
+                drawCanvas.height = 300;
+            }
+        }
+    });
+    resizeObserver.observe(container);
 }
 
 function renderAcademySandbox(module) {
@@ -29689,7 +30017,10 @@ function setupAcademyDrawCanvas() {
         const rect = canvas.getBoundingClientRect();
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
         const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-        return { x: (clientX - rect.left) * (canvas.width / rect.width), y: (clientY - rect.top) * (canvas.height / rect.height) };
+        return { 
+            x: (clientX - rect.left) * (canvas.width / rect.width), 
+            y: (clientY - rect.top) * (canvas.height / rect.height) 
+        };
     };
 
     const startDraw = (e) => {
@@ -29713,6 +30044,7 @@ function setupAcademyDrawCanvas() {
             ctx.strokeStyle = color;
             ctx.lineWidth = width;
             ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
             ctx.beginPath();
             ctx.moveTo(academyDrawLastX, academyDrawLastY);
             ctx.lineTo(pos.x, pos.y);
@@ -29750,110 +30082,6 @@ function setupAcademyDrawCanvas() {
     canvas.addEventListener('touchmove', moveDraw, { passive: false });
     canvas.addEventListener('touchend', endDraw);
 
-    const handleHover = (e) => {
-        if (academyDrawMode) return;
-        if (!academyActiveChartData || !academyActiveChartData.points || academyActiveChartData.points.length === 0) return;
-
-        const pos = getPos(e);
-        const mx = pos.x;
-        const my = pos.y;
-
-        const padding = academyActiveChartData.padding;
-        const w = academyActiveChartData.w;
-        const h = academyActiveChartData.h;
-
-        if (mx < padding.left || mx > w - padding.right || my < padding.top || my > h - padding.bottom) {
-            ctx.clearRect(0, 0, w, h);
-            return;
-        }
-
-        let closestPt = null;
-        let minDist = Infinity;
-        let closestIdx = -1;
-        academyActiveChartData.points.forEach((pt, idx) => {
-            const dist = Math.abs(pt.x - mx);
-            if (dist < minDist) {
-                minDist = dist;
-                closestPt = pt;
-                closestIdx = idx;
-            }
-        });
-
-        if (!closestPt) return;
-
-        ctx.clearRect(0, 0, w, h);
-
-        ctx.strokeStyle = academyActiveChartData.isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.15)';
-        ctx.lineWidth = 1;
-        ctx.setLineDash([4, 4]);
-        ctx.beginPath();
-        ctx.moveTo(closestPt.x, padding.top);
-        ctx.lineTo(closestPt.x, h - padding.bottom);
-        ctx.stroke();
-
-        ctx.beginPath();
-        ctx.moveTo(padding.left, closestPt.y);
-        ctx.lineTo(w - padding.right, closestPt.y);
-        ctx.stroke();
-        ctx.setLineDash([]);
-
-        ctx.fillStyle = '#6366f1';
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(closestPt.x, closestPt.y, 5, 0, 2 * Math.PI);
-        ctx.fill();
-        ctx.stroke();
-
-        const keys = Object.keys(closestPt.values);
-        const tooltipW = 160;
-        const tooltipH = 22 + keys.length * 15;
-        let tx = closestPt.x + 12;
-        let ty = closestPt.y - 12;
-
-        if (tx + tooltipW > w) tx = closestPt.x - tooltipW - 12;
-        if (ty + tooltipH > h - padding.bottom) ty = h - padding.bottom - tooltipH;
-        if (ty < padding.top) ty = padding.top;
-
-        ctx.fillStyle = academyActiveChartData.isDark ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.95)';
-        ctx.strokeStyle = academyActiveChartData.isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        if (ctx.roundRect) {
-            ctx.roundRect(tx, ty, tooltipW, tooltipH, 6);
-        } else {
-            ctx.rect(tx, ty, tooltipW, tooltipH);
-        }
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.font = 'bold 9px Inter';
-        ctx.fillStyle = academyActiveChartData.isDark ? '#e2e8f0' : '#1e293b';
-        ctx.textAlign = 'left';
-        ctx.fillText(`Day Index: ${closestIdx + 1}`, tx + 8, ty + 12);
-
-        ctx.font = '9px Inter';
-        let yOffset = 26;
-        keys.forEach(key => {
-            ctx.fillStyle = academyActiveChartData.isDark ? '#94a3b8' : '#64748b';
-            ctx.fillText(key + ':', tx + 8, ty + yOffset);
-            
-            ctx.fillStyle = academyActiveChartData.isDark ? '#f8fafc' : '#0f172a';
-            ctx.textAlign = 'right';
-            ctx.fillText(closestPt.values[key], tx + tooltipW - 8, ty + yOffset);
-            ctx.textAlign = 'left';
-            yOffset += 14;
-        });
-    };
-
-    const handleMouseLeave = () => {
-        if (academyDrawMode) return;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-    };
-
-    canvas.addEventListener('mousemove', handleHover);
-    canvas.addEventListener('mouseleave', handleMouseLeave);
-
     // Tool buttons
     document.querySelectorAll('.academy-draw-tool-btn').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -29867,6 +30095,47 @@ function setupAcademyDrawCanvas() {
             btn.classList.add('active');
         });
     });
+
+    // Composite Chart and Drawings Snapshot Download
+    const snapshotBtn = document.getElementById('academy-snapshot-btn');
+    if (snapshotBtn) {
+        snapshotBtn.addEventListener('click', () => {
+            const chartContainer = document.getElementById('academy-lightweight-chart-container');
+            if (!chartContainer) return;
+            const chartCanvases = chartContainer.querySelectorAll('canvas');
+            if (chartCanvases.length === 0) {
+                showToast('❌ No active chart found to capture!');
+                return;
+            }
+
+            // The main canvas is the first one, which defines the correct size
+            const baseCanvas = chartCanvases[0];
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = baseCanvas.width;
+            tempCanvas.height = baseCanvas.height;
+            const tempCtx = tempCanvas.getContext('2d');
+
+            // Draw current theme background
+            const isDark = document.documentElement.getAttribute('data-theme') !== 'light' && !document.body.classList.contains('light-mode');
+            tempCtx.fillStyle = isDark ? '#060913' : '#ffffff';
+            tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+
+            // Draw all chart canvases in order
+            chartCanvases.forEach(c => {
+                tempCtx.drawImage(c, 0, 0);
+            });
+
+            // Overlay user drawings
+            tempCtx.drawImage(canvas, 0, 0, tempCanvas.width, tempCanvas.height);
+
+            // Trigger download
+            const link = document.createElement('a');
+            link.download = `academy-${academyActiveTopicId || 'chart'}-snapshot.png`;
+            link.href = tempCanvas.toDataURL('image/png');
+            link.click();
+            showToast('📷 Chart snapshot saved to downloads!');
+        });
+    }
 }
 
 // ── AI Coach ──

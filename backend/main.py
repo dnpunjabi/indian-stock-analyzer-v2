@@ -1641,6 +1641,8 @@ class LearningAskRequest(BaseModel):
     question: str
     topic: str = None
     category: str = None
+    sandbox_values: dict = None
+    sub_pattern: str = None
 
 @app.get("/api/search")
 async def search_ticker(q: str):
@@ -9455,6 +9457,11 @@ async def learning_ask(req: LearningAskRequest):
         topic_context = f"\n\nCurrent Learning Topic: {req.topic}"
     if req.category:
         topic_context += f"\nCategory: {req.category}"
+    if req.sub_pattern:
+        topic_context += f"\nSelected Sub-pattern: {req.sub_pattern}"
+    if req.sandbox_values:
+        sandbox_str = ", ".join([f"{k} = {v}" for k, v in req.sandbox_values.items()])
+        topic_context += f"\nActive Sandbox Inputs: {sandbox_str}"
 
     user_prompt = f"{req.question}{topic_context}"
 
