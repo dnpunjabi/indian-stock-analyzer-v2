@@ -1637,6 +1637,11 @@ class AISectorChatRequest(BaseModel):
     history: list = []
     sector_data: list = []
 
+class LearningAskRequest(BaseModel):
+    question: str
+    topic: str = None
+    category: str = None
+
 @app.get("/api/search")
 async def search_ticker(q: str):
     """Resolves conversational company queries into NSE tickers."""
@@ -9365,6 +9370,122 @@ async def angel_status():
 
     return status
 
+
+# ==================== LEARNING ACADEMY SCENARIO GENERATOR ====================
+
+class LearningScenarioRequest(BaseModel):
+    topic: str
+    category: str
+
+@app.post("/api/learning/scenario")
+async def learning_scenario(req: LearningScenarioRequest):
+    """
+    On-demand AI Case Study generator for the Learning Academy.
+    Generates structured, realistic hypothetical trading/investment case studies 
+    contextualised in the Indian stock and bond markets matching the selected topic.
+    """
+    system_prompt = (
+        "You are an expert institutional fund manager, investment analyst, and historian of the Indian equity and debt markets (NSE/BSE).\n"
+        "Your task is to generate a highly detailed, educational case study demonstrating the active learning topic in a real Indian stock or market context (e.g. Reliance, TCS, HDFC Bank, G-Secs).\n\n"
+        "Crucially, construct this case study from the perspective of a medium-to-long-term investor. Emphasize business fundamentals, long-term valuation metrics (P/E cycles, ROCE, EV/EBITDA, free cash flow compounding, and structural advantages/moats), capital allocation strategies, and margin of safety boundaries.\n\n"
+        "Incorporate recent Indian market dynamics (2020-2026), such as the post-COVID manufacturing and capex cycles, PSU bank/energy re-ratings, private sector infrastructure runs, key corporate merges (like HDFC-HDFC Bank consolidation), or global bond index inclusions impacting G-sec yields.\n\n"
+        "The response MUST be formatted in clean markdown, containing:\n"
+        "1. **Market Context & Recent Background**: The macroeconomic/industry backdrop and recent stock trends (framing the historical/recent setup between 2020-2026).\n"
+        "2. **Investment Setup & Valuation Metrics**: Fundamental details, business health indicators, or structural price consolidation levels.\n"
+        "3. **Long-Term Investment Thesis**: Underwriting logic, margin of safety pricing range, capital allocation/portfolio sizing rules, and medium/long-term holding expectations.\n"
+        "4. **Outcome Analysis & Retrospective**: The compounding outcome, dividend/capital return updates, and key structural lessons learned.\n\n"
+        "Keep the output concise (under 380 words), engaging, professional, and educational."
+    )
+
+    user_prompt = f"Generate a structured, hypothetical Indian market case study demonstrating: {req.topic} (Category: {req.category})"
+
+    try:
+        response = await asyncio.to_thread(
+            call_groq_llm,
+            system_prompt,
+            user_prompt,
+            max_tokens=1500
+        )
+
+        if "ERROR_401" in response:
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "scenario": "The Case Study Generator requires a valid Groq API key. Please configure your GROQ_API_KEY environment variable to enable AI-powered scenario generation.",
+                    "status": "api_key_error"
+                }
+            )
+
+        return {"scenario": response, "status": "success"}
+
+    except Exception as e:
+        print(f"[Learning Academy] Scenario Generator error: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={
+                "scenario": "An error occurred while generating the case study. Please try again.",
+                "status": "error"
+            }
+        )
+
+
+
+@app.post("/api/learning/ask")
+async def learning_ask(req: LearningAskRequest):
+    """
+    AI Coach endpoint for the Learning Academy.
+    Answers educational questions about technical analysis, chart patterns,
+    candlestick patterns, fundamental analysis, and bond markets using Groq LLM.
+    """
+    system_prompt = (
+        "You are an expert Financial Markets Educator and CFA/CMT charterholder.\n"
+        "Your role is to teach stock market and bond market concepts clearly, using:\n"
+        "- Precise mathematical formulas with variable definitions\n"
+        "- Real-world Indian market examples (NSE/BSE stocks like Reliance, TCS, HDFC Bank)\n"
+        "- Step-by-step calculation walkthroughs\n"
+        "- Practical trading/investment application tips\n"
+        "- Common mistakes and pitfalls to avoid\n\n"
+        "Keep responses concise (under 400 words), educational, and actionable.\n"
+        "Use markdown formatting for headers, bold, lists, and code blocks for formulas.\n"
+        "If the question is about a specific indicator or pattern, always include its formula and interpretation rules."
+    )
+
+    topic_context = ""
+    if req.topic:
+        topic_context = f"\n\nCurrent Learning Topic: {req.topic}"
+    if req.category:
+        topic_context += f"\nCategory: {req.category}"
+
+    user_prompt = f"{req.question}{topic_context}"
+
+    try:
+        response = await asyncio.to_thread(
+            call_groq_llm,
+            system_prompt,
+            user_prompt,
+            max_tokens=1500
+        )
+
+        if "ERROR_401" in response:
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "answer": "The AI Coach requires a valid Groq API key. Please configure your GROQ_API_KEY environment variable to enable AI-powered explanations.",
+                    "status": "api_key_error"
+                }
+            )
+
+        return {"answer": response, "status": "success"}
+
+    except Exception as e:
+        print(f"[Learning Academy] AI Coach error: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={
+                "answer": "An error occurred while processing your question. Please try again.",
+                "status": "error"
+            }
+        )
 
 # Include Angel One WebSocket router
 app.include_router(angel_ws_router)

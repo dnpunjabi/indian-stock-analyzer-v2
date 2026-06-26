@@ -967,7 +967,8 @@ const tabs = {
     swing: document.getElementById('tab-swing'),
     'sector-radar': document.getElementById('tab-sector-radar'),
     movers: document.getElementById('tab-movers'),
-    'market-news': document.getElementById('tab-market-news')
+    'market-news': document.getElementById('tab-market-news'),
+    learning: document.getElementById('tab-learning')
 };
 
 const tabBtns = {
@@ -983,7 +984,8 @@ const tabBtns = {
     swing: document.getElementById('tab-swing-btn'),
     'sector-radar': document.getElementById('tab-sector-radar-btn'),
     movers: document.getElementById('tab-movers-btn'),
-    'market-news': document.getElementById('tab-market-news-btn')
+    'market-news': document.getElementById('tab-market-news-btn'),
+    learning: document.getElementById('tab-learning-btn')
 };
 
 // Initialize Application
@@ -1023,6 +1025,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupSectorRadarControls(); // Sector Radar Controls
     setupGlobalMarketNewsControls(); // Global Market News Feed Controls
     setupBrandReset(); // Initialize brand logo reset button events
+    setupLearningAcademy(); // Learning Academy Interactive Workspace
     try {
         if (window.setupPortfolioSecurity) window.setupPortfolioSecurity();
     } catch (err) {
@@ -28588,3 +28591,822 @@ function applyMarketNewsFilters() {
 window.loadGlobalMarketNews = loadGlobalMarketNews;
 window.setupGlobalMarketNewsControls = setupGlobalMarketNewsControls;
 
+
+// ==================== LEARNING ACADEMY ENGINE ====================
+
+const ACADEMY_CATALOG = [
+{id:'rsi',cat:'technical',emoji:'📊',title:'RSI (Relative Strength Index)',
+ explanation:`<h5>What is RSI?</h5><p>The Relative Strength Index (RSI) is a momentum oscillator that measures the speed and magnitude of recent price changes to evaluate overbought or oversold conditions. Developed by J. Welles Wilder Jr. in 1978, it oscillates between 0 and 100.</p><h5>Interpretation Rules</h5><ul><li><b>RSI > 70</b> — Overbought (potential reversal down)</li><li><b>RSI < 30</b> — Oversold (potential reversal up)</li><li><b>RSI 40–60</b> — Neutral zone</li><li>Divergence between RSI and price signals trend exhaustion</li></ul><div class="academy-example-box">📌 <b>Example:</b> If Reliance Industries RSI drops to 25 after a sharp sell-off, it signals extreme oversold conditions — a potential bounce candidate for swing traders.</div>`,
+ formula:`<div class="academy-formula-block">RSI = 100 − (100 / (1 + RS))</div><p>Where:</p><ul class="academy-formula-vars"><li><b>RS</b> = Average Gain over N periods / Average Loss over N periods</li><li><b>N</b> = Lookback period (default 14)</li><li>First RS uses simple average; subsequent values use exponential smoothing</li></ul>`,
+ sandbox:{inputs:[{label:'Average Gain',key:'avgGain',val:1.5},{label:'Average Loss',key:'avgLoss',val:1.0}],calc:(v)=>{const rs=v.avgGain/Math.max(v.avgLoss,0.0001);return `RSI = ${(100-(100/(1+rs))).toFixed(2)}`;}},
+ quiz:[{q:'An RSI reading of 25 typically indicates:',opts:['Overbought','Oversold','Neutral','No signal'],ans:1},{q:'The default RSI period is:',opts:['7','14','21','50'],ans:1},{q:'RSI divergence occurs when:',opts:['Price and RSI move together','Price makes new high but RSI does not','RSI stays at 50','Volume increases'],ans:1}],
+ chartType:'line',chartLabel:'RSI Value',chartData:[45,52,58,62,71,74,68,55,42,35,28,32,40,48,55,60,65,72,78,70,62,55,48,42,38]},
+
+{id:'macd',cat:'technical',emoji:'📈',title:'MACD (Moving Average Convergence Divergence)',
+ explanation:`<h5>What is MACD?</h5><p>MACD is a trend-following momentum indicator that shows the relationship between two exponential moving averages of a security's price. It consists of the MACD line, signal line, and histogram.</p><h5>Components</h5><ul><li><b>MACD Line</b> = 12-period EMA − 26-period EMA</li><li><b>Signal Line</b> = 9-period EMA of MACD Line</li><li><b>Histogram</b> = MACD Line − Signal Line</li></ul><h5>Trading Signals</h5><ul><li><b>Bullish Crossover:</b> MACD crosses above Signal → Buy</li><li><b>Bearish Crossover:</b> MACD crosses below Signal → Sell</li><li><b>Zero Line Cross:</b> Confirms trend direction change</li></ul><div class="academy-example-box">📌 <b>Example:</b> TCS shows a MACD bullish crossover at −15 with histogram turning positive — early momentum shift signaling potential uptrend.</div>`,
+ formula:`<div class="academy-formula-block">MACD Line = EMA(12) − EMA(26)<br>Signal = EMA(9) of MACD Line<br>Histogram = MACD − Signal</div><ul class="academy-formula-vars"><li><b>EMA(n)</b> = Exponential Moving Average over n periods</li><li>Multiplier = 2 / (n + 1)</li></ul>`,
+ sandbox:{inputs:[{label:'EMA 12',key:'ema12',val:150},{label:'EMA 26',key:'ema26',val:145}],calc:(v)=>`MACD Line = ${(v.ema12-v.ema26).toFixed(2)}`},
+ quiz:[{q:'MACD is calculated as:',opts:['SMA(12) − SMA(26)','EMA(12) − EMA(26)','EMA(26) − EMA(12)','RSI(14) − RSI(26)'],ans:1},{q:'A bullish MACD crossover occurs when:',opts:['MACD crosses below signal','MACD crosses above signal','Histogram is zero','Signal crosses above zero'],ans:1}],
+ chartType:'line',chartLabel:'MACD',chartData:[-5,-3,-1,1,3,5,7,8,6,4,2,0,-2,-4,-6,-4,-2,0,3,6,8,10,8,5,2]},
+
+{id:'adr_atr',cat:'technical',emoji:'📏',title:'ADR & ATR (Volatility & Position Sizing)',
+ explanation:`<h5>Average Daily Range (ADR)</h5><p>ADR measures the average difference between the daily high and low prices over a specified period. It helps traders gauge expected daily price movement.</p><h5>Average True Range (ATR)</h5><p>ATR is a more comprehensive volatility measure that accounts for gaps. It considers the true range — the greatest of: current high minus low, absolute value of current high minus previous close, or absolute value of current low minus previous close.</p><ul><li>High ATR = High volatility, wider stops needed</li><li>Low ATR = Low volatility, consolidation phase</li><li>ATR is commonly used for position sizing and stop-loss placement</li></ul>`,
+ formula:`<div class="academy-formula-block">ADR = Average(High − Low) over N days<br><br>True Range = max(H−L, |H−Prev Close|, |L−Prev Close|)<br>ATR = SMA or EMA of True Range over N periods</div>`,
+ sandbox:{inputs:[{label:'High',key:'high',val:1550},{label:'Low',key:'low',val:1520},{label:'Prev Close',key:'prevClose',val:1510}],calc:(v)=>{const tr=Math.max(v.high-v.low,Math.abs(v.high-v.prevClose),Math.abs(v.low-v.prevClose));return `True Range = ₹${tr.toFixed(2)}`;}},
+ quiz:[{q:'ATR accounts for which of the following that ADR does not?',opts:['Volume','Gaps','Moving averages','RSI'],ans:1}],
+ chartType:'bar',chartLabel:'ATR (₹)',chartData:[22,25,28,35,30,18,15,20,32,38,42,35,28,22,18,25,30,34,40,36,28,22,20,24,30]},
+
+{id:'sma_ema',cat:'technical',emoji:'📉',title:'SMA & EMA (Moving Averages)',
+ explanation:`<h5>Simple Moving Average (SMA)</h5><p>SMA is the arithmetic mean of a given set of closing prices over a specified number of periods. Common periods: 20, 50, 100, 200 days.</p><h5>Exponential Moving Average (EMA)</h5><p>EMA gives more weight to recent prices, making it more responsive to new information. It reacts faster to price changes than SMA.</p><h5>Key Trading Signals</h5><ul><li><b>Golden Cross:</b> 50-day SMA crosses above 200-day SMA → Strong Bullish</li><li><b>Death Cross:</b> 50-day SMA crosses below 200-day SMA → Strong Bearish</li><li>Price above 200 SMA = Long-term uptrend</li></ul>`,
+ formula:`<div class="academy-formula-block">SMA = (P₁ + P₂ + ... + Pₙ) / N<br><br>EMA = Price × K + EMA(prev) × (1 − K)<br>K = 2 / (N + 1)</div>`,
+ sandbox:{inputs:[{label:'Sum of Prices',key:'sumP',val:7500},{label:'N (periods)',key:'n',val:5}],calc:(v)=>`SMA = ₹${(v.sumP/Math.max(v.n,1)).toFixed(2)}`},
+ quiz:[{q:'A Golden Cross occurs when:',opts:['50 SMA crosses below 200 SMA','50 SMA crosses above 200 SMA','Price drops below 200 SMA','RSI crosses 50'],ans:1},{q:'EMA differs from SMA because:',opts:['It uses median','It weights recent prices more','It only uses closing prices','It ignores gaps'],ans:1}],
+ chartType:'line',chartLabel:'Price vs SMA',chartData:[100,102,105,103,107,110,108,112,115,118,120,117,115,118,122,125,128,130,127,125,128,132,135,138,140]},
+
+{id:'bollinger',cat:'technical',emoji:'🎯',title:'Bollinger Bands',
+ explanation:`<h5>What are Bollinger Bands?</h5><p>Bollinger Bands consist of a middle band (20-period SMA) with an upper and lower band set at 2 standard deviations above and below. They expand during high volatility and contract during low volatility.</p><h5>Trading Applications</h5><ul><li><b>Squeeze:</b> Bands narrow → Volatility contraction → Breakout imminent</li><li><b>Walk the Band:</b> Price riding the upper band = Strong uptrend</li><li><b>Mean Reversion:</b> Price touching lower band in a range = Buy signal</li><li>Bandwidth = (Upper − Lower) / Middle</li></ul>`,
+ formula:`<div class="academy-formula-block">Middle Band = SMA(20)<br>Upper Band = SMA(20) + 2 × σ<br>Lower Band = SMA(20) − 2 × σ</div><ul class="academy-formula-vars"><li><b>σ</b> = Standard deviation of closing prices over 20 periods</li></ul>`,
+ sandbox:{inputs:[{label:'SMA(20)',key:'sma',val:500},{label:'Std Dev',key:'std',val:15}],calc:(v)=>`Upper: ₹${(v.sma+2*v.std).toFixed(0)} | Lower: ₹${(v.sma-2*v.std).toFixed(0)} | Width: ₹${(4*v.std).toFixed(0)}`},
+ quiz:[{q:'Bollinger Band Squeeze indicates:',opts:['High volatility','Low volatility and potential breakout','Trend reversal','Overbought condition'],ans:1}],
+ chartType:'line',chartLabel:'Price',chartData:[495,498,502,505,510,515,520,518,512,505,500,498,495,492,488,490,495,500,508,515,522,530,525,518,510]},
+
+{id:'adx',cat:'technical',emoji:'💪',title:'ADX (Average Directional Index)',
+ explanation:`<h5>What is ADX?</h5><p>ADX measures trend strength (not direction) on a 0–100 scale. It uses the Directional Movement Index (DMI) system with +DI and −DI lines.</p><h5>Interpretation</h5><ul><li><b>ADX < 20:</b> Weak/No trend (range-bound)</li><li><b>ADX 20–40:</b> Developing trend</li><li><b>ADX > 40:</b> Strong trend</li><li><b>ADX > 60:</b> Very strong trend (rare)</li><li>+DI above −DI = Bullish | −DI above +DI = Bearish</li></ul>`,
+ formula:`<div class="academy-formula-block">+DI = (Smoothed +DM / ATR) × 100<br>−DI = (Smoothed −DM / ATR) × 100<br>DX = |(+DI − −DI)| / (+DI + −DI) × 100<br>ADX = SMA(DX, 14)</div>`,
+ sandbox:{inputs:[{label:'+DI',key:'pdi',val:28},{label:'−DI',key:'ndi',val:18}],calc:(v)=>{const dx=Math.abs(v.pdi-v.ndi)/(v.pdi+v.ndi)*100;return `DX = ${dx.toFixed(2)} | Trend: ${dx>25?'Strong':'Weak'}`;}},
+ quiz:[{q:'ADX value of 45 indicates:',opts:['No trend','Weak trend','Strong trend','Overbought'],ans:2}],
+ chartType:'line',chartLabel:'ADX',chartData:[15,18,22,28,35,42,48,45,40,35,30,25,20,18,22,28,35,40,38,32,28,25,30,35,40]},
+
+{id:'stochastic',cat:'technical',emoji:'🔄',title:'Stochastic Oscillator',
+ explanation:`<h5>What is the Stochastic Oscillator?</h5><p>The Stochastic Oscillator compares a security's closing price to its price range over a given period. It generates values between 0 and 100.</p><ul><li><b>%K > 80:</b> Overbought zone</li><li><b>%K < 20:</b> Oversold zone</li><li><b>%K crossing above %D:</b> Buy signal</li><li><b>%K crossing below %D:</b> Sell signal</li></ul>`,
+ formula:`<div class="academy-formula-block">%K = ((Close − Low₁₄) / (High₁₄ − Low₁₄)) × 100<br>%D = 3-period SMA of %K</div>`,
+ sandbox:{inputs:[{label:'Close',key:'close',val:155},{label:'14-day Low',key:'low14',val:140},{label:'14-day High',key:'high14',val:165}],calc:(v)=>{const k=((v.close-v.low14)/(v.high14-v.low14))*100;return `%K = ${k.toFixed(2)} | Zone: ${k>80?'Overbought':k<20?'Oversold':'Neutral'}`;}},
+ quiz:[{q:'Stochastic %K below 20 means:',opts:['Overbought','Oversold','Neutral','Trend reversal'],ans:1}],
+ chartType:'line',chartLabel:'%K',chartData:[75,80,85,82,78,65,50,35,22,15,18,25,40,55,65,72,80,85,78,65,50,38,25,30,42]},
+
+{id:'ichimoku',cat:'technical',emoji:'☁️',title:'Ichimoku Cloud',
+ explanation:`<h5>What is the Ichimoku Cloud?</h5><p>Ichimoku Kinko Hyo (\"one glance equilibrium chart\") is a comprehensive indicator that defines support/resistance, trend direction, momentum, and trading signals simultaneously.</p><h5>5 Components</h5><ul><li><b>Tenkan-sen (Conversion):</b> (9-period High + 9-period Low) / 2</li><li><b>Kijun-sen (Base):</b> (26-period High + 26-period Low) / 2</li><li><b>Senkou Span A (Leading A):</b> (Tenkan + Kijun) / 2 plotted 26 ahead</li><li><b>Senkou Span B (Leading B):</b> (52-period High + Low) / 2 plotted 26 ahead</li><li><b>Chikou Span (Lagging):</b> Close plotted 26 periods back</li></ul><p>Price above cloud = Bullish | Below = Bearish | Inside = Neutral</p>`,
+ formula:`<div class="academy-formula-block">Tenkan = (High₉ + Low₉) / 2<br>Kijun = (High₂₆ + Low₂₆) / 2<br>Span A = (Tenkan + Kijun) / 2<br>Span B = (High₅₂ + Low₅₂) / 2</div>`,
+ sandbox:{inputs:[{label:'9-day High',key:'h9',val:165},{label:'9-day Low',key:'l9',val:155},{label:'26-day High',key:'h26',val:170},{label:'26-day Low',key:'l26',val:148}],calc:(v)=>{const tenkan=(v.h9+v.l9)/2;const kijun=(v.h26+v.l26)/2;return `Tenkan: ₹${tenkan.toFixed(1)} | Kijun: ₹${kijun.toFixed(1)} | Span A: ₹${((tenkan+kijun)/2).toFixed(1)}`;}},
+ quiz:[{q:'Price above the Ichimoku Cloud indicates:',opts:['Bearish','Bullish','Neutral','Oversold'],ans:1}],
+ chartType:'line',chartLabel:'Price vs Cloud',chartData:[155,158,160,162,165,168,170,172,175,178,180,177,174,170,168,165,162,158,155,152,150,153,156,160,165]},
+
+{id:'fib_retracement',cat:'technical',emoji:'🌀',title:'Fibonacci Retracement',
+ explanation:`<h5>What is Fibonacci Retracement?</h5><p>Fibonacci retracement levels are horizontal lines indicating where support and resistance are likely to occur. They are based on the Fibonacci sequence ratios: 23.6%, 38.2%, 50%, 61.8%, and 78.6%.</p><h5>How to Use</h5><ul><li>Draw from a significant swing low to swing high (uptrend) or high to low (downtrend)</li><li><b>38.2%</b> = Shallow pullback (strong trend)</li><li><b>50.0%</b> = Moderate retracement</li><li><b>61.8%</b> = Golden ratio, deep pullback (key support/resistance)</li></ul>`,
+ formula:`<div class="academy-formula-block">Retracement Level = High − (High − Low) × Fib%<br><br>Key Levels: 23.6%, 38.2%, 50.0%, 61.8%, 78.6%</div>`,
+ sandbox:{inputs:[{label:'Swing High',key:'high',val:2000},{label:'Swing Low',key:'low',val:1600}],calc:(v)=>{const r=v.high-v.low;return `23.6%: ₹${(v.high-r*0.236).toFixed(0)} | 38.2%: ₹${(v.high-r*0.382).toFixed(0)} | 50%: ₹${(v.high-r*0.5).toFixed(0)} | 61.8%: ₹${(v.high-r*0.618).toFixed(0)}`;}},
+ quiz:[{q:'The "Golden Ratio" Fibonacci level is:',opts:['23.6%','38.2%','50.0%','61.8%'],ans:3}],
+ chartType:'line',chartLabel:'Price',chartData:[1600,1650,1700,1750,1800,1850,1900,1950,2000,1950,1920,1880,1850,1800,1760,1780,1820,1860,1900,1880,1850,1820,1780,1810,1850]},
+
+{id:'vwap',cat:'technical',emoji:'⚖️',title:'VWAP (Volume Weighted Average Price)',
+ explanation:`<h5>What is VWAP?</h5><p>VWAP is the average price a security has traded at throughout the day, based on both volume and price. It provides a benchmark for institutions.</p><ul><li>Price above VWAP = Bullish intraday bias</li><li>Price below VWAP = Bearish intraday bias</li><li>Institutional traders use VWAP to assess execution quality</li></ul>`,
+ formula:`<div class="academy-formula-block">VWAP = Σ(Price × Volume) / Σ(Volume)</div>`,
+ sandbox:{inputs:[{label:'Σ(P×V)',key:'pv',val:15000000},{label:'Σ(V)',key:'vol',val:100000}],calc:(v)=>`VWAP = ₹${(v.pv/Math.max(v.vol,1)).toFixed(2)}`},
+ quiz:[{q:'VWAP resets:',opts:['Weekly','Monthly','Daily','Never'],ans:2}],
+ chartType:'line',chartLabel:'VWAP',chartData:[148,149,150,151,150,149,150,151,152,153,152,151,150,149,150,151,152,153,154,153,152,151,150,151,152]},
+
+{id:'obv',cat:'technical',emoji:'📦',title:'On-Balance Volume (OBV)',
+ explanation:`<h5>What is OBV?</h5><p>OBV is a cumulative volume-based indicator. If today's close is higher than yesterday's, today's volume is added. If lower, it's subtracted. OBV confirms price trends through volume.</p><ul><li>Rising OBV with rising price = Trend confirmed</li><li>Rising OBV with flat price = Accumulation (bullish)</li><li>Falling OBV with rising price = Distribution (bearish divergence)</li></ul>`,
+ formula:`<div class="academy-formula-block">If Close > Prev Close: OBV = Prev OBV + Volume<br>If Close < Prev Close: OBV = Prev OBV − Volume<br>If Close = Prev Close: OBV = Prev OBV</div>`,
+ sandbox:{inputs:[{label:'Prev OBV',key:'prevObv',val:1000000},{label:'Today Volume',key:'vol',val:50000},{label:'Price Change (+/−)',key:'change',val:2}],calc:(v)=>{const newObv=v.change>0?v.prevObv+v.vol:v.change<0?v.prevObv-v.vol:v.prevObv;return `New OBV = ${newObv.toLocaleString()}`;}},
+ quiz:[{q:'OBV divergence (price up, OBV down) suggests:',opts:['Accumulation','Distribution','Confirmation','Breakout'],ans:1}],
+ chartType:'bar',chartLabel:'OBV',chartData:[100,120,115,130,145,160,150,140,155,170,165,155,145,160,175,190,185,180,195,210,200,190,185,200,215]},
+
+{id:'mfi',cat:'technical',emoji:'💰',title:'Money Flow Index (MFI)',
+ explanation:`<h5>What is MFI?</h5><p>MFI is a volume-weighted RSI. It uses both price and volume data to identify overbought/oversold conditions and divergences.</p><ul><li>MFI > 80 = Overbought</li><li>MFI < 20 = Oversold</li><li>More reliable than RSI because it incorporates volume</li></ul>`,
+ formula:`<div class="academy-formula-block">Typical Price = (H + L + C) / 3<br>Money Flow = TP × Volume<br>MFI = 100 − (100 / (1 + Money Ratio))<br>Money Ratio = +MF / −MF over 14 periods</div>`,
+ sandbox:{inputs:[{label:'Positive Money Flow',key:'pmf',val:5000000},{label:'Negative Money Flow',key:'nmf',val:3000000}],calc:(v)=>{const mr=v.pmf/Math.max(v.nmf,1);return `Money Ratio: ${mr.toFixed(2)} | MFI = ${(100-100/(1+mr)).toFixed(2)}`;}},
+ quiz:[{q:'MFI differs from RSI because it includes:',opts:['Volatility','Volume','Moving averages','Gaps'],ans:1}],
+ chartType:'line',chartLabel:'MFI',chartData:[55,60,65,70,75,80,82,78,72,65,58,50,42,35,28,22,25,30,38,45,55,62,70,75,80]},
+
+{id:'cci',cat:'technical',emoji:'🌊',title:'Commodity Channel Index (CCI)',
+ explanation:`<h5>What is CCI?</h5><p>CCI measures the current price level relative to an average price level over a given period. It is unbounded, typically oscillating between −100 and +100.</p><ul><li>CCI > +100 = Potentially overbought / strong uptrend</li><li>CCI < −100 = Potentially oversold / strong downtrend</li><li>Zero-line crossovers indicate momentum shifts</li></ul>`,
+ formula:`<div class="academy-formula-block">CCI = (Typical Price − SMA of TP) / (0.015 × Mean Deviation)</div>`,
+ sandbox:{inputs:[{label:'Typical Price',key:'tp',val:155},{label:'SMA of TP',key:'smaTP',val:150},{label:'Mean Deviation',key:'md',val:3}],calc:(v)=>`CCI = ${((v.tp-v.smaTP)/(0.015*Math.max(v.md,0.01))).toFixed(2)}`},
+ quiz:[{q:'CCI above +100 typically suggests:',opts:['Oversold','Overbought or strong uptrend','No signal','Mean reversion'],ans:1}],
+ chartType:'line',chartLabel:'CCI',chartData:[-50,-30,0,30,60,100,130,150,120,80,40,0,-40,-80,-120,-100,-60,-20,20,60,100,120,90,50,10]},
+
+{id:'parabolic_sar',cat:'technical',emoji:'🔵',title:'Parabolic SAR',
+ explanation:`<h5>What is Parabolic SAR?</h5><p>The Parabolic Stop and Reverse (SAR) plots dots above or below price to indicate potential stop-loss levels and trend direction.</p><ul><li><b>Dots below price</b> = Uptrend (use as trailing stop)</li><li><b>Dots above price</b> = Downtrend (use as trailing stop)</li><li>When dots flip sides, it signals a potential trend reversal</li></ul>`,
+ formula:`<div class="academy-formula-block">SAR(n+1) = SAR(n) + AF × (EP − SAR(n))<br><br>AF starts at 0.02, increases by 0.02 each new EP, max 0.20<br>EP = Extreme Point (highest high or lowest low in trend)</div>`,
+ sandbox:{inputs:[{label:'Current SAR',key:'sar',val:145},{label:'AF',key:'af',val:0.02},{label:'Extreme Point',key:'ep',val:160}],calc:(v)=>`Next SAR = ₹${(v.sar+v.af*(v.ep-v.sar)).toFixed(2)}`},
+ quiz:[{q:'Parabolic SAR dots below price indicate:',opts:['Downtrend','Uptrend','No trend','Consolidation'],ans:1}],
+ chartType:'line',chartLabel:'Price',chartData:[140,142,145,148,152,155,158,160,158,155,152,148,145,142,140,138,135,133,135,138,142,145,148,152,155]},
+
+{id:'head_shoulders',cat:'chart-patterns',emoji:'👤',title:'Head & Shoulders',
+ explanation:`<h5>What is Head & Shoulders?</h5><p>A reversal pattern consisting of three peaks: two smaller \"shoulders\" flanking a higher \"head.\" The neckline connects the troughs between peaks.</p><h5>Trading Rules</h5><ul><li>Pattern completes when price breaks below neckline</li><li><b>Target:</b> Height of head to neckline, projected downward from breakout</li><li>Volume typically decreases through pattern and increases on breakdown</li><li><b>Inverse H&S:</b> Same but flipped — bullish reversal at bottoms</li></ul>`,
+ formula:`<div class="academy-formula-block">Price Target = Neckline − (Head Price − Neckline)</div>`,
+ sandbox:{inputs:[{label:'Head Price',key:'head',val:1200},{label:'Neckline',key:'neck',val:1050}],calc:(v)=>`Target = ₹${(v.neck-(v.head-v.neck)).toFixed(0)} (downside: ₹${(v.head-v.neck).toFixed(0)})`},
+ quiz:[{q:'Head & Shoulders is a:',opts:['Continuation pattern','Reversal pattern','Consolidation pattern','Volume pattern'],ans:1}],
+ chartType:'line',chartLabel:'Price Pattern',chartData:[100,110,120,115,105,115,130,140,130,115,105,115,125,120,110,100,95,90,85,80,75,78,82,85,88]},
+
+{id:'double_top',cat:'chart-patterns',emoji:'🔝',title:'Double Top',
+ explanation:`<h5>Double Top (Bearish Reversal)</h5><p>Price reaches a high twice with a moderate decline between. Second peak fails to break above first → breakdown below support.</p>`,
+ formula:`<div class="academy-formula-block">Target = Breakout Level − Height of Pattern</div>`,
+ sandbox:{inputs:[{label:'Peak Price',key:'peak',val:500},{label:'Trough Price',key:'trough',val:450}],calc:(v)=>`Double Top Target: ₹${(v.trough-(v.peak-v.trough)).toFixed(0)}`},
+ quiz:[{q:'Double Top pattern signals:',opts:['Bullish continuation','Bearish reversal','Neutral','Bullish reversal'],ans:1}],
+ chartType:'line',chartLabel:'Price',chartData:[420,440,460,480,500,490,470,450,460,480,500,495,480,460,440,430,420,410,405,400,395,390,385,388,392]},
+
+{id:'double_bottom',cat:'chart-patterns',emoji:'👣',title:'Double Bottom',
+ explanation:`<h5>Double Bottom (Bullish Reversal)</h5><p>Price reaches a low twice with a moderate rally between. Second trough holds → breakout above resistance.</p>`,
+ formula:`<div class="academy-formula-block">Target = Breakout Level + Height of Pattern</div>`,
+ sandbox:{inputs:[{label:'Peak Price',key:'peak',val:500},{label:'Trough Price',key:'trough',val:450}],calc:(v)=>`Double Bottom Target: ₹${(v.peak+(v.peak-v.trough)).toFixed(0)}`},
+ quiz:[{q:'Double Bottom pattern signals:',opts:['Bullish continuation','Bearish reversal','Neutral','Bullish reversal'],ans:3}],
+ chartType:'line',chartLabel:'Price',chartData:[500,480,460,450,470,490,500,480,460,450,455,470,490,500,510,520,530,525,530,535,540,545,550]},
+
+{id:'bull_flag',cat:'chart-patterns',emoji:'🚩',title:'Bull Flag',
+ explanation:`<h5>Bull Flag (Bullish Continuation)</h5><p>Short-term continuation pattern. A sharp price rise (flagpole) followed by a downward-sloping rectangular consolidation (flag) before breaking out upward.</p>`,
+ formula:`<div class="academy-formula-block">Target = Breakout Point + Length of Flagpole</div>`,
+ sandbox:{inputs:[{label:'Flagpole Start',key:'start',val:100},{label:'Flagpole End',key:'end',val:140},{label:'Breakout Point',key:'breakout',val:135}],calc:(v)=>`Target = ₹${(v.breakout+(v.end-v.start)).toFixed(0)}`},
+ quiz:[{q:'Bull flag is a:',opts:['Reversal pattern','Continuation pattern','Neutral pattern','Volume pattern'],ans:1}],
+ chartType:'line',chartLabel:'Bull Flag',chartData:[100,105,115,125,135,140,138,136,134,132,130,128,130,132,135,140,145,150,155,160,165,170,175,178,180]},
+
+{id:'bear_flag',cat:'chart-patterns',emoji:'📉',title:'Bear Flag',
+ explanation:`<h5>Bear Flag (Bearish Continuation)</h5><p>Short-term continuation pattern. A sharp price drop (flagpole) followed by an upward-sloping rectangular consolidation (flag) before breaking down downward.</p>`,
+ formula:`<div class="academy-formula-block">Target = Breakout Point − Length of Flagpole</div>`,
+ sandbox:{inputs:[{label:'Flagpole Start',key:'start',val:140},{label:'Flagpole End',key:'end',val:100},{label:'Breakout Point',key:'breakout',val:105}],calc:(v)=>`Target = ₹${(v.breakout-(v.start-v.end)).toFixed(0)}`},
+ quiz:[{q:'Bear flag is a:',opts:['Reversal pattern','Continuation pattern','Neutral pattern','Volume pattern'],ans:1}],
+ chartType:'line',chartLabel:'Bear Flag',chartData:[140,135,125,115,105,100,102,104,106,108,110,112,110,108,105,100,95,90,85,80,75,70,65,62,60]},
+
+{id:'pennants',cat:'chart-patterns',emoji:'🎌',title:'Pennants',
+ explanation:`<h5>Pennants</h5><p>Similar to flags but the consolidation forms a small symmetrical triangle instead of a rectangle. Can be bullish or bearish depending on the prior trend.</p>`,
+ formula:`<div class="academy-formula-block">Target = Breakout Point ± Length of Flagpole</div>`,
+ sandbox:{inputs:[{label:'Flagpole Start',key:'start',val:100},{label:'Flagpole End',key:'end',val:140},{label:'Breakout Point',key:'breakout',val:135}],calc:(v)=>`Target = ₹${(v.breakout+(v.end-v.start)).toFixed(0)}`},
+ quiz:[{q:'Pennant consolidation resembles a:',opts:['Rectangle','Small symmetrical triangle','Wedge','Head and shoulders'],ans:1}],
+ chartType:'line',chartLabel:'Pennant',chartData:[100,105,115,125,135,140,138,136,134,132,130,128,130,132,135,140,145,150,155,160,165,170,175,178,180]},
+
+{id:'symmetrical_triangle',cat:'chart-patterns',emoji:'📐',title:'Symmetrical Triangle',
+ explanation:`<h5>Symmetrical Triangle</h5><p>Converging trendlines with lower highs and higher lows. Represents a period of consolidation before a breakout in either direction.</p>`,
+ formula:`<div class="academy-formula-block">Target = Breakout Level ± Height of Triangle at widest point</div>`,
+ sandbox:{inputs:[{label:'Triangle High',key:'high',val:520},{label:'Triangle Low',key:'low',val:480},{label:'Breakout Level',key:'bo',val:520}],calc:(v)=>`Upside Target: ₹${(v.bo+(v.high-v.low)).toFixed(0)} | Downside: ₹${(v.bo-(v.high-v.low)).toFixed(0)}`},
+ quiz:[{q:'Symmetrical triangles indicate:',opts:['Immediate trend reversal','Consolidation before breakout','Exhaustion of all volume','Overbought conditions'],ans:1}],
+ chartType:'line',chartLabel:'Symmetrical Triangle',chartData:[480,500,520,510,490,505,520,512,495,508,520,514,500,512,520,515,505,513,520,522,530,540,550,555,560]},
+
+{id:'ascending_triangle',cat:'chart-patterns',emoji:'🔺',title:'Ascending Triangle',
+ explanation:`<h5>Ascending Triangle (Bullish)</h5><p>Flat resistance top with rising support bottom. Price typically breaks upward as buyers become more aggressive.</p>`,
+ formula:`<div class="academy-formula-block">Target = Resistance Level + Height of Triangle at widest point</div>`,
+ sandbox:{inputs:[{label:'Triangle High',key:'high',val:520},{label:'Triangle Low',key:'low',val:480},{label:'Breakout Level',key:'bo',val:520}],calc:(v)=>`Target = ₹${(v.bo+(v.high-v.low)).toFixed(0)}`},
+ quiz:[{q:'Ascending triangle is typically:',opts:['Bearish','Bullish','Neutral','Reversal'],ans:1}],
+ chartType:'line',chartLabel:'Ascending Triangle',chartData:[480,500,520,510,490,505,520,512,495,508,520,514,500,512,520,515,505,513,520,522,530,540,550,555,560]},
+
+{id:'descending_triangle',cat:'chart-patterns',emoji:'🔻',title:'Descending Triangle',
+ explanation:`<h5>Descending Triangle (Bearish)</h5><p>Flat support bottom with declining resistance top. Price typically breaks downward as sellers become more aggressive.</p>`,
+ formula:`<div class="academy-formula-block">Target = Support Level − Height of Triangle at widest point</div>`,
+ sandbox:{inputs:[{label:'Triangle High',key:'high',val:520},{label:'Triangle Low',key:'low',val:480},{label:'Breakout Level',key:'bo',val:480}],calc:(v)=>`Target = ₹${(v.bo-(v.high-v.low)).toFixed(0)}`},
+ quiz:[{q:'Descending triangle is typically:',opts:['Bearish','Bullish','Neutral','Reversal'],ans:0}],
+ chartType:'line',chartLabel:'Descending Triangle',chartData:[520,500,480,490,510,495,480,488,505,492,480,486,500,488,480,485,495,487,480,478,470,460,450,445,440]},
+
+{id:'rising_wedge',cat:'chart-patterns',emoji:'📐',title:'Rising Wedge',
+ explanation:`<h5>Rising Wedge (Bearish Reversal/Continuation)</h5><p>Both trendlines slope upward but converge. Higher highs and higher lows with decreasing momentum. Typically breaks down.</p>`,
+ formula:`<div class="academy-formula-block">Target = Breakout Point − Height of Wedge at Entry</div>`,
+ sandbox:{inputs:[{label:'Wedge Width at Start',key:'width',val:50},{label:'Breakout Price',key:'bo',val:480}],calc:(v)=>`Rising Wedge Target: ₹${(v.bo-v.width).toFixed(0)}`},
+ quiz:[{q:'A rising wedge in an uptrend usually signals:',opts:['Bullish reversal','Bearish reversal','Uptrend continuation','Overbought continuation'],ans:1}],
+ chartType:'line',chartLabel:'Rising Wedge',chartData:[450,470,465,485,480,495,490,502,498,508,505,512,510,515,512,508,495,480,470,460,450,440,430,425,420]},
+
+{id:'falling_wedge',cat:'chart-patterns',emoji:'📐',title:'Falling Wedge',
+ explanation:`<h5>Falling Wedge (Bullish Reversal/Continuation)</h5><p>Both trendlines slope downward but converge. Lower lows and lower highs with decreasing selling pressure. Typically breaks up.</p>`,
+ formula:`<div class="academy-formula-block">Target = Breakout Point + Height of Wedge at Entry</div>`,
+ sandbox:{inputs:[{label:'Wedge Width at Start',key:'width',val:50},{label:'Breakout Price',key:'bo',val:480}],calc:(v)=>`Falling Wedge Target: ₹${(v.bo+v.width).toFixed(0)}`},
+ quiz:[{q:'A falling wedge is generally considered:',opts:['Bearish','Bullish','Neutral','Continuation down'],ans:1}],
+ chartType:'line',chartLabel:'Falling Wedge',chartData:[550,540,535,530,528,525,520,518,515,510,508,505,500,498,495,492,490,488,485,490,500,510,520,530,540]},
+
+{id:'cup_handle',cat:'chart-patterns',emoji:'☕',title:'Cup & Handle',
+ explanation:`<h5>What is Cup & Handle?</h5><p>A bullish continuation pattern. The \"cup\" is a rounded bottom formation, and the \"handle\" is a small pullback/consolidation before breakout.</p><ul><li>Cup depth typically 12–33% of the prior advance</li><li>Handle should retrace no more than 50% of cup depth</li><li>Breakout above handle resistance = Buy</li><li>Ideal duration: 7 weeks to 65 weeks for the cup</li></ul>`,
+ formula:`<div class="academy-formula-block">Target = Breakout Price + Depth of Cup</div>`,
+ sandbox:{inputs:[{label:'Cup Rim Price',key:'rim',val:200},{label:'Cup Bottom',key:'bottom',val:160}],calc:(v)=>`Target = ₹${(v.rim+(v.rim-v.bottom)).toFixed(0)}`},
+ quiz:[{q:'Cup & Handle is a:',opts:['Bearish reversal','Bullish continuation','Bearish continuation','Neutral'],ans:1}],
+ chartType:'line',chartLabel:'Price',chartData:[200,195,185,175,168,162,160,162,168,175,185,195,200,198,195,193,195,198,200,205,210,215,220,225,230]},
+
+{id:'triple_top',cat:'chart-patterns',emoji:'3️⃣',title:'Triple Top',
+ explanation:`<h5>Triple Top</h5><p>Three peaks at roughly the same level followed by a breakdown below support. Stronger bearish reversal signal than double top.</p>`,
+ formula:`<div class="academy-formula-block">Target = Support Level − Pattern Height</div>`,
+ sandbox:{inputs:[{label:'Peak Level',key:'level',val:500},{label:'Support Level',key:'sr',val:460}],calc:(v)=>`Triple Top Target: ₹${(v.sr-(v.level-v.sr)).toFixed(0)}`},
+ quiz:[{q:'Triple top is a:',opts:['Bullish reversal','Bearish reversal','Bullish continuation','Neutral'],ans:1}],
+ chartType:'line',chartLabel:'Triple Top',chartData:[460,475,490,500,490,475,460,475,490,500,488,475,460,475,490,500,485,470,455,445,435,430,425,420,415]},
+
+{id:'triple_bottom',cat:'chart-patterns',emoji:'🩲',title:'Triple Bottom',
+ explanation:`<h5>Triple Bottom</h5><p>Three troughs at roughly the same level followed by a breakout above resistance. Stronger bullish reversal than double bottom.</p>`,
+ formula:`<div class="academy-formula-block">Target = Resistance Level + Pattern Height</div>`,
+ sandbox:{inputs:[{label:'Trough Level',key:'level',val:460},{label:'Resistance Level',key:'sr',val:500}],calc:(v)=>`Triple Bottom Target: ₹${(v.sr+(v.sr-v.level)).toFixed(0)}`},
+ quiz:[{q:'Triple bottom is a stronger signal than:',opts:['Head and Shoulders','Double bottom','Flags','Triangles'],ans:1}],
+ chartType:'line',chartLabel:'Triple Bottom',chartData:[500,485,470,460,470,485,500,485,470,460,472,485,500,485,470,460,475,490,505,515,525,530,535,540,545]},
+
+{id:'rounding_bottom',cat:'chart-patterns',emoji:'🥣',title:'Rounding Bottom',explanation:`<h5>What is a Rounding Bottom?</h5><p>A long-term reversal pattern that resembles a "U" shape. It indicates a gradual shift from selling pressure to buying pressure over weeks or months.</p>`,formula:`<div class="academy-formula-block">Target = Resistance Breakout + Depth of Pattern</div>`,sandbox:{inputs:[{label:'Resistance',key:'r',val:300},{label:'Bottom',key:'b',val:220}],calc:(v)=>`Target: ₹${(v.r+(v.r-v.b)).toFixed(0)}`},quiz:[{q:'Rounding bottom indicates:',opts:['Bearish reversal','Bullish reversal','Continuation','No signal'],ans:1}],chartType:'line',chartLabel:'Price',chartData:[300,290,275,260,248,238,230,225,222,220,222,225,230,238,248,260,275,290,300,310,320,330,340,350,360]},
+
+{id:'megaphone',cat:'chart-patterns',emoji:'📢',title:'Megaphone (Broadening Formation)',explanation:`<h5>What is a Megaphone?</h5><p>Also called a broadening formation, it features expanding price swings with higher highs and lower lows. It indicates increasing volatility and market indecision.</p>`,formula:`<div class="academy-formula-block">No fixed target — trade individual swings within the pattern</div>`,sandbox:{inputs:[{label:'Swing High',key:'h',val:550},{label:'Swing Low',key:'l',val:440}],calc:(v)=>`Range: ₹${(v.h-v.l).toFixed(0)} | Mid: ₹${((v.h+v.l)/2).toFixed(0)}`},quiz:[{q:'Megaphone formation shows:',opts:['Decreasing volatility','Increasing volatility','Trend continuation','Oversold'],ans:1}],chartType:'line',chartLabel:'Price',chartData:[490,500,510,495,480,510,520,475,470,525,530,465,460,535,540,455,450,545,540,450,455,550,545,448,460]},
+
+{id:'price_channels',cat:'chart-patterns',emoji:'📊',title:'Price Channels',explanation:`<h5>What are Price Channels?</h5><p>Parallel trendlines connecting successive highs and lows. An ascending channel has upward-sloping lines (buy at lower, sell at upper). A descending channel has downward-sloping lines.</p>`,formula:`<div class="academy-formula-block">Channel Width = Upper Trendline − Lower Trendline<br>Target on breakout = Channel Width projected from breakout</div>`,sandbox:{inputs:[{label:'Upper Channel',key:'upper',val:520},{label:'Lower Channel',key:'lower',val:480}],calc:(v)=>`Width: ₹${(v.upper-v.lower).toFixed(0)} | Breakout Target: ₹${(v.upper+(v.upper-v.lower)).toFixed(0)}`},quiz:[{q:'In an ascending channel, buy signals occur at:',opts:['Upper trendline','Lower trendline','Midpoint','Outside the channel'],ans:1}],chartType:'line',chartLabel:'Price',chartData:[480,488,496,504,512,520,515,508,500,492,484,490,498,506,514,522,516,508,500,494,488,496,504,512,520]},
+
+{id:'diamond',cat:'chart-patterns',emoji:'💎',title:'Diamond Pattern',explanation:`<h5>What is a Diamond Pattern?</h5><p>A rare reversal pattern formed by a broadening formation followed by a symmetrical triangle. It looks like a diamond shape on the chart and typically appears at major tops.</p>`,formula:`<div class="academy-formula-block">Target = Breakout − Height of Diamond</div>`,sandbox:{inputs:[{label:'Diamond High',key:'h',val:560},{label:'Diamond Low',key:'l',val:500},{label:'Breakout',key:'bo',val:500}],calc:(v)=>`Target: ₹${(v.bo-(v.h-v.l)).toFixed(0)}`},quiz:[{q:'Diamond patterns are most commonly:',opts:['Continuation','Reversal','Neutral','Volume-based'],ans:1}],chartType:'line',chartLabel:'Price',chartData:[520,530,540,550,560,555,540,520,500,510,530,550,545,535,520,510,505,500,495,490,485,480,478,475,472]},
+
+{id:'gap_dynamics',cat:'chart-patterns',emoji:'⬆️',title:'Gap Dynamics (Breakaway, Runaway, Exhaustion)',explanation:`<h5>Types of Gaps</h5><ul><li><b>Breakaway Gap:</b> Occurs at the start of a new trend, usually with high volume</li><li><b>Runaway/Continuation Gap:</b> Occurs mid-trend, confirming momentum</li><li><b>Exhaustion Gap:</b> Occurs near end of trend, often filled quickly</li><li><b>Common Gap:</b> Occurs in trading ranges, quickly filled</li></ul>`,formula:`<div class="academy-formula-block">Gap Size = Open(today) − Close(yesterday)<br>Gap Fill = Price returns to pre-gap close</div>`,sandbox:{inputs:[{label:"Yesterday's Close",key:'yc',val:500},{label:"Today's Open",key:'to',val:515}],calc:(v)=>`Gap Size: ₹${(v.to-v.yc).toFixed(2)} (${((v.to-v.yc)/v.yc*100).toFixed(2)}%)`},quiz:[{q:'Which gap type typically gets filled quickly?',opts:['Breakaway','Runaway','Exhaustion','Common'],ans:3}],chartType:'bar',chartLabel:'Gap Size',chartData:[0,0,15,2,0,0,-10,0,0,8,0,0,0,-5,0,20,0,0,0,-12,0,0,5,0,0]},
+
+{id:'doji',cat:'candlestick',emoji:'✝️',title:'Doji Variations',explanation:`<h5>What is a Doji?</h5><p>A candlestick where open and close are virtually equal, forming a cross. It signals indecision.</p><h5>Types</h5><ul><li><b>Standard Doji:</b> Cross shape — pure indecision</li><li><b>Long-Legged Doji:</b> Long upper and lower shadows</li><li><b>Dragonfly Doji:</b> Long lower shadow, no upper — bullish at bottoms</li><li><b>Gravestone Doji:</b> Long upper shadow, no lower — bearish at tops</li></ul>`,formula:`<div class="academy-formula-block">Doji: |Open − Close| ≤ 0.1% of Price Range</div>`,sandbox:{inputs:[{label:'Open',key:'o',val:150},{label:'Close',key:'c',val:150.1},{label:'High',key:'h',val:155},{label:'Low',key:'l',val:145}],calc:(v)=>{const body=Math.abs(v.o-v.c);const range=v.h-v.l;return `Body: ₹${body.toFixed(2)} | Range: ₹${range.toFixed(2)} | Doji: ${body/range<0.1?'YES':'NO'}`;}},quiz:[{q:'A Gravestone Doji at a top signals:',opts:['Bullish continuation','Bearish reversal','Indecision','Accumulation'],ans:1}],chartType:'bar',chartLabel:'Body Size',chartData:[5,8,12,3,0.5,0.2,10,15,8,0.3,0.1,12,8,5,0.4,0.2,10,15,12,0.5,0.1,8,5,3,0.3]},
+
+{id:'hammer',cat:'candlestick',emoji:'🔨',title:'Hammer',explanation:`<h5>Hammer (Bullish Reversal)</h5><p>Small body at the top with a long lower shadow (2x+ body). Appears in downtrends — signals buyers step in and push the price back up from lows.</p>`,formula:`<div class="academy-formula-block">Lower Shadow ≥ 2 × Body Size<br>Upper Shadow ≤ 10% of Range</div>`,sandbox:{inputs:[{label:'Open',key:'o',val:152},{label:'Close',key:'c',val:155},{label:'Low',key:'l',val:145}],calc:(v)=>{const body=Math.abs(v.c-v.o);const lowerShadow=Math.min(v.o,v.c)-v.l;return `Body: ₹${body.toFixed(1)} | Lower Shadow: ₹${lowerShadow.toFixed(1)} | Hammer: ${lowerShadow>=2*body?'YES':'NO'}`;}},quiz:[{q:'A hammer in a downtrend signals:',opts:['Continuation down','Bullish reversal','No signal','Bearish'],ans:1}],chartType:'bar',chartLabel:'Hammer Pattern',chartData:[8,10,12,15,18,20,18,15,10,5,8,12,15,18,20,22,20,18,15,12,8,5,3,5,8]},
+
+{id:'hanging_man',cat:'candlestick',emoji:'👤',title:'Hanging Man',explanation:`<h5>Hanging Man (Bearish Reversal)</h5><p>Same shape as hammer but appears at the top of an uptrend — signals that selling pressure is beginning to mount.</p>`,formula:`<div class="academy-formula-block">Lower Shadow ≥ 2 × Body Size<br>Upper Shadow ≤ 10% of Range</div>`,sandbox:{inputs:[{label:'Open',key:'o',val:155},{label:'Close',key:'c',val:152},{label:'Low',key:'l',val:145}],calc:(v)=>{const body=Math.abs(v.c-v.o);const lowerShadow=Math.min(v.o,v.c)-v.l;return `Body: ₹${body.toFixed(1)} | Lower Shadow: ₹${lowerShadow.toFixed(1)} | Hanging Man: ${lowerShadow>=2*body?'YES':'NO'}`;}},quiz:[{q:'Hanging Man appears in:',opts:['Downtrends','Uptrends','Sideways markets','Any market'],ans:1}],chartType:'bar',chartLabel:'Hanging Man Pattern',chartData:[8,10,12,15,18,20,18,15,10,5,8,12,15,18,20,22,20,18,15,12,8,5,3,5,8]},
+
+{id:'shooting_star',cat:'candlestick',emoji:'⭐',title:'Shooting Star',explanation:`<h5>Shooting Star (Bearish Reversal)</h5><p>Small body at the bottom with a long upper shadow. Appears in uptrends — signals price opened, rallied strongly, but buyers failed to hold highs, closing near the open.</p>`,formula:`<div class="academy-formula-block">Upper Shadow ≥ 2 × Body Size<br>Lower Shadow ≤ 10% of Range</div>`,sandbox:{inputs:[{label:'Open',key:'o',val:155},{label:'Close',key:'c',val:152},{label:'High',key:'h',val:165}],calc:(v)=>{const body=Math.abs(v.o-v.c);const uShadow=v.h-Math.max(v.o,v.c);return `Body: ₹${body.toFixed(1)} | Upper Shadow: ₹${uShadow.toFixed(1)} | Shooting Star: ${uShadow>=2*body?'YES':'NO'}`;}},quiz:[{q:'Shooting star appears in:',opts:['Downtrends','Uptrends','Sideways markets','Any market'],ans:1}],chartType:'bar',chartLabel:'Shooting Star',chartData:[5,8,12,15,18,20,22,25,28,30,28,25,22,18,15,12,10,8,6,5,8,10,12,14,16]},
+
+{id:'inverted_hammer',cat:'candlestick',emoji:'🔨',title:'Inverted Hammer',explanation:`<h5>Inverted Hammer (Bullish Reversal)</h5><p>Same shape as shooting star but appears in downtrends — potential bullish reversal pending next-candle upward confirmation.</p>`,formula:`<div class="academy-formula-block">Upper Shadow ≥ 2 × Body Size<br>Lower Shadow ≤ 10% of Range</div>`,sandbox:{inputs:[{label:'Open',key:'o',val:145},{label:'Close',key:'c',val:148},{label:'High',key:'h',val:158}],calc:(v)=>{const body=Math.abs(v.o-v.c);const uShadow=v.h-Math.max(v.o,v.c);return `Body: ₹${body.toFixed(1)} | Upper Shadow: ₹${uShadow.toFixed(1)} | Inverted Hammer: ${uShadow>=2*body?'YES':'NO'}`;}},quiz:[{q:'Inverted hammer appears in:',opts:['Downtrends','Uptrends','Sideways markets','Breakouts'],ans:0}],chartType:'bar',chartLabel:'Inverted Hammer',chartData:[5,8,12,15,18,20,22,25,28,30,28,25,22,18,15,12,10,8,6,5,8,10,12,14,16]},
+
+{id:'bullish_engulfing',cat:'candlestick',emoji:'🟩',title:'Bullish Engulfing',explanation:`<h5>Bullish Engulfing (Bullish Reversal)</h5><p>A large green candle completely engulfs the body of the previous red candle. Appears at bottoms — signals a strong shift from sellers to buyers.</p>`,formula:`<div class="academy-formula-block">Green Close > Red Open AND Green Open < Red Close</div>`,sandbox:{inputs:[{label:'Prev Open',key:'po',val:152},{label:'Prev Close',key:'pc',val:148},{label:'Curr Open',key:'co',val:146},{label:'Curr Close',key:'cc',val:155}],calc:(v)=>`Engulfing: ${v.cc>v.po&&v.co<v.pc?'BULLISH ✅':'NO ENGULFING'}`},quiz:[{q:'Bullish engulfing appears at:',opts:['Market tops','Market bottoms','Sideways ranges','Any time'],ans:1}],chartType:'bar',chartLabel:'Candle Body',chartData:[-5,-3,-8,-2,10,5,3,-4,-6,-10,12,8,5,-3,-5,-8,15,10,5,-2,-4,-12,18,12,8]},
+
+{id:'bearish_engulfing',cat:'candlestick',emoji:'🟥',title:'Bearish Engulfing',explanation:`<h5>Bearish Engulfing (Bearish Reversal)</h5><p>A large red candle completely engulfs the body of the previous green candle. Appears at tops — signals a strong shift from buyers to sellers.</p>`,formula:`<div class="academy-formula-block">Red Close < Green Open AND Red Open > Green Close</div>`,sandbox:{inputs:[{label:'Prev Open',key:'po',val:148},{label:'Prev Close',key:'pc',val:152},{label:'Curr Open',key:'co',val:155},{label:'Curr Close',key:'cc',val:146}],calc:(v)=>`Engulfing: ${v.cc<v.po&&v.co>v.pc?'BEARISH 🔴':'NO ENGULFING'}`},quiz:[{q:'Bearish engulfing appears at:',opts:['Market tops','Market bottoms','Sideways ranges','Any time'],ans:0}],chartType:'bar',chartLabel:'Candle Body',chartData:[-5,-3,-8,-2,10,5,3,-4,-6,-10,12,8,5,-3,-5,-8,15,10,5,-2,-4,-12,18,12,8]},
+
+{id:'bullish_harami',cat:'candlestick',emoji:'🤰',title:'Bullish Harami',explanation:`<h5>Bullish Harami</h5><p>A small green candle forms inside the body of the previous large red candle. Signals a potential pause or reversal of a downtrend.</p>`,formula:`<div class="academy-formula-block">Baby body completely inside Mother body (Red Mother, Green Baby)</div>`,sandbox:{inputs:[{label:'Mother Open',key:'mo',val:160},{label:'Mother Close',key:'mc',val:145},{label:'Baby Open',key:'bo',val:148},{label:'Baby Close',key:'bc',val:152}],calc:(v)=>{const mHigh=Math.max(v.mo,v.mc),mLow=Math.min(v.mo,v.mc),bHigh=Math.max(v.bo,v.bc),bLow=Math.min(v.bo,v.bc);return `Harami: ${bHigh<mHigh&&bLow>mLow?'YES ✅':'NO ❌'}`;}},quiz:[{q:'In a bullish harami, the second candle is:',opts:['Larger than the first','Smaller and inside the first','A doji always','Gapping up'],ans:1}],chartType:'bar',chartLabel:'Body',chartData:[-15,-10,-5,3,-12,-8,2,-10,-15,4,-8,-12,3,5,-10,-14,2,4,-8,-12,3,5,-10,-6,2]},
+
+{id:'bearish_harami',cat:'candlestick',emoji:'🤰',title:'Bearish Harami',explanation:`<h5>Bearish Harami</h5><p>A small red candle forms inside the body of the previous large green candle. Signals a potential pause or reversal of an uptrend.</p>`,formula:`<div class="academy-formula-block">Baby body completely inside Mother body (Green Mother, Red Baby)</div>`,sandbox:{inputs:[{label:'Mother Open',key:'mo',val:145},{label:'Mother Close',key:'mc',val:160},{label:'Baby Open',key:'bo',val:152},{label:'Baby Close',key:'bc',val:148}],calc:(v)=>{const mHigh=Math.max(v.mo,v.mc),mLow=Math.min(v.mo,v.mc),bHigh=Math.max(v.bo,v.bc),bLow=Math.min(v.bo,v.bc);return `Harami: ${bHigh<mHigh&&bLow>mLow?'YES ✅':'NO ❌'}`;}},quiz:[{q:'A bearish harami appears at:',opts:['Market bottoms','Market tops','Breakout start','Nowhere'],ans:1}],chartType:'bar',chartLabel:'Body',chartData:[-15,-10,-5,3,-12,-8,2,-10,-15,4,-8,-12,3,5,-10,-14,2,4,-8,-12,3,5,-10,-6,2]},
+
+{id:'morning_star',cat:'candlestick',emoji:'🌅',title:'Morning Star',explanation:`<h5>Morning Star (Bullish Reversal)</h5><p>Three-candle pattern: (1) Large red candle, (2) Small-bodied candle gapping down, (3) Large green candle closing above midpoint of first candle.</p>`,formula:`<div class="academy-formula-block">3rd candle must close past midpoint of 1st candle's body</div>`,sandbox:{inputs:[{label:'1st Candle Open',key:'o1',val:160},{label:'1st Candle Close',key:'c1',val:145},{label:'3rd Candle Close',key:'c3',val:155}],calc:(v)=>{const mid=(v.o1+v.c1)/2;return `Midpoint: ₹${mid.toFixed(1)} | 3rd closes ${v.c3>mid?'above':'below'} → ${v.c1<v.o1&&v.c3>mid?'Morning Star ✅':'Check conditions'}`;}},quiz:[{q:'Morning Star is a:',opts:['Bearish pattern','1-candle pattern','3-candle bullish reversal','Continuation'],ans:2}],chartType:'bar',chartLabel:'Pattern',chartData:[10,8,-15,-2,12,8,5,-8,-12,-1,15,10,8,5,-10,-14,-1,12,10,8,-8,-12,-2,14,10]},
+
+{id:'evening_star',cat:'candlestick',emoji:'🌇',title:'Evening Star',explanation:`<h5>Evening Star (Bearish Reversal)</h5><p>Three-candle pattern: (1) Large green candle, (2) Small-bodied candle gapping up, (3) Large red candle closing below midpoint of first candle.</p>`,formula:`<div class="academy-formula-block">3rd candle must close past midpoint of 1st candle's body</div>`,sandbox:{inputs:[{label:'1st Candle Open',key:'o1',val:145},{label:'1st Candle Close',key:'c1',val:160},{label:'3rd Candle Close',key:'c3',val:150}],calc:(v)=>{const mid=(v.o1+v.c1)/2;return `Midpoint: ₹${mid.toFixed(1)} | 3rd closes ${v.c3<mid?'below':'above'} → ${v.c1>v.o1&&v.c3<mid?'Evening Star ✅':'Check conditions'}`;}},quiz:[{q:'Evening Star typically appears at:',opts:['Market bottoms','Market tops','Support levels','Nowhere'],ans:1}],chartType:'bar',chartLabel:'Pattern',chartData:[10,8,-15,-2,12,8,5,-8,-12,-1,15,10,8,5,-10,-14,-1,12,10,8,-8,-12,-2,14,10]},
+
+{id:'piercing_line',cat:'candlestick',emoji:'⛅',title:'Piercing Line',explanation:`<h5>Piercing Line (Bullish Reversal)</h5><p>Two-candle pattern: Red candle followed by a green candle that opens below the prior low but closes above the midpoint of the red candle.</p>`,formula:`<div class="academy-formula-block">2nd candle must close past 50% of 1st candle's body</div>`,sandbox:{inputs:[{label:'Red Open',key:'ro',val:160},{label:'Red Close',key:'rc',val:148},{label:'Green Close',key:'gc',val:156}],calc:(v)=>{const mid=(v.ro+v.rc)/2;return `Midpoint: ₹${mid.toFixed(1)} | Piercing: ${v.gc>mid?'YES ✅':'NO'}`;}},quiz:[{q:'Piercing Line requires the green candle to close:',opts:['Above 50% of red body','At the red open','Below the red close','At any level'],ans:0}],chartType:'bar',chartLabel:'Body',chartData:[8,-15,12,5,-10,14,8,-12,-8,15,10,-14,-10,12,8,-15,14,10,-8,-12,15,8,-10,-14,12]},
+
+{id:'dark_cloud_cover',cat:'candlestick',emoji:'⛈️',title:'Dark Cloud Cover',explanation:`<h5>Dark Cloud Cover (Bearish Reversal)</h5><p>Two-candle pattern: Green candle followed by a red candle that opens above the prior high but closes below the midpoint of the green candle.</p>`,formula:`<div class="academy-formula-block">2nd candle must close past 50% of 1st candle's body</div>`,sandbox:{inputs:[{label:'Green Open',key:'ro',val:148},{label:'Green Close',key:'rc',val:160},{label:'Red Close',key:'gc',val:152}],calc:(v)=>{const mid=(v.ro+v.rc)/2;return `Midpoint: ₹${mid.toFixed(1)} | Dark Cloud: ${v.gc<mid?'YES ✅':'NO'}`;}},quiz:[{q:'Dark Cloud Cover is a:',opts:['Bullish reversal','Bearish reversal','Continuation','Indecision'],ans:1}],chartType:'bar',chartLabel:'Body',chartData:[8,-15,12,5,-10,14,8,-12,-8,15,10,-14,-10,12,8,-15,14,10,-8,-12,15,8,-10,-14,12]},
+
+{id:'tweezer_tops',cat:'candlestick',emoji:'🔧',title:'Tweezer Tops',explanation:`<h5>Tweezer Top</h5><p>Two or more candles with matching highs at the top of an uptrend. The first is bullish, the second bearish.</p>`,formula:`<div class="academy-formula-block">Matching Highs (Top) or Matching Lows (Bottom) ± 0.1%</div>`,sandbox:{inputs:[{label:'Candle 1 High',key:'h1',val:525},{label:'Candle 2 High',key:'h2',val:525}],calc:(v)=>`Match: ${Math.abs(v.h1-v.h2)/v.h1*100<0.1?'Tweezer Top ✅':'No match'}`},quiz:[{q:'Tweezer tops appear at:',opts:['Market tops','Market bottoms','Mid-trend','Any time'],ans:0}],chartType:'line',chartLabel:'Price',chartData:[490,500,510,518,525,525,520,515,510,505,500,495,490,488,485,483,480,478,475,478,482,488,495,500,505]},
+
+{id:'tweezer_bottoms',cat:'candlestick',emoji:'🔧',title:'Tweezer Bottoms',explanation:`<h5>Tweezer Bottom</h5><p>Two or more candles with matching lows at the bottom of a downtrend. The first is bearish, the second bullish.</p>`,formula:`<div class="academy-formula-block">Matching Highs (Top) or Matching Lows (Bottom) ± 0.1%</div>`,sandbox:{inputs:[{label:'Candle 1 Low',key:'l1',val:480},{label:'Candle 2 Low',key:'l2',val:480}],calc:(v)=>`Match: ${Math.abs(v.l1-v.l2)/v.l1*100<0.1?'Tweezer Bottom ✅':'No match'}`},quiz:[{q:'Tweezer bottoms appear at:',opts:['Market tops','Market bottoms','Mid-trend','Any time'],ans:1}],chartType:'line',chartLabel:'Price',chartData:[520,510,500,490,480,480,488,495,500,505,510,515,520]},
+
+{id:'three_white_soldiers',cat:'candlestick',emoji:'💂',title:'Three White Soldiers',explanation:`<h5>Three White Soldiers (Bullish)</h5><p>Three consecutive long green candles with progressively higher closes. Each opens within the previous candle's body. Strong bullish reversal.</p>`,formula:`<div class="academy-formula-block">3 consecutive candles, each closing higher (soldiers)</div>`,sandbox:{inputs:[{label:'Close 1',key:'c1',val:100},{label:'Close 2',key:'c2',val:108},{label:'Close 3',key:'c3',val:115}],calc:(v)=>`Pattern: ${v.c3>v.c2&&v.c2>v.c1?'Three White Soldiers ✅':'No pattern'}`},quiz:[{q:'Three White Soldiers is:',opts:['Bearish','A single candle','Strong bullish reversal','Neutral'],ans:2}],chartType:'bar',chartLabel:'Close',chartData:[95,92,88,85,90,95,100,108,115,120,122,118,115,112,108,105,100,95,88,82,78,82,88,95,102]},
+
+{id:'three_black_crows',cat:'candlestick',emoji:'🐦',title:'Three Black Crows',explanation:`<h5>Three Black Crows (Bearish)</h5><p>Three consecutive long red candles with progressively lower closes. Strong bearish reversal.</p>`,formula:`<div class="academy-formula-block">3 consecutive candles, each closing lower (crows)</div>`,sandbox:{inputs:[{label:'Close 1',key:'c1',val:115},{label:'Close 2',key:'c2',val:108},{label:'Close 3',key:'c3',val:100}],calc:(v)=>`Pattern: ${v.c3<v.c2&&v.c2<v.c1?'Three Black Crows 🔴':'No pattern'}`},quiz:[{q:'Three Black Crows is:',opts:['Bearish reversal','Bullish reversal','Consolidation','No trend'],ans:0}],chartType:'bar',chartLabel:'Close',chartData:[95,98,105,110,115,112,108,100,95,90,88,92,95,98,100,105]},
+
+{id:'marubozu',cat:'candlestick',emoji:'🟩',title:'Marubozu',explanation:`<h5>What is Marubozu?</h5><p>A candlestick with no (or very small) shadows. The entire range is the body, indicating complete buyer or seller dominance.</p><ul><li><b>Green Marubozu:</b> Opens at low, closes at high — extreme bullish</li><li><b>Red Marubozu:</b> Opens at high, closes at low — extreme bearish</li></ul>`,formula:`<div class="academy-formula-block">Green: Open ≈ Low AND Close ≈ High<br>Red: Open ≈ High AND Close ≈ Low</div>`,sandbox:{inputs:[{label:'Open',key:'o',val:500},{label:'Close',key:'c',val:520},{label:'High',key:'h',val:520},{label:'Low',key:'l',val:500}],calc:(v)=>{const isBull=Math.abs(v.o-v.l)<1&&Math.abs(v.c-v.h)<1;const isBear=Math.abs(v.o-v.h)<1&&Math.abs(v.c-v.l)<1;return isBull?'Bullish Marubozu ✅':isBear?'Bearish Marubozu 🔴':'Not a Marubozu';}},quiz:[{q:'A green Marubozu indicates:',opts:['Seller dominance','Complete buyer dominance','Indecision','Reversal'],ans:1}],chartType:'bar',chartLabel:'Body',chartData:[20,15,10,5,-8,-15,-20,-10,5,15,25,20,10,-5,-15,-25,-20,-10,5,15,25,30,20,10,-5]},
+
+{id:'three_statements',cat:'fundamental',emoji:'📑',title:'Three-Statement Financial Model',explanation:`<h5>The Three Core Statements</h5><ul><li><b>Income Statement:</b> Revenue → COGS → Gross Profit → EBITDA → EBIT → PAT (Profit After Tax)</li><li><b>Balance Sheet:</b> Assets = Liabilities + Shareholders' Equity</li><li><b>Cash Flow Statement:</b> CFO (Operating) + CFI (Investing) + CFF (Financing) = Net Change in Cash</li></ul><p>These three statements are interconnected: Net Income flows to Retained Earnings, Capex links Income Statement to Balance Sheet, and Depreciation is a non-cash adjustment in CFO.</p>`,formula:`<div class="academy-formula-block">Net Profit Margin = PAT / Revenue × 100<br>Operating Margin = EBIT / Revenue × 100</div>`,sandbox:{inputs:[{label:'Revenue (Cr)',key:'rev',val:10000},{label:'PAT (Cr)',key:'pat',val:1500}],calc:(v)=>`Net Margin = ${(v.pat/v.rev*100).toFixed(2)}%`},quiz:[{q:'The accounting equation is:',opts:['Assets = Revenue − Expenses','Assets = Liabilities + Equity','Revenue = Expenses + Profit','Cash = Assets − Liabilities'],ans:1}],chartType:'bar',chartLabel:'Margins (%)',chartData:[12,13,14,15,14,13,15,16,17,18,17,16,18,19,20,19,18,20,21,22,21,20,22,23,24]},
+
+{id:'valuation_multiples',cat:'fundamental',emoji:'📊',title:'Valuation Multiples (P/E, P/B, EV/EBITDA)',explanation:`<h5>Key Valuation Ratios</h5><ul><li><b>P/E Ratio:</b> Price / Earnings Per Share — most widely used equity valuation metric</li><li><b>P/B Ratio:</b> Price / Book Value per share — useful for banks and asset-heavy companies</li><li><b>EV/EBITDA:</b> Enterprise Value / EBITDA — capital-structure neutral comparison</li></ul><p>Compare to sector median and historical averages to assess premium/discount.</p>`,formula:`<div class="academy-formula-block">P/E = Market Price / EPS<br>P/B = Market Price / Book Value per Share<br>EV = Market Cap + Debt − Cash<br>EV/EBITDA = EV / EBITDA</div>`,sandbox:{inputs:[{label:'Price (₹)',key:'price',val:2500},{label:'EPS (₹)',key:'eps',val:80},{label:'Book Value',key:'bv',val:450}],calc:(v)=>`P/E = ${(v.price/v.eps).toFixed(2)}x | P/B = ${(v.price/v.bv).toFixed(2)}x`},quiz:[{q:'EV/EBITDA is preferred over P/E because:',opts:['It includes dividends','It is capital-structure neutral','It uses cash flow','It ignores debt'],ans:1}],chartType:'line',chartLabel:'P/E Ratio',chartData:[18,20,22,25,28,30,28,25,22,20,18,20,22,25,30,35,32,28,25,22,20,22,25,28,30]},
+
+{id:'return_ratios',cat:'fundamental',emoji:'💹',title:'Return Ratios (ROE, ROCE, ROA)',explanation:`<h5>Return on Equity (ROE)</h5><p>Measures profitability relative to shareholders' equity. High ROE (>15%) indicates efficient capital usage.</p><h5>Return on Capital Employed (ROCE)</h5><p>Measures returns generated on total capital (equity + debt). Better for comparing companies with different capital structures.</p><h5>Return on Assets (ROA)</h5><p>Measures how efficiently assets generate profits.</p>`,formula:`<div class="academy-formula-block">ROE = PAT / Shareholders' Equity × 100<br>ROCE = EBIT / Capital Employed × 100<br>ROA = PAT / Total Assets × 100</div>`,sandbox:{inputs:[{label:'PAT (Cr)',key:'pat',val:1500},{label:'Equity (Cr)',key:'equity',val:8000},{label:'EBIT (Cr)',key:'ebit',val:2200},{label:'Capital Employed',key:'ce',val:12000}],calc:(v)=>`ROE = ${(v.pat/v.equity*100).toFixed(2)}% | ROCE = ${(v.ebit/v.ce*100).toFixed(2)}%`},quiz:[{q:'ROCE is better than ROE for comparing companies with:',opts:['Same sector','Different capital structures','Same size','High growth'],ans:1}],chartType:'line',chartLabel:'ROE (%)',chartData:[14,15,16,18,20,22,21,19,17,16,18,20,22,24,23,21,19,20,22,24,26,25,23,21,22]},
+
+{id:'dcf_wacc',cat:'fundamental',emoji:'💰',title:'DCF & WACC Valuation',explanation:`<h5>Discounted Cash Flow (DCF)</h5><p>Intrinsic value = Present value of all future free cash flows. The most theoretically sound valuation method.</p><h5>WACC</h5><p>Weighted Average Cost of Capital — the discount rate used in DCF. It blends the cost of equity (CAPM) and cost of debt.</p>`,formula:`<div class="academy-formula-block">DCF Value = Σ [FCF(t) / (1 + WACC)^t] + Terminal Value<br><br>WACC = (E/V × Re) + (D/V × Rd × (1−Tax))<br>Terminal Value = FCF(n) × (1+g) / (WACC − g)</div>`,sandbox:{inputs:[{label:'FCF Year 1 (Cr)',key:'fcf',val:500},{label:'WACC (%)',key:'wacc',val:12},{label:'Growth (%)',key:'g',val:5}],calc:(v)=>{const tv=v.fcf*(1+v.g/100)/((v.wacc-v.g)/100);return `Terminal Value = ₹${(tv).toFixed(0)} Cr`;}},quiz:[{q:'A higher WACC results in:',opts:['Higher intrinsic value','Lower intrinsic value','No change','Higher growth'],ans:1}],chartType:'bar',chartLabel:'FCF (Cr)',chartData:[300,330,360,400,440,480,520,560,600,650,700,750,800,850,900,950,1000,1050,1100,1150,1200,1250,1300,1350,1400]},
+
+{id:'solvency_liquidity',cat:'fundamental',emoji:'🏦',title:'Solvency & Liquidity Ratios',explanation:`<h5>Solvency Ratios</h5><ul><li><b>Debt-to-Equity:</b> Total Debt / Equity — leverage measure</li><li><b>Interest Coverage:</b> EBIT / Interest Expense — ability to service debt</li></ul><h5>Liquidity Ratios</h5><ul><li><b>Current Ratio:</b> Current Assets / Current Liabilities (>1.5 ideal)</li><li><b>Quick Ratio:</b> (Current Assets − Inventory) / Current Liabilities</li></ul>`,formula:`<div class="academy-formula-block">D/E = Total Debt / Shareholders' Equity<br>Interest Coverage = EBIT / Interest Expense<br>Current Ratio = Current Assets / Current Liabilities</div>`,sandbox:{inputs:[{label:'Debt (Cr)',key:'debt',val:3000},{label:'Equity (Cr)',key:'equity',val:8000},{label:'EBIT (Cr)',key:'ebit',val:2200},{label:'Interest (Cr)',key:'interest',val:300}],calc:(v)=>`D/E = ${(v.debt/v.equity).toFixed(2)}x | ICR = ${(v.ebit/v.interest).toFixed(2)}x`},quiz:[{q:'Interest Coverage below 1.5x indicates:',opts:['Strong solvency','Debt servicing difficulty','High growth','Low risk'],ans:1}],chartType:'line',chartLabel:'D/E Ratio',chartData:[0.5,0.45,0.4,0.38,0.42,0.48,0.52,0.5,0.45,0.4,0.38,0.35,0.32,0.3,0.28,0.3,0.32,0.35,0.38,0.4,0.42,0.38,0.35,0.32,0.3]},
+
+{id:'dupont',cat:'fundamental',emoji:'🔬',title:'DuPont Analysis',explanation:`<h5>What is DuPont Analysis?</h5><p>Decomposes ROE into three drivers to identify the source of returns:</p><ul><li><b>Profit Margin:</b> How much profit from each rupee of sales</li><li><b>Asset Turnover:</b> How efficiently assets generate revenue</li><li><b>Equity Multiplier:</b> How much leverage is used</li></ul>`,formula:`<div class="academy-formula-block">ROE = Net Margin × Asset Turnover × Equity Multiplier<br><br>= (PAT/Revenue) × (Revenue/Assets) × (Assets/Equity)</div>`,sandbox:{inputs:[{label:'Net Margin (%)',key:'nm',val:15},{label:'Asset Turnover',key:'at',val:0.8},{label:'Equity Multiplier',key:'em',val:1.5}],calc:(v)=>`ROE = ${(v.nm*v.at*v.em).toFixed(2)}%`},quiz:[{q:'DuPont Analysis breaks ROE into:',opts:['2 components','3 components','4 components','5 components'],ans:1}],chartType:'bar',chartLabel:'Component',chartData:[15,0.8,1.5,18,15,0.9,1.4,19,16,0.85,1.3,17.7,14,0.75,1.6,16.8,15,0.8,1.5,18,16,0.85,1.4,19,17]},
+
+{id:'dividend_metrics',cat:'fundamental',emoji:'💸',title:'Dividend Metrics',explanation:`<h5>Key Dividend Ratios</h5><ul><li><b>Dividend Yield:</b> Annual Dividend / Market Price × 100</li><li><b>Payout Ratio:</b> Dividends / Net Income × 100</li><li><b>Dividend Growth Rate:</b> Rate at which dividends increase YoY</li></ul><p>The Gordon Growth Model values stocks based on dividends: P = D₁ / (r − g)</p>`,formula:`<div class="academy-formula-block">Yield = DPS / Price × 100<br>Payout = DPS / EPS × 100<br>Gordon: P = D₁ / (r − g)</div>`,sandbox:{inputs:[{label:'DPS (₹)',key:'dps',val:20},{label:'Price (₹)',key:'price',val:800},{label:'EPS (₹)',key:'eps',val:50}],calc:(v)=>`Yield = ${(v.dps/v.price*100).toFixed(2)}% | Payout = ${(v.dps/v.eps*100).toFixed(1)}%`},quiz:[{q:'A high payout ratio may indicate:',opts:['High growth reinvestment','Mature company with stable earnings','Financial distress','Low profitability'],ans:1}],chartType:'line',chartLabel:'Yield (%)',chartData:[2.0,2.1,2.2,2.3,2.5,2.8,3.0,2.8,2.5,2.3,2.2,2.0,2.1,2.3,2.5,2.8,3.0,3.2,3.0,2.8,2.5,2.3,2.1,2.2,2.4]},
+
+{id:'earnings_quality',cat:'fundamental',emoji:'🔍',title:'Earnings Quality & Accruals',explanation:`<h5>Earnings Quality Indicators</h5><ul><li><b>CFO/PAT Ratio:</b> Cash Flow from Operations / Net Profit — should be >0.8</li><li><b>Accrual Ratio:</b> (Net Income − CFO) / Total Assets — high accruals = low quality</li><li><b>Piotroski F-Score:</b> 9-point scoring system for financial strength</li><li><b>Altman Z-Score:</b> Bankruptcy prediction model</li></ul>`,formula:`<div class="academy-formula-block">CFO/PAT > 0.8 → High quality earnings<br>Accrual Ratio = (NI − CFO) / Total Assets<br>Lower accruals = Higher earnings quality</div>`,sandbox:{inputs:[{label:'Net Income (Cr)',key:'ni',val:1500},{label:'CFO (Cr)',key:'cfo',val:1800}],calc:(v)=>`CFO/PAT = ${(v.cfo/v.ni).toFixed(2)}x → ${v.cfo/v.ni>=0.8?'High Quality ✅':'Low Quality ⚠️'}`},quiz:[{q:'CFO/PAT below 0.8 suggests:',opts:['Strong cash generation','Potential earnings manipulation','High growth','Low leverage'],ans:1}],chartType:'line',chartLabel:'CFO/PAT',chartData:[0.85,0.90,0.92,0.88,0.82,0.78,0.75,0.80,0.85,0.90,0.95,1.0,0.98,0.92,0.88,0.85,0.90,0.95,1.0,1.05,1.0,0.95,0.90,0.88,0.92]},
+
+{id:'peg_ratio',cat:'fundamental',emoji:'📏',title:'PEG Ratio',explanation:`<h5>What is PEG?</h5><p>Price/Earnings to Growth ratio adjusts P/E for expected earnings growth. A PEG of 1 means fair value; below 1 is undervalued relative to growth.</p><ul><li>PEG < 1 = Potentially undervalued</li><li>PEG = 1 = Fairly valued</li><li>PEG > 2 = Potentially overvalued</li></ul>`,formula:`<div class="academy-formula-block">PEG = P/E Ratio / Earnings Growth Rate (%)</div>`,sandbox:{inputs:[{label:'P/E Ratio',key:'pe',val:25},{label:'EPS Growth (%)',key:'g',val:20}],calc:(v)=>`PEG = ${(v.pe/Math.max(v.g,0.01)).toFixed(2)} → ${v.pe/v.g<1?'Undervalued':'Fairly/Over valued'}`},quiz:[{q:'PEG below 1 suggests:',opts:['Overvalued','Undervalued relative to growth','No growth','High risk'],ans:1}],chartType:'line',chartLabel:'PEG',chartData:[1.5,1.4,1.3,1.2,1.1,1.0,0.9,0.85,0.8,0.85,0.9,1.0,1.1,1.2,1.3,1.2,1.1,1.0,0.9,0.8,0.75,0.8,0.9,1.0,1.1]},
+
+{id:'ev_equity',cat:'fundamental',emoji:'🏢',title:'Enterprise Value vs Equity Value',explanation:`<h5>Enterprise Value (EV)</h5><p>The total value of a company's operating assets. It represents the cost of acquiring the entire business.</p><h5>Equity Value (Market Cap)</h5><p>The value attributable to shareholders only.</p><ul><li>EV = Market Cap + Total Debt − Cash & Equivalents</li><li>EV-based multiples are capital-structure neutral</li><li>Use EV/EBITDA, EV/Sales for comparisons</li></ul>`,formula:`<div class="academy-formula-block">EV = Market Cap + Total Debt − Cash<br>Equity Value = EV − Debt + Cash</div>`,sandbox:{inputs:[{label:'Market Cap (Cr)',key:'mcap',val:50000},{label:'Debt (Cr)',key:'debt',val:8000},{label:'Cash (Cr)',key:'cash',val:3000}],calc:(v)=>`EV = ₹${(v.mcap+v.debt-v.cash).toLocaleString()} Cr`},quiz:[{q:'Enterprise Value includes:',opts:['Only equity','Equity + Debt − Cash','Only debt','Revenue'],ans:1}],chartType:'bar',chartLabel:'Value (Cr)',chartData:[40000,42000,45000,48000,50000,52000,55000,53000,50000,48000,50000,52000,55000,58000,60000,58000,55000,53000,55000,58000,60000,62000,60000,58000,60000]},
+
+{id:'bond_basics',cat:'bonds',emoji:'📜',title:'Bond Pricing Mechanics',explanation:`<h5>What is a Bond?</h5><p>A fixed-income instrument where the issuer borrows from investors and pays periodic interest (coupon) plus returns the principal (par value) at maturity.</p><h5>Key Terms</h5><ul><li><b>Par/Face Value:</b> The amount paid at maturity (₹100 or ₹1000)</li><li><b>Coupon Rate:</b> Annual interest rate on par value</li><li><b>Market Price:</b> Current trading price (can be above or below par)</li><li><b>Premium:</b> Price > Par | <b>Discount:</b> Price < Par</li></ul>`,formula:`<div class="academy-formula-block">Bond Price = Σ [C / (1+r)^t] + [FV / (1+r)^n]<br><br>C = Coupon payment, r = Discount rate<br>FV = Face Value, n = Periods to maturity</div>`,sandbox:{inputs:[{label:'Face Value',key:'fv',val:1000},{label:'Coupon Rate (%)',key:'coupon',val:8},{label:'Market Yield (%)',key:'yield',val:7},{label:'Years',key:'n',val:5}],calc:(v)=>{const c=v.fv*v.coupon/100;let price=0;for(let t=1;t<=v.n;t++)price+=c/Math.pow(1+v.yield/100,t);price+=v.fv/Math.pow(1+v.yield/100,v.n);return `Bond Price = ₹${price.toFixed(2)} (${price>v.fv?'Premium':'Discount'})`;}},quiz:[{q:'When market yields rise, bond prices:',opts:['Rise','Fall','Stay same','Double'],ans:1}],chartType:'line',chartLabel:'Bond Price',chartData:[1050,1045,1040,1035,1030,1025,1020,1015,1010,1005,1000,995,990,985,980,985,990,995,1000,1005,1010,1015,1020,1025,1030]},
+
+{id:'ytm',cat:'bonds',emoji:'📈',title:'Yield to Maturity (YTM)',explanation:`<h5>What is YTM?</h5><p>YTM is the total return anticipated on a bond if held to maturity. It is the internal rate of return (IRR) of the bond's cash flows at the current market price.</p><ul><li>YTM > Coupon Rate → Bond trades at discount</li><li>YTM < Coupon Rate → Bond trades at premium</li><li>YTM = Coupon Rate → Bond trades at par</li></ul>`,formula:`<div class="academy-formula-block">YTM ≈ [C + (FV − P) / N] / [(FV + P) / 2]<br><br>C = Annual Coupon, FV = Face Value<br>P = Current Price, N = Years to Maturity</div>`,sandbox:{inputs:[{label:'Face Value',key:'fv',val:1000},{label:'Price',key:'p',val:950},{label:'Coupon (%)',key:'c',val:8},{label:'Years',key:'n',val:5}],calc:(v)=>{const coupon=v.fv*v.c/100;const ytm=(coupon+(v.fv-v.p)/v.n)/((v.fv+v.p)/2)*100;return `Approx YTM = ${ytm.toFixed(2)}%`;}},quiz:[{q:'If a bond trades at a discount, YTM is:',opts:['Equal to coupon','Below coupon','Above coupon','Zero'],ans:2}],chartType:'line',chartLabel:'YTM (%)',chartData:[6.5,6.8,7.0,7.2,7.5,7.8,8.0,7.8,7.5,7.2,7.0,6.8,7.0,7.2,7.5,7.8,8.0,8.2,8.0,7.8,7.5,7.2,7.0,7.2,7.5]},
+
+{id:'yield_curve',cat:'bonds',emoji:'📉',title:'Yield Curve Structure',explanation:`<h5>What is the Yield Curve?</h5><p>A graph plotting yields of bonds with equal credit quality but differing maturities.</p><h5>Shapes</h5><ul><li><b>Normal:</b> Upward sloping — longer maturities pay higher yields (economy healthy)</li><li><b>Inverted:</b> Downward sloping — short-term yields > long-term (recession signal)</li><li><b>Flat:</b> Similar yields across maturities (transition period)</li><li><b>Humped:</b> Medium-term yields highest (uncertainty)</li></ul><div class="academy-example-box">📌 An inverted yield curve has predicted every US recession in the last 50 years with a lead time of 6–18 months.</div>`,formula:`<div class="academy-formula-block">Spread = Long-term Yield − Short-term Yield<br>Positive Spread = Normal | Negative = Inverted</div>`,sandbox:{inputs:[{label:'2Y Yield (%)',key:'y2',val:7.0},{label:'10Y Yield (%)',key:'y10',val:7.5}],calc:(v)=>`Spread = ${(v.y10-v.y2).toFixed(2)}% → ${v.y10>v.y2?'Normal Curve':'Inverted Curve ⚠️'}`},quiz:[{q:'An inverted yield curve typically signals:',opts:['Economic boom','Potential recession','Inflation','Bull market'],ans:1}],chartType:'line',chartLabel:'Yield (%)',chartData:[6.5,6.6,6.7,6.8,7.0,7.1,7.2,7.3,7.4,7.5,7.55,7.6,7.62,7.63,7.64,7.65,7.66,7.67,7.68,7.69,7.7,7.71,7.72,7.73,7.74]},
+
+{id:'bond_duration',cat:'bonds',emoji:'⏱️',title:'Bond Duration',explanation:`<h5>Duration</h5><p>Measures a bond's price sensitivity to interest rate changes. Higher duration = more sensitivity.</p><h5>Modified Duration</h5><p>Approximate percentage change in price for a 1% change in yield. Relates Macaulay Duration to yield.</p>`,formula:`<div class="academy-formula-block">Modified Duration = Macaulay Duration / (1 + YTM/n)</div>`,sandbox:{inputs:[{label:'Macaulay Duration',key:'mac',val:5.2},{label:'YTM (%)',key:'ytm',val:8},{label:'Compounding (n)',key:'n',val:2}],calc:(v)=>`Modified Duration = ${(v.mac/(1+v.ytm/100/v.n)).toFixed(2)} yrs`},quiz:[{q:'When interest rates rise, bond prices with higher duration:',opts:['Rise more','Fall more','Stay same','Double'],ans:1}],chartType:'line',chartLabel:'Duration',chartData:[2,2.5,3,3.5,4,4.5,5,5.5,6,6.5,7,7.5,7,6.5,6,5.5,5,4.5,4,3.5,3,3.5,4,4.5,5]},
+
+{id:'bond_convexity',cat:'bonds',emoji:'⏱️',title:'Bond Convexity',explanation:`<h5>Convexity</h5><p>Measures the curvature of the price-yield relationship. It improves price sensitivity approximations for larger rate shifts.</p><h5>Positive Convexity</h5><p>Bonds gain more from rate drops than they lose from rate increases. Positive convexity is highly valued by investors.</p>`,formula:`<div class="academy-formula-block">ΔP/P ≈ −Duration × Δy + ½ × Convexity × (Δy)²</div>`,sandbox:{inputs:[{label:'Duration (yrs)',key:'dur',val:5.2},{label:'Yield Change (%)',key:'dy',val:-0.5},{label:'Convexity',key:'conv',val:28}],calc:(v)=>{const priceChange=-v.dur*v.dy+0.5*v.conv*Math.pow(v.dy/100,2)*10000;return `Approx Price Change = ${priceChange.toFixed(2)}%`;}},quiz:[{q:'Convexity is a measure of:',opts:['Linear price change','Curvature of the price-yield relationship','Interest rate risk only','Credit risk'],ans:1}],chartType:'line',chartLabel:'Convexity',chartData:[2,2.5,3,3.5,4,4.5,5,5.5,6,6.5,7,7.5,7,6.5,6,5.5,5,4.5,4,3.5,3,3.5,4,4.5,5]},
+
+{id:'credit_spreads',cat:'bonds',emoji:'⚠️',title:'Credit Risk & Spreads',explanation:`<h5>Credit Spread</h5><p>The difference in yield between a corporate bond and a risk-free government bond of the same maturity. Wider spreads indicate higher perceived credit risk.</p><ul><li><b>AAA Spread:</b> ~0.3–0.8% above G-Sec</li><li><b>BBB Spread:</b> ~1.5–3.0% above G-Sec</li><li>Spreads widen during market stress and narrow during confidence</li></ul>`,formula:`<div class="academy-formula-block">Credit Spread = Corporate Bond Yield − Risk-Free Yield<br>Wider Spread = Higher Risk Premium</div>`,sandbox:{inputs:[{label:'Corporate Yield (%)',key:'corp',val:9.5},{label:'G-Sec Yield (%)',key:'gsec',val:7.2}],calc:(v)=>`Credit Spread = ${(v.corp-v.gsec).toFixed(2)}% (${(v.corp-v.gsec)>2?'Wide — High Risk':'Normal'})`},quiz:[{q:'Wider credit spreads indicate:',opts:['Lower risk','Higher risk perception','Economic boom','Low inflation'],ans:1}],chartType:'line',chartLabel:'Spread (bps)',chartData:[120,110,100,95,90,85,80,90,100,120,150,180,160,140,120,100,90,85,80,90,100,110,120,115,105]},
+
+{id:'tips_real_yields',cat:'bonds',emoji:'📊',title:'Real vs Nominal Yields (TIPS)',explanation:`<h5>Nominal vs Real Yield</h5><ul><li><b>Nominal Yield:</b> The stated coupon rate — includes inflation expectations</li><li><b>Real Yield:</b> Nominal Yield − Inflation = True purchasing power return</li><li><b>TIPS (Inflation-Protected Securities):</b> Principal adjusts with inflation, protecting real returns</li></ul>`,formula:`<div class="academy-formula-block">Real Yield ≈ Nominal Yield − Inflation Rate<br>Fisher Equation: (1+Nominal) = (1+Real) × (1+Inflation)</div>`,sandbox:{inputs:[{label:'Nominal Yield (%)',key:'nom',val:7.5},{label:'Inflation (%)',key:'inf',val:5.0}],calc:(v)=>{const real=((1+v.nom/100)/(1+v.inf/100)-1)*100;return `Real Yield = ${real.toFixed(2)}%`;}},quiz:[{q:'If nominal yield is 8% and inflation is 6%, real yield is approximately:',opts:['14%','2%','8%','6%'],ans:1}],chartType:'line',chartLabel:'Real Yield (%)',chartData:[1.5,1.8,2.0,2.2,2.5,2.8,3.0,2.8,2.5,2.2,2.0,1.8,1.5,1.2,1.0,1.2,1.5,1.8,2.0,2.2,2.5,2.8,2.5,2.2,2.0]},
+
+{id:'central_bank',cat:'bonds',emoji:'🏛️',title:'Central Bank Policy & Interest Rates',explanation:`<h5>How Central Banks Affect Bond Markets</h5><ul><li><b>Repo Rate:</b> The rate at which RBI lends to commercial banks — benchmark for all interest rates</li><li><b>Rate Hike:</b> Increases bond yields → decreases bond prices</li><li><b>Rate Cut:</b> Decreases bond yields → increases bond prices</li><li><b>Open Market Operations (OMO):</b> RBI buys/sells government bonds to manage liquidity</li><li><b>Quantitative Easing:</b> Large-scale bond purchases to lower long-term rates</li></ul>`,formula:`<div class="academy-formula-block">Bond Price ∝ 1/Interest Rate<br>When RBI raises Repo Rate → Bond Yields ↑ → Bond Prices ↓</div>`,sandbox:{inputs:[{label:'Current Repo (%)',key:'repo',val:6.5},{label:'Change (bps)',key:'change',val:-25}],calc:(v)=>`New Repo: ${(v.repo+v.change/100).toFixed(2)}% → Bond Prices ${v.change<0?'Rise 📈':'Fall 📉'}`},quiz:[{q:'When RBI cuts the repo rate, bond prices typically:',opts:['Fall','Rise','Stay same','Become volatile'],ans:1}],chartType:'line',chartLabel:'Repo Rate (%)',chartData:[6.5,6.5,6.25,6.25,6.0,6.0,5.75,5.75,5.5,5.5,5.5,5.75,5.75,6.0,6.0,6.25,6.25,6.5,6.5,6.5,6.5,6.25,6.25,6.0,6.0]},
+
+{id:'pv_bond_math',cat:'bonds',emoji:'🧮',title:'Present Value Bond Math',explanation:`<h5>Time Value of Money in Bonds</h5><p>All bond pricing is based on the principle that money today is worth more than the same amount in the future.</p><ul><li><b>Present Value:</b> PV = FV / (1 + r)^n</li><li><b>Annuity PV:</b> PV = C × [1 − (1+r)^−n] / r</li><li>Bond price is the PV of coupons (annuity) + PV of face value (lump sum)</li></ul>`,formula:`<div class="academy-formula-block">PV = FV / (1 + r)^n<br>PV(Annuity) = C × [1 − (1+r)^(−n)] / r</div>`,sandbox:{inputs:[{label:'Future Value (₹)',key:'fv',val:1000},{label:'Rate (%)',key:'r',val:8},{label:'Years',key:'n',val:5}],calc:(v)=>`PV = ₹${(v.fv/Math.pow(1+v.r/100,v.n)).toFixed(2)}`},quiz:[{q:'₹1000 received 5 years from now at 8% discount rate is worth today:',opts:['₹1000','₹680.58','₹500','₹1080'],ans:1}],chartType:'line',chartLabel:'PV (₹)',chartData:[1000,926,857,794,735,681,630,583,540,500,463,429,397,368,340,315,292,270,250,232,215,199,184,170,158]}
+];;
+
+// ── Academy State ──
+let academyActiveTopicId = null;
+let academyProgress = {};
+let academyQuizResults = {};
+let academyDrawMode = false;
+let academyDrawTool = 'pen';
+let academyDrawing = false;
+let academyDrawLastX = 0;
+let academyDrawLastY = 0;
+let academyLineStart = null;
+
+function setupLearningAcademy() {
+    // Load progress from localStorage
+    try {
+        academyProgress = JSON.parse(localStorage.getItem('academy-progress') || '{}');
+        academyQuizResults = JSON.parse(localStorage.getItem('academy-quiz-results') || '{}');
+    } catch(e) { academyProgress = {}; academyQuizResults = {}; }
+
+    renderAcademyNavigator();
+    updateAcademyHUD();
+    setupAcademyFilters();
+    setupAcademyDrawCanvas();
+    setupAcademyAICoach();
+
+    // Mark complete button
+    const markBtn = document.getElementById('academy-mark-complete-btn');
+    if (markBtn) markBtn.addEventListener('click', () => {
+        if (!academyActiveTopicId) return;
+        academyProgress[academyActiveTopicId] = true;
+        localStorage.setItem('academy-progress', JSON.stringify(academyProgress));
+        updateAcademyHUD();
+        renderAcademyNavigator();
+        markBtn.textContent = '✅ Completed!';
+        markBtn.style.color = 'var(--color-emerald)';
+    });
+
+    // Draw toggle
+    const drawBtn = document.getElementById('academy-draw-toggle-btn');
+    if (drawBtn) drawBtn.addEventListener('click', () => {
+        academyDrawMode = !academyDrawMode;
+        const canvas = document.getElementById('academy-draw-canvas');
+        const toolbar = document.getElementById('academy-draw-toolbar');
+        if (canvas) canvas.classList.toggle('active', academyDrawMode);
+        if (toolbar) toolbar.style.display = academyDrawMode ? 'flex' : 'none';
+        drawBtn.style.color = academyDrawMode ? 'var(--color-primary)' : '';
+        drawBtn.style.borderColor = academyDrawMode ? 'var(--color-primary)' : '';
+    });
+}
+
+function renderAcademyNavigator(filter='all', search='') {
+    const list = document.getElementById('academy-topic-list');
+    if (!list) return;
+    const searchLower = search.toLowerCase();
+    const groups = {
+        'technical': '📈 Technical Indicators',
+        'chart-patterns': '📐 Chart Patterns',
+        'candlestick': '🕯️ Candlestick Patterns',
+        'fundamental': '📊 Fundamental Analysis',
+        'bonds': '💵 Bond Market'
+    };
+    let html = '';
+    for (const [cat, label] of Object.entries(groups)) {
+        if (filter !== 'all' && filter !== cat) continue;
+        const items = ACADEMY_CATALOG.filter(m => m.cat === cat && (searchLower === '' || m.title.toLowerCase().includes(searchLower) || m.id.includes(searchLower)));
+        if (items.length === 0) continue;
+        html += `<div class="academy-nav-group-header">${label}</div>`;
+        for (const m of items) {
+            const isActive = academyActiveTopicId === m.id;
+            const isCompleted = academyProgress[m.id];
+            html += `<div class="academy-nav-item${isActive?' active':''}${isCompleted?' completed':''}" data-topic="${m.id}">
+                <span class="academy-nav-item-emoji">${m.emoji}</span>
+                <span>${m.title}</span>
+            </div>`;
+        }
+    }
+    list.innerHTML = html;
+
+    // Click handlers
+    list.querySelectorAll('.academy-nav-item').forEach(el => {
+        el.addEventListener('click', () => {
+            const topicId = el.getAttribute('data-topic');
+            loadAcademyTopic(topicId);
+        });
+    });
+}
+
+function setupAcademyFilters() {
+    const searchInput = document.getElementById('academy-search-input');
+    const catBtns = document.querySelectorAll('.academy-cat-btn');
+    let activeFilter = 'all';
+
+    if (searchInput) {
+        searchInput.addEventListener('input', () => {
+            renderAcademyNavigator(activeFilter, searchInput.value);
+        });
+    }
+
+    catBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            catBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            activeFilter = btn.getAttribute('data-category');
+            renderAcademyNavigator(activeFilter, searchInput ? searchInput.value : '');
+        });
+    });
+}
+
+function loadAcademyTopic(topicId) {
+    const module = ACADEMY_CATALOG.find(m => m.id === topicId);
+    if (!module) return;
+
+    academyActiveTopicId = topicId;
+
+    // Show active content, hide splash
+    const splash = document.getElementById('academy-splash');
+    const content = document.getElementById('academy-active-content');
+    if (splash) splash.style.display = 'none';
+    if (content) content.style.display = 'block';
+
+    // Header
+    document.getElementById('academy-topic-emoji').textContent = module.emoji;
+    document.getElementById('academy-topic-title').textContent = module.title;
+    const badge = document.getElementById('academy-topic-category-badge');
+    if (badge) {
+        const catLabels = {'technical':'Technical','chart-patterns':'Chart Pattern','candlestick':'Candlestick','fundamental':'Fundamental','bonds':'Bond Market'};
+        badge.textContent = catLabels[module.cat] || module.cat;
+    }
+
+    // Mark complete button state
+    const markBtn = document.getElementById('academy-mark-complete-btn');
+    if (markBtn) {
+        if (academyProgress[topicId]) {
+            markBtn.textContent = '✅ Completed!';
+            markBtn.style.color = 'var(--color-emerald)';
+        } else {
+            markBtn.textContent = '✅ Mark Complete';
+            markBtn.style.color = '';
+        }
+    }
+
+    // Explanation
+    document.getElementById('academy-explanation-body').innerHTML = module.explanation;
+
+    // Formula
+    document.getElementById('academy-formula-body').innerHTML = module.formula;
+
+    // Widget chart
+    renderAcademyChart(module);
+
+    // Sandbox
+    renderAcademySandbox(module);
+
+    // Quiz
+    renderAcademyQuiz(module);
+
+    // Clear draw canvas
+    const drawCanvas = document.getElementById('academy-draw-canvas');
+    if (drawCanvas) {
+        const dCtx = drawCanvas.getContext('2d');
+        dCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+    }
+
+    // Reset AI chat
+    const msgs = document.getElementById('academy-ai-messages');
+    if (msgs) msgs.innerHTML = `<div class="academy-ai-msg system"><span>👋 Ask me anything about <b>${module.title}</b> — formulas, examples, trading applications, or common pitfalls.</span></div>`;
+
+    // Update navigator active state
+    renderAcademyNavigator(
+        document.querySelector('.academy-cat-btn.active')?.getAttribute('data-category') || 'all',
+        document.getElementById('academy-search-input')?.value || ''
+    );
+
+    // Scroll workbench to top
+    const wb = document.getElementById('academy-workbench');
+    if (wb) wb.scrollTop = 0;
+}
+
+function renderAcademyChart(module) {
+    const canvas = document.getElementById('academy-widget-canvas');
+    if (!canvas || !module.chartData) return;
+
+    const container = document.getElementById('academy-widget-container');
+    if (container) {
+        canvas.width = container.clientWidth || 700;
+        canvas.height = 300;
+        const drawCanvas = document.getElementById('academy-draw-canvas');
+        if (drawCanvas) { drawCanvas.width = canvas.width; drawCanvas.height = canvas.height; }
+    }
+
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width, h = canvas.height;
+    const data = module.chartData;
+    const minVal = Math.min(...data);
+    const maxVal = Math.max(...data);
+    const range = maxVal - minVal || 1;
+    const padding = { top: 30, right: 20, bottom: 30, left: 50 };
+    const chartW = w - padding.left - padding.right;
+    const chartH = h - padding.top - padding.bottom;
+
+    ctx.clearRect(0, 0, w, h);
+
+    // Background
+    const isDark = document.documentElement.getAttribute('data-theme') !== 'light' && !document.body.classList.contains('light-mode');
+    ctx.fillStyle = isDark ? 'rgba(6,9,19,0.9)' : 'rgba(248,250,252,0.95)';
+    ctx.fillRect(0, 0, w, h);
+
+    // Grid lines
+    ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)';
+    ctx.lineWidth = 0.5;
+    for (let i = 0; i <= 5; i++) {
+        const y = padding.top + (chartH / 5) * i;
+        ctx.beginPath(); ctx.moveTo(padding.left, y); ctx.lineTo(w - padding.right, y); ctx.stroke();
+        const label = (maxVal - (range / 5) * i).toFixed(1);
+        ctx.fillStyle = isDark ? '#9ca3af' : '#6b7280';
+        ctx.font = '9px Inter';
+        ctx.textAlign = 'right';
+        ctx.fillText(label, padding.left - 6, y + 3);
+    }
+
+    // Title
+    ctx.fillStyle = isDark ? '#f3f4f6' : '#1f2937';
+    ctx.font = 'bold 11px Outfit';
+    ctx.textAlign = 'left';
+    ctx.fillText(module.chartLabel || module.title, padding.left, 16);
+
+    if (module.chartType === 'bar') {
+        const barW = chartW / data.length * 0.7;
+        const gap = chartW / data.length;
+        data.forEach((v, i) => {
+            const x = padding.left + gap * i + (gap - barW) / 2;
+            const barH = (Math.abs(v) / range) * chartH;
+            const y = v >= 0 ? padding.top + chartH - (v - minVal) / range * chartH : padding.top + chartH - (-minVal) / range * chartH;
+            ctx.fillStyle = v >= 0 ? 'rgba(16,185,129,0.7)' : 'rgba(239,68,68,0.7)';
+            ctx.fillRect(x, v >= 0 ? y : y, barW, v >= 0 ? (v - Math.max(0, minVal)) / range * chartH : Math.abs(v) / range * chartH);
+        });
+    } else {
+        // Line chart
+        ctx.beginPath();
+        ctx.strokeStyle = '#6366f1';
+        ctx.lineWidth = 2;
+        data.forEach((v, i) => {
+            const x = padding.left + (chartW / (data.length - 1)) * i;
+            const y = padding.top + chartH - ((v - minVal) / range) * chartH;
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+
+        // Gradient fill
+        const gradient = ctx.createLinearGradient(0, padding.top, 0, h - padding.bottom);
+        gradient.addColorStop(0, 'rgba(99,102,241,0.15)');
+        gradient.addColorStop(1, 'rgba(99,102,241,0)');
+        ctx.lineTo(padding.left + chartW, h - padding.bottom);
+        ctx.lineTo(padding.left, h - padding.bottom);
+        ctx.closePath();
+        ctx.fillStyle = gradient;
+        ctx.fill();
+    }
+}
+
+function renderAcademySandbox(module) {
+    const body = document.getElementById('academy-sandbox-body');
+    if (!body || !module.sandbox) { if(body) body.innerHTML = '<p style="color:var(--text-muted); font-size:11px;">No sandbox available for this topic.</p>'; return; }
+
+    let html = '';
+    for (const inp of module.sandbox.inputs) {
+        html += `<div class="academy-sandbox-row">
+            <label>${inp.label}</label>
+            <input type="number" id="academy-sb-${inp.key}" value="${inp.val}" step="any">
+        </div>`;
+    }
+    html += `<div class="academy-sandbox-result" id="academy-sb-result"></div>`;
+    body.innerHTML = html;
+
+    const calcAndDisplay = () => {
+        const vals = {};
+        for (const inp of module.sandbox.inputs) {
+            vals[inp.key] = parseFloat(document.getElementById('academy-sb-' + inp.key)?.value || inp.val);
+        }
+        const result = module.sandbox.calc(vals);
+        const resEl = document.getElementById('academy-sb-result');
+        if (resEl) resEl.textContent = result;
+    };
+
+    calcAndDisplay();
+    for (const inp of module.sandbox.inputs) {
+        const el = document.getElementById('academy-sb-' + inp.key);
+        if (el) el.addEventListener('input', calcAndDisplay);
+    }
+}
+
+function renderAcademyQuiz(module) {
+    const panel = document.getElementById('academy-quiz-panel');
+    const scoreEl = document.getElementById('academy-quiz-score');
+    if (!panel || !module.quiz) { if(panel) panel.innerHTML = '<p style="color:var(--text-muted); font-size:11px;">No quiz available.</p>'; return; }
+
+    const prevResults = academyQuizResults[module.id] || {};
+    let correct = 0, total = module.quiz.length;
+
+    let html = '';
+    module.quiz.forEach((q, qi) => {
+        html += `<div class="academy-quiz-question" data-qi="${qi}"><p>${qi + 1}. ${q.q}</p><div class="academy-quiz-options">`;
+        q.opts.forEach((opt, oi) => {
+            const wasAnswered = prevResults[qi] !== undefined;
+            const isCorrect = oi === q.ans;
+            const wasSelected = prevResults[qi] === oi;
+            let cls = '';
+            if (wasAnswered) {
+                if (isCorrect) cls = 'correct';
+                else if (wasSelected) cls = 'incorrect';
+                cls += ' disabled';
+                if (isCorrect && wasSelected) correct++;
+            }
+            html += `<div class="academy-quiz-option ${cls}" data-qi="${qi}" data-oi="${oi}"><span>${String.fromCharCode(65 + oi)}.</span> ${opt}</div>`;
+        });
+        html += `</div></div>`;
+    });
+    panel.innerHTML = html;
+
+    if (scoreEl) scoreEl.textContent = Object.keys(prevResults).length > 0 ? `${correct}/${total}` : '';
+
+    // Click handlers for unanswered questions
+    panel.querySelectorAll('.academy-quiz-option:not(.disabled)').forEach(opt => {
+        opt.addEventListener('click', () => {
+            const qi = parseInt(opt.getAttribute('data-qi'));
+            const oi = parseInt(opt.getAttribute('data-oi'));
+            const q = module.quiz[qi];
+            const isCorrect = oi === q.ans;
+
+            // Save result
+            if (!academyQuizResults[module.id]) academyQuizResults[module.id] = {};
+            academyQuizResults[module.id][qi] = oi;
+            localStorage.setItem('academy-quiz-results', JSON.stringify(academyQuizResults));
+
+            // Disable all options for this question
+            panel.querySelectorAll(`.academy-quiz-option[data-qi="${qi}"]`).forEach(o => {
+                o.classList.add('disabled');
+                if (parseInt(o.getAttribute('data-oi')) === q.ans) o.classList.add('correct');
+            });
+            if (!isCorrect) opt.classList.add('incorrect');
+
+            // Update score
+            let c = 0;
+            for (let i = 0; i < module.quiz.length; i++) {
+                if (academyQuizResults[module.id]?.[i] === module.quiz[i].ans) c++;
+            }
+            if (scoreEl) scoreEl.textContent = `${c}/${total}`;
+            updateAcademyHUD();
+        });
+    });
+}
+
+function updateAcademyHUD() {
+    const completed = Object.keys(academyProgress).filter(k => academyProgress[k]).length;
+    const total = ACADEMY_CATALOG.length;
+    const quizzesPassed = Object.keys(academyQuizResults).filter(topicId => {
+        const m = ACADEMY_CATALOG.find(c => c.id === topicId);
+        if (!m || !m.quiz) return false;
+        const results = academyQuizResults[topicId];
+        let correct = 0;
+        m.quiz.forEach((q, i) => { if (results[i] === q.ans) correct++; });
+        return correct >= Math.ceil(m.quiz.length * 0.6);
+    }).length;
+
+    document.getElementById('academy-hud-completed').textContent = completed;
+    document.getElementById('academy-hud-total').textContent = total;
+    document.getElementById('academy-hud-quizzes').textContent = quizzesPassed;
+
+    const pct = (completed / total) * 100;
+    const fill = document.getElementById('academy-hud-progress-fill');
+    if (fill) fill.style.width = pct.toFixed(1) + '%';
+
+    // Tier
+    let tier = 'Beginner';
+    if (completed >= 40) tier = 'Master';
+    else if (completed >= 25) tier = 'Advanced';
+    else if (completed >= 10) tier = 'Intermediate';
+    document.getElementById('academy-hud-tier').textContent = tier;
+
+    // Badges
+    const badgesEl = document.getElementById('academy-hud-badges');
+    if (badgesEl) {
+        const badges = [
+            { name: '📈 Technician', req: 5, cat: 'technical' },
+            { name: '📐 Chartist', req: 5, cat: 'chart-patterns' },
+            { name: '🕯️ Candle Reader', req: 5, cat: 'candlestick' },
+            { name: '📊 Analyst', req: 5, cat: 'fundamental' },
+            { name: '💵 Bond Pro', req: 4, cat: 'bonds' },
+            { name: '🏆 Quiz Ace', req: 10, cat: '_quiz' }
+        ];
+        badgesEl.innerHTML = badges.map(b => {
+            let earned = false;
+            if (b.cat === '_quiz') earned = quizzesPassed >= b.req;
+            else earned = ACADEMY_CATALOG.filter(m => m.cat === b.cat && academyProgress[m.id]).length >= b.req;
+            return `<span class="academy-badge${earned ? ' earned' : ''}">${b.name}</span>`;
+        }).join('');
+    }
+}
+
+// ── Drawing Canvas ──
+function setupAcademyDrawCanvas() {
+    const canvas = document.getElementById('academy-draw-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+
+    const getPos = (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return { x: (clientX - rect.left) * (canvas.width / rect.width), y: (clientY - rect.top) * (canvas.height / rect.height) };
+    };
+
+    const startDraw = (e) => {
+        if (!academyDrawMode) return;
+        e.preventDefault();
+        academyDrawing = true;
+        const pos = getPos(e);
+        academyDrawLastX = pos.x;
+        academyDrawLastY = pos.y;
+        if (academyDrawTool === 'line') academyLineStart = { x: pos.x, y: pos.y };
+    };
+
+    const moveDraw = (e) => {
+        if (!academyDrawing || !academyDrawMode) return;
+        e.preventDefault();
+        const pos = getPos(e);
+        const color = document.getElementById('academy-draw-color')?.value || '#10b981';
+        const width = parseInt(document.getElementById('academy-draw-width')?.value || 2);
+
+        if (academyDrawTool === 'pen') {
+            ctx.strokeStyle = color;
+            ctx.lineWidth = width;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(academyDrawLastX, academyDrawLastY);
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
+        } else if (academyDrawTool === 'eraser') {
+            ctx.clearRect(pos.x - 10, pos.y - 10, 20, 20);
+        }
+        academyDrawLastX = pos.x;
+        academyDrawLastY = pos.y;
+    };
+
+    const endDraw = (e) => {
+        if (!academyDrawing) return;
+        if (academyDrawTool === 'line' && academyLineStart) {
+            const pos = getPos(e.changedTouches ? e.changedTouches[0] || e : e);
+            const color = document.getElementById('academy-draw-color')?.value || '#10b981';
+            const width = parseInt(document.getElementById('academy-draw-width')?.value || 2);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = width;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(academyLineStart.x, academyLineStart.y);
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
+            academyLineStart = null;
+        }
+        academyDrawing = false;
+    };
+
+    canvas.addEventListener('mousedown', startDraw);
+    canvas.addEventListener('mousemove', moveDraw);
+    canvas.addEventListener('mouseup', endDraw);
+    canvas.addEventListener('mouseleave', endDraw);
+    canvas.addEventListener('touchstart', startDraw, { passive: false });
+    canvas.addEventListener('touchmove', moveDraw, { passive: false });
+    canvas.addEventListener('touchend', endDraw);
+
+    // Tool buttons
+    document.querySelectorAll('.academy-draw-tool-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const tool = btn.getAttribute('data-tool');
+            if (tool === 'clear') {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                return;
+            }
+            academyDrawTool = tool;
+            document.querySelectorAll('.academy-draw-tool-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        });
+    });
+}
+
+// ── AI Coach ──
+function setupAcademyAICoach() {
+    const input = document.getElementById('academy-ai-input');
+    const sendBtn = document.getElementById('academy-ai-send-btn');
+    if (!input || !sendBtn) return;
+
+    const sendMessage = async () => {
+        const question = input.value.trim();
+        if (!question) return;
+
+        const module = ACADEMY_CATALOG.find(m => m.id === academyActiveTopicId);
+        const messagesEl = document.getElementById('academy-ai-messages');
+        if (!messagesEl) return;
+
+        // Add user message
+        messagesEl.innerHTML += `<div class="academy-ai-msg user"><span>${question}</span></div>`;
+        input.value = '';
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+
+        // Add loading
+        messagesEl.innerHTML += `<div class="academy-ai-msg assistant" id="academy-ai-loading"><span>🔄 Thinking...</span></div>`;
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+
+        try {
+            const res = await fetch('/api/learning/ask', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    question: question,
+                    topic: module ? module.title : null,
+                    category: module ? module.cat : null
+                })
+            });
+            const data = await res.json();
+            const loading = document.getElementById('academy-ai-loading');
+            if (loading) loading.remove();
+
+            const answer = data.answer || 'Sorry, I could not generate a response.';
+            messagesEl.innerHTML += `<div class="academy-ai-msg assistant"><span>${answer.replace(/\n/g, '<br>')}</span></div>`;
+        } catch (err) {
+            const loading = document.getElementById('academy-ai-loading');
+            if (loading) loading.remove();
+            messagesEl.innerHTML += `<div class="academy-ai-msg assistant"><span>⚠️ Error connecting to AI Coach. Please try again.</span></div>`;
+        }
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+    };
+
+    sendBtn.addEventListener('click', sendMessage);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendMessage(); });
+}

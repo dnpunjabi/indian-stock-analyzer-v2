@@ -16,7 +16,7 @@
     <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
     <!-- TradingView Advanced Widget -->
     <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
-    <link rel="stylesheet" href="styles.css?v=1.1.0">
+    <link rel="stylesheet" href="styles.css?v=1.4.0">
 </head>
 <body>
     <!-- Emergency System Warning HUD -->
@@ -108,6 +108,11 @@
                 <button class="nav-btn" id="tab-alerts-btn" data-title="Institutional Alert Center">
                     <span class="btn-icon">🚨</span> <span class="btn-text">Alert Center</span>
                     <span class="bell-badge" id="sidebar-alerts-badge" style="display: none; margin-left: auto; position: static; height: 16px; width: auto; min-width: 16px; padding: 0 4px; font-size: 9px; line-height: 16px; justify-content: center; align-items: center;">0</span>
+                </button>
+
+                <div class="nav-category-header">🎓 Learning & Education</div>
+                <button class="nav-btn" id="tab-learning-btn" data-title="Learning Academy">
+                    <span class="btn-icon">🎓</span> <span class="btn-text">Learning Academy</span>
                 </button>
             </nav>
 
@@ -5747,25 +5752,182 @@
                             </div>
 
                         </div>
+            </section>
+
+            <!-- SECTION: LEARNING ACADEMY -->
+            <section class="workspace-tab" id="tab-learning" style="display: none; font-family: 'Inter', sans-serif;">
+                <!-- Progress HUD Dashboard -->
+                <div class="academy-hud" id="academy-hud">
+                    <div class="academy-hud-left">
+                        <div class="academy-hud-title">
+                            <span style="font-size: 20px;">🎓</span>
+                            <div>
+                                <h2 style="margin: 0; font-family: 'Outfit', sans-serif; font-size: 16px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-primary);">Learning Academy</h2>
+                                <span style="font-size: 10px; color: var(--text-muted); font-weight: 500;">Master Technical, Fundamental & Bond Market Concepts</span>
+                            </div>
+                        </div>
+                        <div class="academy-hud-stats">
+                            <div class="academy-hud-stat">
+                                <span class="academy-hud-stat-label">Completed</span>
+                                <span class="academy-hud-stat-value" id="academy-hud-completed">0</span>
+                                <span class="academy-hud-stat-label">of <span id="academy-hud-total">54</span></span>
+                            </div>
+                            <div class="academy-hud-stat">
+                                <span class="academy-hud-stat-label">Quizzes Passed</span>
+                                <span class="academy-hud-stat-value" id="academy-hud-quizzes">0</span>
+                            </div>
+                            <div class="academy-hud-stat" style="position: relative;">
+                                <span class="academy-hud-stat-label" style="display: flex; align-items: center; gap: 4px; justify-content: center;">Tier <span class="academy-hud-info" title="Tier Progression Rules:&#10;• Beginner: 0-9 modules&#10;• Intermediate: 10-24 modules&#10;• Advanced: 25-39 modules&#10;• Master: 40+ modules" style="cursor: help; opacity: 0.7; font-size: 10px;">ℹ️</span></span>
+                                <span class="academy-hud-stat-value" id="academy-hud-tier">Beginner</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="academy-hud-right">
+                        <div class="academy-hud-progress-bar">
+                            <div class="academy-hud-progress-fill" id="academy-hud-progress-fill" style="width: 0%;"></div>
+                        </div>
+                        <div class="academy-hud-badges" id="academy-hud-badges"></div>
+                    </div>
+                </div>
+
+                <!-- Search & Filter Bar -->
+                <div class="academy-filter-bar">
+                    <input type="text" id="academy-search-input" placeholder="Search topics..." class="academy-search-input">
+                    <div class="academy-category-filters">
+                        <button class="academy-cat-btn active" data-category="all">All</button>
+                        <button class="academy-cat-btn" data-category="technical">📈 Technical</button>
+                        <button class="academy-cat-btn" data-category="chart-patterns">📐 Patterns</button>
+                        <button class="academy-cat-btn" data-category="candlestick">🕯️ Candles</button>
+                        <button class="academy-cat-btn" data-category="fundamental">📊 Fundamental</button>
+                        <button class="academy-cat-btn" data-category="bonds">💵 Bonds</button>
+                    </div>
+                </div>
+
+                <!-- Main Content: Navigator + Workbench -->
+                <div class="academy-layout">
+                    <!-- Left: Topic Navigator -->
+                    <div class="academy-navigator">
+                        <div class="academy-nav-list" id="academy-topic-list"></div>
+                    </div>
+
+                    <!-- Right: Workbench -->
+                    <div class="academy-workbench" id="academy-workbench">
+                        <!-- Splash Screen -->
+                        <div class="academy-splash" id="academy-splash">
+                            <div style="text-align: center; padding: 60px 20px;">
+                                <div style="font-size: 48px; margin-bottom: 16px;">🎓</div>
+                                <h3 style="margin: 0 0 8px 0; font-family: 'Outfit', sans-serif; font-size: 20px; color: var(--text-primary);">Welcome to the Learning Academy</h3>
+                                <p style="margin: 0; font-size: 12px; color: var(--text-muted); max-width: 400px; margin: 0 auto; line-height: 1.6;">Select a topic from the navigator to begin learning. Each module includes explanations, formulas, interactive charts, sandbox calculators, quizzes, and an AI Coach.</p>
+                            </div>
+                        </div>
+
+                        <!-- Active Topic Content -->
+                        <div id="academy-active-content" style="display: none;">
+                            <!-- Topic Header -->
+                            <div class="academy-topic-header">
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <span id="academy-topic-emoji" style="font-size: 28px;"></span>
+                                    <div>
+                                        <h3 id="academy-topic-title" style="margin: 0; font-family: 'Outfit', sans-serif; font-size: 18px; color: var(--text-primary);"></h3>
+                                        <span id="academy-topic-category-badge" class="academy-category-badge"></span>
+                                    </div>
+                                </div>
+                                <div class="academy-topic-header-right" style="display: flex; gap: 8px; align-items: center;">
+                                    <button id="academy-draw-toggle-btn" class="academy-action-btn" title="Toggle Drawing Mode">✏️ Draw</button>
+                                    <button id="academy-mark-complete-btn" class="academy-action-btn">✅ Mark Complete</button>
+                                </div>
+                            </div>
+
+                            <!-- Explanation Card -->
+                            <div class="academy-card">
+                                <div class="academy-card-header"><h4>📖 Concept Explanation</h4></div>
+                                <div class="academy-card-body" id="academy-explanation-body"></div>
+                            </div>
+
+                            <!-- Formula Card -->
+                            <div class="academy-card">
+                                <div class="academy-card-header"><h4>🧮 Formula & Calculation</h4></div>
+                                <div class="academy-card-body" id="academy-formula-body"></div>
+                            </div>
+
+                            <!-- Interactive Chart Widget -->
+                            <div class="academy-card">
+                                <div class="academy-card-header"><h4>📊 Interactive Chart</h4></div>
+                                <div class="academy-card-body" style="padding: 10px; position: relative;">
+                                    <div id="academy-widget-container" style="position: relative; width: 100%; height: 300px;">
+                                        <canvas id="academy-widget-canvas" width="700" height="300" style="width: 100%; height: 100%;"></canvas>
+                                        <canvas id="academy-draw-canvas" width="700" height="300" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; cursor: crosshair;"></canvas>
+                                    </div>
+                                    <div id="academy-chart-controls" class="academy-widget-controls" style="margin-top: 12px; padding: 10px; border-top: 1px solid var(--border-glass); display: flex; flex-wrap: wrap; gap: 15px; align-items: center; justify-content: flex-start; min-height: 40px; box-sizing: border-box; width: 100%;"></div>
+                                    <div class="academy-draw-toolbar" id="academy-draw-toolbar" style="display: none;">
+                                        <button class="academy-draw-tool-btn active" data-tool="pen" title="Pen">🖊️</button>
+                                        <button class="academy-draw-tool-btn" data-tool="line" title="Line">📏</button>
+                                        <button class="academy-draw-tool-btn" data-tool="eraser" title="Eraser">🧹</button>
+                                        <button class="academy-draw-tool-btn" data-tool="clear" title="Clear All">🗑️</button>
+                                        <input type="color" id="academy-draw-color" value="#10b981" title="Color" style="width: 28px; height: 28px; border: none; cursor: pointer; background: none;">
+                                        <input type="range" id="academy-draw-width" min="1" max="8" value="2" title="Width" style="width: 60px;">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Sandbox Calculator -->
+                            <div class="academy-card">
+                                <div class="academy-card-header"><h4>🧪 Sandbox Calculator</h4></div>
+                                <div class="academy-card-body" id="academy-sandbox-body"></div>
+                            </div>
+
+                            <!-- Quiz -->
+                            <div class="academy-card">
+                                <div class="academy-card-header"><h4>🎯 Concept Check Quiz <span id="academy-quiz-score" style="float: right; font-size: 12px; font-weight: 700; color: var(--color-emerald);"></span></h4></div>
+                                <div class="academy-card-body" id="academy-quiz-panel"></div>
+                            </div>
+
+                            <!-- AI Case Study Card -->
+                            <div class="academy-card">
+                                <div class="academy-card-header" style="display: flex; justify-content: space-between; align-items: center; width: 100%; box-sizing: border-box;">
+                                    <h4>🧠 AI Market Case Study</h4>
+                                    <button id="academy-generate-scenario-btn" class="btn-primary no-print" style="font-size: 10px; padding: 5px 12px; height: 28px; line-height: 16px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; box-shadow: none;"><span>⚡</span> Generate Case Study</button>
+                                </div>
+                                <div class="academy-card-body">
+                                    <div id="academy-scenario-body" class="academy-explanation-body" style="min-height: 40px; transition: all 0.3s ease;">
+                                        <p style="color: var(--text-muted); margin: 0; font-size: 12px;">Click the "Generate Case Study" button above to dynamically synthesize a real-world hypothetical Indian market scenario demonstrating this concept using on-demand AI analysis.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- AI Coach Chat -->
+                            <div class="academy-card">
+                                <div class="academy-card-header"><h4>🤖 AI Coach</h4></div>
+                                <div class="academy-card-body" style="padding: 0;">
+                                    <div class="academy-ai-messages" id="academy-ai-messages" style="padding: 12px;">
+                                        <div class="academy-ai-msg system"><span>👋 Select a topic and ask me anything about it!</span></div>
+                                    </div>
+                                    <div class="academy-ai-input-row" style="padding: 12px; border-top: 1px solid var(--border-glass); background: rgba(0,0,0,0.08); display: flex; gap: 8px; align-items: flex-end; border-radius: 0 0 10px 10px;">
+                                        <textarea id="academy-ai-input" placeholder="Ask the AI Coach a question about this topic..." class="academy-ai-input" rows="2" style="flex: 1; resize: none; min-height: 40px; max-height: 120px; padding: 8px 12px; background: var(--bg-glass-input); border: 1px solid var(--border-glass); border-radius: 8px; color: var(--text-primary); font-size: 12.5px; font-family: var(--font-body); outline: none; transition: border-color 0.2s; box-sizing: border-box; line-height: 1.5;"></textarea>
+                                        <button id="academy-ai-send-btn" class="btn-primary no-print" style="height: 40px; border-radius: 8px; font-size: 12px; font-weight: 700; padding: 0 18px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: none;">Send</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>
 
-            <!-- Institutional Footer -->
-            <footer class="main-footer no-print">
-                <div class="footer-disclaimer">
-                    <strong>⚠️ SEBI Investment Advisory Disclaimer:</strong>
-                    Apex Agentic AI acts strictly as an automated quantitative research terminal. We are not SEBI registered investment advisors. All composite scoring metrics, Piotroski matrix diagnostic summaries, Altman scores, and DCF sandboxes are computed based on historical NSE market datasets and mathematical models, representing simulations rather than direct buy/sell endorsements.
-                </div>
-                <div class="footer-diagnostics">
-                    <span class="diag-item"><span class="status-indicator"></span> Database Cache: <strong class="green-text">Active</strong></span>
-                    <span class="diag-item">Latency: <strong id="footer-latency" class="green-text">34ms</strong></span>
-                    <span class="diag-item">System Clock: <strong id="footer-system-clock">00:00:00</strong></span>
-                </div>
-            </footer>
-
         </main>
     </div>
+
+    <!-- Institutional Footer -->
+    <footer class="main-footer no-print">
+        <div class="footer-disclaimer">
+            <strong>⚠️ SEBI Investment Advisory Disclaimer:</strong>
+            Apex Agentic AI acts strictly as an automated quantitative research terminal. We are not SEBI registered investment advisors. All composite scoring metrics, Piotroski matrix diagnostic summaries, Altman scores, and DCF sandboxes are computed based on historical NSE market datasets and mathematical models, representing simulations rather than direct buy/sell endorsements.
+        </div>
+        <div class="footer-diagnostics">
+            <span class="diag-item"><span class="status-indicator"></span> Database Cache: <strong class="green-text">Active</strong></span>
+            <span class="diag-item">Latency: <strong id="footer-latency" class="green-text">34ms</strong></span>
+            <span class="diag-item">System Clock: <strong id="footer-system-clock">00:00:00</strong></span>
+        </div>
+    </footer>
 
     <!-- Full screen global loader overlay -->
     <div class="loader-overlay" id="global-loader" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(7, 10, 18, 0.82); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); z-index: 9999; align-items: center; justify-content: center; box-sizing: border-box; padding: 20px;">
@@ -5967,7 +6129,7 @@
         </div>
     </div>
 
-    <script src="app.js?v=1.1.0"></script>
+    <script src="app.js?v=1.4.0"></script>
 </body>
 </html>
 
