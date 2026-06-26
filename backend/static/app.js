@@ -791,6 +791,22 @@ function updatePortfolioLedgerRealtime(ticksData) {
             netPlCell.style.color = plColor;
         }
     });
+
+    // Case Study button
+    const caseBtn = document.getElementById('academy-generate-scenario-btn');
+    if (caseBtn) caseBtn.addEventListener('click', generateAcademyCaseStudy);
+
+    // Responsive chart resizing
+    let academyResizeTimeout;
+    window.addEventListener('resize', () => {
+        clearTimeout(academyResizeTimeout);
+        academyResizeTimeout = setTimeout(() => {
+            if (window.activeTab === 'learning' && academyActiveTopicId) {
+                const module = ACADEMY_CATALOG.find(m => m.id === academyActiveTopicId);
+                if (module) renderAcademyChart(module);
+            }
+        }, 150);
+    });
 }
 
 // Initialize WebSocket on page load
@@ -1700,6 +1716,11 @@ function switchTab(tabKey) {
         const btn = tabBtns[k] || document.getElementById('tab-' + k + '-btn');
         if (el) {
             el.style.display = (k === tabKey) ? 'block' : 'none';
+            if (k === tabKey) {
+                el.classList.add('active-tab-content');
+            } else {
+                el.classList.remove('active-tab-content');
+            }
         }
         if (btn) {
             if (k === tabKey) {
@@ -13777,6 +13798,12 @@ function refreshChartThemeColors() {
                 window.renderTVAdvancedChart(activeStockProfile.ticker);
             }
         }
+    }
+
+    // Re-render Learning Academy active chart if active to match theme toggle
+    if (typeof academyActiveTopicId !== 'undefined' && academyActiveTopicId) {
+        const module = ACADEMY_CATALOG.find(m => m.id === academyActiveTopicId);
+        if (module) renderAcademyChart(module);
     }
 }
 
@@ -28595,6 +28622,7 @@ window.setupGlobalMarketNewsControls = setupGlobalMarketNewsControls;
 // ==================== LEARNING ACADEMY ENGINE ====================
 
 const ACADEMY_CATALOG = [
+// ── TECHNICAL INDICATORS (14) ──
 {id:'rsi',cat:'technical',emoji:'📊',title:'RSI (Relative Strength Index)',
  explanation:`<h5>What is RSI?</h5><p>The Relative Strength Index (RSI) is a momentum oscillator that measures the speed and magnitude of recent price changes to evaluate overbought or oversold conditions. Developed by J. Welles Wilder Jr. in 1978, it oscillates between 0 and 100.</p><h5>Interpretation Rules</h5><ul><li><b>RSI > 70</b> — Overbought (potential reversal down)</li><li><b>RSI < 30</b> — Oversold (potential reversal up)</li><li><b>RSI 40–60</b> — Neutral zone</li><li>Divergence between RSI and price signals trend exhaustion</li></ul><div class="academy-example-box">📌 <b>Example:</b> If Reliance Industries RSI drops to 25 after a sharp sell-off, it signals extreme oversold conditions — a potential bounce candidate for swing traders.</div>`,
  formula:`<div class="academy-formula-block">RSI = 100 − (100 / (1 + RS))</div><p>Where:</p><ul class="academy-formula-vars"><li><b>RS</b> = Average Gain over N periods / Average Loss over N periods</li><li><b>N</b> = Lookback period (default 14)</li><li>First RS uses simple average; subsequent values use exponential smoothing</li></ul>`,
@@ -28693,6 +28721,7 @@ const ACADEMY_CATALOG = [
  quiz:[{q:'Parabolic SAR dots below price indicate:',opts:['Downtrend','Uptrend','No trend','Consolidation'],ans:1}],
  chartType:'line',chartLabel:'Price',chartData:[140,142,145,148,152,155,158,160,158,155,152,148,145,142,140,138,135,133,135,138,142,145,148,152,155]},
 
+// ── CHART PATTERNS (12) ──
 {id:'head_shoulders',cat:'chart-patterns',emoji:'👤',title:'Head & Shoulders',
  explanation:`<h5>What is Head & Shoulders?</h5><p>A reversal pattern consisting of three peaks: two smaller \"shoulders\" flanking a higher \"head.\" The neckline connects the troughs between peaks.</p><h5>Trading Rules</h5><ul><li>Pattern completes when price breaks below neckline</li><li><b>Target:</b> Height of head to neckline, projected downward from breakout</li><li>Volume typically decreases through pattern and increases on breakdown</li><li><b>Inverse H&S:</b> Same but flipped — bullish reversal at bottoms</li></ul>`,
  formula:`<div class="academy-formula-block">Price Target = Neckline − (Head Price − Neckline)</div>`,
@@ -28700,75 +28729,33 @@ const ACADEMY_CATALOG = [
  quiz:[{q:'Head & Shoulders is a:',opts:['Continuation pattern','Reversal pattern','Consolidation pattern','Volume pattern'],ans:1}],
  chartType:'line',chartLabel:'Price Pattern',chartData:[100,110,120,115,105,115,130,140,130,115,105,115,125,120,110,100,95,90,85,80,75,78,82,85,88]},
 
-{id:'double_top',cat:'chart-patterns',emoji:'🔝',title:'Double Top',
- explanation:`<h5>Double Top (Bearish Reversal)</h5><p>Price reaches a high twice with a moderate decline between. Second peak fails to break above first → breakdown below support.</p>`,
- formula:`<div class="academy-formula-block">Target = Breakout Level − Height of Pattern</div>`,
- sandbox:{inputs:[{label:'Peak Price',key:'peak',val:500},{label:'Trough Price',key:'trough',val:450}],calc:(v)=>`Double Top Target: ₹${(v.trough-(v.peak-v.trough)).toFixed(0)}`},
+{id:'double_top_bottom',cat:'chart-patterns',emoji:'🔝',title:'Double Top & Double Bottom',
+ explanation:`<h5>Double Top (Bearish Reversal)</h5><p>Price reaches a high twice with a moderate decline between. Second peak fails to break above first → breakdown below support.</p><h5>Double Bottom (Bullish Reversal)</h5><p>Price reaches a low twice with a moderate rally between. Second trough holds → breakout above resistance.</p>`,
+ formula:`<div class="academy-formula-block">Target = Breakout Level ± Height of Pattern</div>`,
+ sandbox:{inputs:[{label:'Peak Price',key:'peak',val:500},{label:'Trough Price',key:'trough',val:450}],calc:(v)=>`Double Top Target: ₹${(v.trough-(v.peak-v.trough)).toFixed(0)} | Double Bottom Target: ₹${(v.peak+(v.peak-v.trough)).toFixed(0)}`},
  quiz:[{q:'Double Top pattern signals:',opts:['Bullish continuation','Bearish reversal','Neutral','Bullish reversal'],ans:1}],
  chartType:'line',chartLabel:'Price',chartData:[420,440,460,480,500,490,470,450,460,480,500,495,480,460,440,430,420,410,405,400,395,390,385,388,392]},
 
-{id:'double_bottom',cat:'chart-patterns',emoji:'👣',title:'Double Bottom',
- explanation:`<h5>Double Bottom (Bullish Reversal)</h5><p>Price reaches a low twice with a moderate rally between. Second trough holds → breakout above resistance.</p>`,
- formula:`<div class="academy-formula-block">Target = Breakout Level + Height of Pattern</div>`,
- sandbox:{inputs:[{label:'Peak Price',key:'peak',val:500},{label:'Trough Price',key:'trough',val:450}],calc:(v)=>`Double Bottom Target: ₹${(v.peak+(v.peak-v.trough)).toFixed(0)}`},
- quiz:[{q:'Double Bottom pattern signals:',opts:['Bullish continuation','Bearish reversal','Neutral','Bullish reversal'],ans:3}],
- chartType:'line',chartLabel:'Price',chartData:[500,480,460,450,470,490,500,480,460,450,455,470,490,500,510,520,530,525,530,535,540,545,550]},
-
-{id:'bull_flag',cat:'chart-patterns',emoji:'🚩',title:'Bull Flag',
- explanation:`<h5>Bull Flag (Bullish Continuation)</h5><p>Short-term continuation pattern. A sharp price rise (flagpole) followed by a downward-sloping rectangular consolidation (flag) before breaking out upward.</p>`,
+{id:'flag_pennant',cat:'chart-patterns',emoji:'🚩',title:'Bull & Bear Flags / Pennants',
+ explanation:`<h5>Flags</h5><p>Short-term continuation patterns. A sharp price move (flagpole) followed by a rectangular consolidation (flag) that slopes against the trend.</p><h5>Pennants</h5><p>Similar to flags but the consolidation forms a small symmetrical triangle instead of a rectangle.</p><ul><li><b>Bull Flag:</b> Strong up-move → downward-sloping consolidation → breakout up</li><li><b>Bear Flag:</b> Strong down-move → upward-sloping consolidation → breakdown</li></ul>`,
  formula:`<div class="academy-formula-block">Target = Breakout Point + Length of Flagpole</div>`,
  sandbox:{inputs:[{label:'Flagpole Start',key:'start',val:100},{label:'Flagpole End',key:'end',val:140},{label:'Breakout Point',key:'breakout',val:135}],calc:(v)=>`Target = ₹${(v.breakout+(v.end-v.start)).toFixed(0)}`},
- quiz:[{q:'Bull flag is a:',opts:['Reversal pattern','Continuation pattern','Neutral pattern','Volume pattern'],ans:1}],
+ quiz:[{q:'Flags are classified as:',opts:['Reversal patterns','Continuation patterns','Neutral patterns','Volume patterns'],ans:1}],
  chartType:'line',chartLabel:'Bull Flag',chartData:[100,105,115,125,135,140,138,136,134,132,130,128,130,132,135,140,145,150,155,160,165,170,175,178,180]},
 
-{id:'bear_flag',cat:'chart-patterns',emoji:'📉',title:'Bear Flag',
- explanation:`<h5>Bear Flag (Bearish Continuation)</h5><p>Short-term continuation pattern. A sharp price drop (flagpole) followed by an upward-sloping rectangular consolidation (flag) before breaking down downward.</p>`,
- formula:`<div class="academy-formula-block">Target = Breakout Point − Length of Flagpole</div>`,
- sandbox:{inputs:[{label:'Flagpole Start',key:'start',val:140},{label:'Flagpole End',key:'end',val:100},{label:'Breakout Point',key:'breakout',val:105}],calc:(v)=>`Target = ₹${(v.breakout-(v.start-v.end)).toFixed(0)}`},
- quiz:[{q:'Bear flag is a:',opts:['Reversal pattern','Continuation pattern','Neutral pattern','Volume pattern'],ans:1}],
- chartType:'line',chartLabel:'Bear Flag',chartData:[140,135,125,115,105,100,102,104,106,108,110,112,110,108,105,100,95,90,85,80,75,70,65,62,60]},
-
-{id:'pennants',cat:'chart-patterns',emoji:'🎌',title:'Pennants',
- explanation:`<h5>Pennants</h5><p>Similar to flags but the consolidation forms a small symmetrical triangle instead of a rectangle. Can be bullish or bearish depending on the prior trend.</p>`,
- formula:`<div class="academy-formula-block">Target = Breakout Point ± Length of Flagpole</div>`,
- sandbox:{inputs:[{label:'Flagpole Start',key:'start',val:100},{label:'Flagpole End',key:'end',val:140},{label:'Breakout Point',key:'breakout',val:135}],calc:(v)=>`Target = ₹${(v.breakout+(v.end-v.start)).toFixed(0)}`},
- quiz:[{q:'Pennant consolidation resembles a:',opts:['Rectangle','Small symmetrical triangle','Wedge','Head and shoulders'],ans:1}],
- chartType:'line',chartLabel:'Pennant',chartData:[100,105,115,125,135,140,138,136,134,132,130,128,130,132,135,140,145,150,155,160,165,170,175,178,180]},
-
-{id:'symmetrical_triangle',cat:'chart-patterns',emoji:'📐',title:'Symmetrical Triangle',
- explanation:`<h5>Symmetrical Triangle</h5><p>Converging trendlines with lower highs and higher lows. Represents a period of consolidation before a breakout in either direction.</p>`,
+{id:'triangles',cat:'chart-patterns',emoji:'🔺',title:'Triangles (Symmetrical, Ascending, Descending)',
+ explanation:`<h5>Symmetrical Triangle</h5><p>Converging trendlines with lower highs and higher lows. Breakout direction determines the trade.</p><h5>Ascending Triangle (Bullish)</h5><p>Flat resistance top with rising support bottom. Price typically breaks upward.</p><h5>Descending Triangle (Bearish)</h5><p>Flat support bottom with declining resistance top. Price typically breaks downward.</p>`,
  formula:`<div class="academy-formula-block">Target = Breakout Level ± Height of Triangle at widest point</div>`,
  sandbox:{inputs:[{label:'Triangle High',key:'high',val:520},{label:'Triangle Low',key:'low',val:480},{label:'Breakout Level',key:'bo',val:520}],calc:(v)=>`Upside Target: ₹${(v.bo+(v.high-v.low)).toFixed(0)} | Downside: ₹${(v.bo-(v.high-v.low)).toFixed(0)}`},
- quiz:[{q:'Symmetrical triangles indicate:',opts:['Immediate trend reversal','Consolidation before breakout','Exhaustion of all volume','Overbought conditions'],ans:1}],
- chartType:'line',chartLabel:'Symmetrical Triangle',chartData:[480,500,520,510,490,505,520,512,495,508,520,514,500,512,520,515,505,513,520,522,530,540,550,555,560]},
-
-{id:'ascending_triangle',cat:'chart-patterns',emoji:'🔺',title:'Ascending Triangle',
- explanation:`<h5>Ascending Triangle (Bullish)</h5><p>Flat resistance top with rising support bottom. Price typically breaks upward as buyers become more aggressive.</p>`,
- formula:`<div class="academy-formula-block">Target = Resistance Level + Height of Triangle at widest point</div>`,
- sandbox:{inputs:[{label:'Triangle High',key:'high',val:520},{label:'Triangle Low',key:'low',val:480},{label:'Breakout Level',key:'bo',val:520}],calc:(v)=>`Target = ₹${(v.bo+(v.high-v.low)).toFixed(0)}`},
  quiz:[{q:'Ascending triangle is typically:',opts:['Bearish','Bullish','Neutral','Reversal'],ans:1}],
- chartType:'line',chartLabel:'Ascending Triangle',chartData:[480,500,520,510,490,505,520,512,495,508,520,514,500,512,520,515,505,513,520,522,530,540,550,555,560]},
+ chartType:'line',chartLabel:'Price',chartData:[480,500,520,510,490,505,520,512,495,508,520,514,500,512,520,515,505,513,520,522,530,540,550,555,560]},
 
-{id:'descending_triangle',cat:'chart-patterns',emoji:'🔻',title:'Descending Triangle',
- explanation:`<h5>Descending Triangle (Bearish)</h5><p>Flat support bottom with declining resistance top. Price typically breaks downward as sellers become more aggressive.</p>`,
- formula:`<div class="academy-formula-block">Target = Support Level − Height of Triangle at widest point</div>`,
- sandbox:{inputs:[{label:'Triangle High',key:'high',val:520},{label:'Triangle Low',key:'low',val:480},{label:'Breakout Level',key:'bo',val:480}],calc:(v)=>`Target = ₹${(v.bo-(v.high-v.low)).toFixed(0)}`},
- quiz:[{q:'Descending triangle is typically:',opts:['Bearish','Bullish','Neutral','Reversal'],ans:0}],
- chartType:'line',chartLabel:'Descending Triangle',chartData:[520,500,480,490,510,495,480,488,505,492,480,486,500,488,480,485,495,487,480,478,470,460,450,445,440]},
-
-{id:'rising_wedge',cat:'chart-patterns',emoji:'📐',title:'Rising Wedge',
- explanation:`<h5>Rising Wedge (Bearish Reversal/Continuation)</h5><p>Both trendlines slope upward but converge. Higher highs and higher lows with decreasing momentum. Typically breaks down.</p>`,
- formula:`<div class="academy-formula-block">Target = Breakout Point − Height of Wedge at Entry</div>`,
- sandbox:{inputs:[{label:'Wedge Width at Start',key:'width',val:50},{label:'Breakout Price',key:'bo',val:480}],calc:(v)=>`Rising Wedge Target: ₹${(v.bo-v.width).toFixed(0)}`},
- quiz:[{q:'A rising wedge in an uptrend usually signals:',opts:['Bullish reversal','Bearish reversal','Uptrend continuation','Overbought continuation'],ans:1}],
- chartType:'line',chartLabel:'Rising Wedge',chartData:[450,470,465,485,480,495,490,502,498,508,505,512,510,515,512,508,495,480,470,460,450,440,430,425,420]},
-
-{id:'falling_wedge',cat:'chart-patterns',emoji:'📐',title:'Falling Wedge',
- explanation:`<h5>Falling Wedge (Bullish Reversal/Continuation)</h5><p>Both trendlines slope downward but converge. Lower lows and lower highs with decreasing selling pressure. Typically breaks up.</p>`,
- formula:`<div class="academy-formula-block">Target = Breakout Point + Height of Wedge at Entry</div>`,
- sandbox:{inputs:[{label:'Wedge Width at Start',key:'width',val:50},{label:'Breakout Price',key:'bo',val:480}],calc:(v)=>`Falling Wedge Target: ₹${(v.bo+v.width).toFixed(0)}`},
- quiz:[{q:'A falling wedge is generally considered:',opts:['Bearish','Bullish','Neutral','Continuation down'],ans:1}],
- chartType:'line',chartLabel:'Falling Wedge',chartData:[550,540,535,530,528,525,520,518,515,510,508,505,500,498,495,492,490,488,485,490,500,510,520,530,540]},
+{id:'wedges',cat:'chart-patterns',emoji:'📐',title:'Rising & Falling Wedges',
+ explanation:`<h5>Rising Wedge (Bearish)</h5><p>Both trendlines slope upward but converge. Higher highs and higher lows with decreasing momentum. Typically breaks down.</p><h5>Falling Wedge (Bullish)</h5><p>Both trendlines slope downward but converge. Lower lows and lower highs with decreasing selling pressure. Typically breaks up.</p>`,
+ formula:`<div class="academy-formula-block">Target = Breakout Point ± Height of Wedge at Entry</div>`,
+ sandbox:{inputs:[{label:'Wedge Width at Start',key:'width',val:50},{label:'Breakout Price',key:'bo',val:480}],calc:(v)=>`Falling Wedge Target: ₹${(v.bo+v.width).toFixed(0)} | Rising Wedge Target: ₹${(v.bo-v.width).toFixed(0)}`},
+ quiz:[{q:'A falling wedge is generally:',opts:['Bearish','Bullish','Neutral','Continuation down'],ans:1}],
+ chartType:'line',chartLabel:'Price',chartData:[550,540,535,530,528,525,520,518,515,510,508,505,500,498,495,492,490,488,485,490,500,510,520,530,540]},
 
 {id:'cup_handle',cat:'chart-patterns',emoji:'☕',title:'Cup & Handle',
  explanation:`<h5>What is Cup & Handle?</h5><p>A bullish continuation pattern. The \"cup\" is a rounded bottom formation, and the \"handle\" is a small pullback/consolidation before breakout.</p><ul><li>Cup depth typically 12–33% of the prior advance</li><li>Handle should retrace no more than 50% of cup depth</li><li>Breakout above handle resistance = Buy</li><li>Ideal duration: 7 weeks to 65 weeks for the cup</li></ul>`,
@@ -28777,19 +28764,12 @@ const ACADEMY_CATALOG = [
  quiz:[{q:'Cup & Handle is a:',opts:['Bearish reversal','Bullish continuation','Bearish continuation','Neutral'],ans:1}],
  chartType:'line',chartLabel:'Price',chartData:[200,195,185,175,168,162,160,162,168,175,185,195,200,198,195,193,195,198,200,205,210,215,220,225,230]},
 
-{id:'triple_top',cat:'chart-patterns',emoji:'3️⃣',title:'Triple Top',
- explanation:`<h5>Triple Top</h5><p>Three peaks at roughly the same level followed by a breakdown below support. Stronger bearish reversal signal than double top.</p>`,
- formula:`<div class="academy-formula-block">Target = Support Level − Pattern Height</div>`,
- sandbox:{inputs:[{label:'Peak Level',key:'level',val:500},{label:'Support Level',key:'sr',val:460}],calc:(v)=>`Triple Top Target: ₹${(v.sr-(v.level-v.sr)).toFixed(0)}`},
- quiz:[{q:'Triple top is a:',opts:['Bullish reversal','Bearish reversal','Bullish continuation','Neutral'],ans:1}],
- chartType:'line',chartLabel:'Triple Top',chartData:[460,475,490,500,490,475,460,475,490,500,488,475,460,475,490,500,485,470,455,445,435,430,425,420,415]},
-
-{id:'triple_bottom',cat:'chart-patterns',emoji:'🩲',title:'Triple Bottom',
- explanation:`<h5>Triple Bottom</h5><p>Three troughs at roughly the same level followed by a breakout above resistance. Stronger bullish reversal than double bottom.</p>`,
- formula:`<div class="academy-formula-block">Target = Resistance Level + Pattern Height</div>`,
- sandbox:{inputs:[{label:'Trough Level',key:'level',val:460},{label:'Resistance Level',key:'sr',val:500}],calc:(v)=>`Triple Bottom Target: ₹${(v.sr+(v.sr-v.level)).toFixed(0)}`},
+{id:'triple_top_bottom',cat:'chart-patterns',emoji:'3️⃣',title:'Triple Top & Triple Bottom',
+ explanation:`<h5>Triple Top</h5><p>Three peaks at roughly the same level followed by a breakdown below support. Stronger reversal signal than double top.</p><h5>Triple Bottom</h5><p>Three troughs at roughly the same level followed by a breakout above resistance. Stronger than double bottom.</p>`,
+ formula:`<div class="academy-formula-block">Target = Breakout Level ± Pattern Height</div>`,
+ sandbox:{inputs:[{label:'Peak/Trough Level',key:'level',val:500},{label:'Support/Resist',key:'sr',val:460}],calc:(v)=>`Triple Top Target: ₹${(v.sr-(v.level-v.sr)).toFixed(0)} | Triple Bottom Target: ₹${(v.level+(v.level-v.sr)).toFixed(0)}`},
  quiz:[{q:'Triple bottom is a stronger signal than:',opts:['Head and Shoulders','Double bottom','Flags','Triangles'],ans:1}],
- chartType:'line',chartLabel:'Triple Bottom',chartData:[500,485,470,460,470,485,500,485,470,460,472,485,500,485,470,460,475,490,505,515,525,530,535,540,545]},
+ chartType:'line',chartLabel:'Price',chartData:[460,475,490,500,490,475,460,475,490,500,488,475,460,475,490,500,485,470,455,445,435,430,425,420,415]},
 
 {id:'rounding_bottom',cat:'chart-patterns',emoji:'🥣',title:'Rounding Bottom',explanation:`<h5>What is a Rounding Bottom?</h5><p>A long-term reversal pattern that resembles a "U" shape. It indicates a gradual shift from selling pressure to buying pressure over weeks or months.</p>`,formula:`<div class="academy-formula-block">Target = Resistance Breakout + Depth of Pattern</div>`,sandbox:{inputs:[{label:'Resistance',key:'r',val:300},{label:'Bottom',key:'b',val:220}],calc:(v)=>`Target: ₹${(v.r+(v.r-v.b)).toFixed(0)}`},quiz:[{q:'Rounding bottom indicates:',opts:['Bearish reversal','Bullish reversal','Continuation','No signal'],ans:1}],chartType:'line',chartLabel:'Price',chartData:[300,290,275,260,248,238,230,225,222,220,222,225,230,238,248,260,275,290,300,310,320,330,340,350,360]},
 
@@ -28801,42 +28781,28 @@ const ACADEMY_CATALOG = [
 
 {id:'gap_dynamics',cat:'chart-patterns',emoji:'⬆️',title:'Gap Dynamics (Breakaway, Runaway, Exhaustion)',explanation:`<h5>Types of Gaps</h5><ul><li><b>Breakaway Gap:</b> Occurs at the start of a new trend, usually with high volume</li><li><b>Runaway/Continuation Gap:</b> Occurs mid-trend, confirming momentum</li><li><b>Exhaustion Gap:</b> Occurs near end of trend, often filled quickly</li><li><b>Common Gap:</b> Occurs in trading ranges, quickly filled</li></ul>`,formula:`<div class="academy-formula-block">Gap Size = Open(today) − Close(yesterday)<br>Gap Fill = Price returns to pre-gap close</div>`,sandbox:{inputs:[{label:"Yesterday's Close",key:'yc',val:500},{label:"Today's Open",key:'to',val:515}],calc:(v)=>`Gap Size: ₹${(v.to-v.yc).toFixed(2)} (${((v.to-v.yc)/v.yc*100).toFixed(2)}%)`},quiz:[{q:'Which gap type typically gets filled quickly?',opts:['Breakaway','Runaway','Exhaustion','Common'],ans:3}],chartType:'bar',chartLabel:'Gap Size',chartData:[0,0,15,2,0,0,-10,0,0,8,0,0,0,-5,0,20,0,0,0,-12,0,0,5,0,0]},
 
+// ── CANDLESTICK PATTERNS (10) ──
 {id:'doji',cat:'candlestick',emoji:'✝️',title:'Doji Variations',explanation:`<h5>What is a Doji?</h5><p>A candlestick where open and close are virtually equal, forming a cross. It signals indecision.</p><h5>Types</h5><ul><li><b>Standard Doji:</b> Cross shape — pure indecision</li><li><b>Long-Legged Doji:</b> Long upper and lower shadows</li><li><b>Dragonfly Doji:</b> Long lower shadow, no upper — bullish at bottoms</li><li><b>Gravestone Doji:</b> Long upper shadow, no lower — bearish at tops</li></ul>`,formula:`<div class="academy-formula-block">Doji: |Open − Close| ≤ 0.1% of Price Range</div>`,sandbox:{inputs:[{label:'Open',key:'o',val:150},{label:'Close',key:'c',val:150.1},{label:'High',key:'h',val:155},{label:'Low',key:'l',val:145}],calc:(v)=>{const body=Math.abs(v.o-v.c);const range=v.h-v.l;return `Body: ₹${body.toFixed(2)} | Range: ₹${range.toFixed(2)} | Doji: ${body/range<0.1?'YES':'NO'}`;}},quiz:[{q:'A Gravestone Doji at a top signals:',opts:['Bullish continuation','Bearish reversal','Indecision','Accumulation'],ans:1}],chartType:'bar',chartLabel:'Body Size',chartData:[5,8,12,3,0.5,0.2,10,15,8,0.3,0.1,12,8,5,0.4,0.2,10,15,12,0.5,0.1,8,5,3,0.3]},
 
-{id:'hammer',cat:'candlestick',emoji:'🔨',title:'Hammer',explanation:`<h5>Hammer (Bullish Reversal)</h5><p>Small body at the top with a long lower shadow (2x+ body). Appears in downtrends — signals buyers step in and push the price back up from lows.</p>`,formula:`<div class="academy-formula-block">Lower Shadow ≥ 2 × Body Size<br>Upper Shadow ≤ 10% of Range</div>`,sandbox:{inputs:[{label:'Open',key:'o',val:152},{label:'Close',key:'c',val:155},{label:'Low',key:'l',val:145}],calc:(v)=>{const body=Math.abs(v.c-v.o);const lowerShadow=Math.min(v.o,v.c)-v.l;return `Body: ₹${body.toFixed(1)} | Lower Shadow: ₹${lowerShadow.toFixed(1)} | Hammer: ${lowerShadow>=2*body?'YES':'NO'}`;}},quiz:[{q:'A hammer in a downtrend signals:',opts:['Continuation down','Bullish reversal','No signal','Bearish'],ans:1}],chartType:'bar',chartLabel:'Hammer Pattern',chartData:[8,10,12,15,18,20,18,15,10,5,8,12,15,18,20,22,20,18,15,12,8,5,3,5,8]},
+{id:'hammer_hangman',cat:'candlestick',emoji:'🔨',title:'Hammer & Hanging Man',explanation:`<h5>Hammer (Bullish)</h5><p>Small body at the top with a long lower shadow (2x+ body). Appears in downtrends — signals reversal.</p><h5>Hanging Man (Bearish)</h5><p>Same shape as hammer but appears in uptrends — signals potential reversal down.</p>`,formula:`<div class="academy-formula-block">Lower Shadow ≥ 2 × Body Size<br>Upper Shadow ≤ 10% of Range</div>`,sandbox:{inputs:[{label:'Open',key:'o',val:152},{label:'Close',key:'c',val:155},{label:'Low',key:'l',val:145}],calc:(v)=>{const body=Math.abs(v.c-v.o);const lowerShadow=Math.min(v.o,v.c)-v.l;return `Body: ₹${body.toFixed(1)} | Lower Shadow: ₹${lowerShadow.toFixed(1)} | Hammer: ${lowerShadow>=2*body?'YES':'NO'}`;}},quiz:[{q:'A hammer in a downtrend signals:',opts:['Continuation down','Bullish reversal','No signal','Bearish'],ans:1}],chartType:'bar',chartLabel:'Pattern',chartData:[8,10,12,15,18,20,18,15,10,5,8,12,15,18,20,22,20,18,15,12,8,5,3,5,8]},
 
-{id:'hanging_man',cat:'candlestick',emoji:'👤',title:'Hanging Man',explanation:`<h5>Hanging Man (Bearish Reversal)</h5><p>Same shape as hammer but appears at the top of an uptrend — signals that selling pressure is beginning to mount.</p>`,formula:`<div class="academy-formula-block">Lower Shadow ≥ 2 × Body Size<br>Upper Shadow ≤ 10% of Range</div>`,sandbox:{inputs:[{label:'Open',key:'o',val:155},{label:'Close',key:'c',val:152},{label:'Low',key:'l',val:145}],calc:(v)=>{const body=Math.abs(v.c-v.o);const lowerShadow=Math.min(v.o,v.c)-v.l;return `Body: ₹${body.toFixed(1)} | Lower Shadow: ₹${lowerShadow.toFixed(1)} | Hanging Man: ${lowerShadow>=2*body?'YES':'NO'}`;}},quiz:[{q:'Hanging Man appears in:',opts:['Downtrends','Uptrends','Sideways markets','Any market'],ans:1}],chartType:'bar',chartLabel:'Hanging Man Pattern',chartData:[8,10,12,15,18,20,18,15,10,5,8,12,15,18,20,22,20,18,15,12,8,5,3,5,8]},
+{id:'shooting_star',cat:'candlestick',emoji:'⭐',title:'Shooting Star & Inverted Hammer',explanation:`<h5>Shooting Star (Bearish)</h5><p>Small body at the bottom with a long upper shadow. Appears in uptrends — signals reversal.</p><h5>Inverted Hammer (Bullish)</h5><p>Same shape but appears in downtrends — potential bullish reversal pending confirmation.</p>`,formula:`<div class="academy-formula-block">Upper Shadow ≥ 2 × Body Size<br>Lower Shadow ≤ 10% of Range</div>`,sandbox:{inputs:[{label:'Open',key:'o',val:148},{label:'Close',key:'c',val:145},{label:'High',key:'h',val:158}],calc:(v)=>{const body=Math.abs(v.o-v.c);const uShadow=v.h-Math.max(v.o,v.c);return `Body: ₹${body.toFixed(1)} | Upper Shadow: ₹${uShadow.toFixed(1)} | Shooting Star: ${uShadow>=2*body?'YES':'NO'}`;}},quiz:[{q:'Shooting star appears in:',opts:['Downtrends','Uptrends','Sideways markets','Any market'],ans:1}],chartType:'bar',chartLabel:'Pattern',chartData:[5,8,12,15,18,20,22,25,28,30,28,25,22,18,15,12,10,8,6,5,8,10,12,14,16]},
 
-{id:'shooting_star',cat:'candlestick',emoji:'⭐',title:'Shooting Star',explanation:`<h5>Shooting Star (Bearish Reversal)</h5><p>Small body at the bottom with a long upper shadow. Appears in uptrends — signals price opened, rallied strongly, but buyers failed to hold highs, closing near the open.</p>`,formula:`<div class="academy-formula-block">Upper Shadow ≥ 2 × Body Size<br>Lower Shadow ≤ 10% of Range</div>`,sandbox:{inputs:[{label:'Open',key:'o',val:155},{label:'Close',key:'c',val:152},{label:'High',key:'h',val:165}],calc:(v)=>{const body=Math.abs(v.o-v.c);const uShadow=v.h-Math.max(v.o,v.c);return `Body: ₹${body.toFixed(1)} | Upper Shadow: ₹${uShadow.toFixed(1)} | Shooting Star: ${uShadow>=2*body?'YES':'NO'}`;}},quiz:[{q:'Shooting star appears in:',opts:['Downtrends','Uptrends','Sideways markets','Any market'],ans:1}],chartType:'bar',chartLabel:'Shooting Star',chartData:[5,8,12,15,18,20,22,25,28,30,28,25,22,18,15,12,10,8,6,5,8,10,12,14,16]},
+{id:'engulfing',cat:'candlestick',emoji:'🟢',title:'Bullish & Bearish Engulfing',explanation:`<h5>Bullish Engulfing</h5><p>A large green candle completely engulfs the previous red candle. Appears at bottoms — strong reversal signal.</p><h5>Bearish Engulfing</h5><p>A large red candle completely engulfs the previous green candle. Appears at tops — strong reversal signal.</p>`,formula:`<div class="academy-formula-block">Bullish: Green Body > Red Body (both open and close)<br>Bearish: Red Body > Green Body (both open and close)</div>`,sandbox:{inputs:[{label:'Prev Open',key:'po',val:152},{label:'Prev Close',key:'pc',val:148},{label:'Curr Open',key:'co',val:146},{label:'Curr Close',key:'cc',val:155}],calc:(v)=>`Engulfing: ${v.cc>v.po&&v.co<v.pc?'BULLISH ✅':v.cc<v.po&&v.co>v.pc?'BEARISH 🔴':'NO ENGULFING'}`},quiz:[{q:'Bullish engulfing is most significant when it appears:',opts:['At market tops','At market bottoms','In sideways markets','At any time'],ans:1}],chartType:'bar',chartLabel:'Candle Body',chartData:[-5,-3,-8,-2,10,5,3,-4,-6,-10,12,8,5,-3,-5,-8,15,10,5,-2,-4,-12,18,12,8]},
 
-{id:'inverted_hammer',cat:'candlestick',emoji:'🔨',title:'Inverted Hammer',explanation:`<h5>Inverted Hammer (Bullish Reversal)</h5><p>Same shape as shooting star but appears in downtrends — potential bullish reversal pending next-candle upward confirmation.</p>`,formula:`<div class="academy-formula-block">Upper Shadow ≥ 2 × Body Size<br>Lower Shadow ≤ 10% of Range</div>`,sandbox:{inputs:[{label:'Open',key:'o',val:145},{label:'Close',key:'c',val:148},{label:'High',key:'h',val:158}],calc:(v)=>{const body=Math.abs(v.o-v.c);const uShadow=v.h-Math.max(v.o,v.c);return `Body: ₹${body.toFixed(1)} | Upper Shadow: ₹${uShadow.toFixed(1)} | Inverted Hammer: ${uShadow>=2*body?'YES':'NO'}`;}},quiz:[{q:'Inverted hammer appears in:',opts:['Downtrends','Uptrends','Sideways markets','Breakouts'],ans:0}],chartType:'bar',chartLabel:'Inverted Hammer',chartData:[5,8,12,15,18,20,22,25,28,30,28,25,22,18,15,12,10,8,6,5,8,10,12,14,16]},
+{id:'harami',cat:'candlestick',emoji:'🤰',title:'Harami Patterns',explanation:`<h5>Bullish Harami</h5><p>A small green candle within the body of the previous large red candle. Signals potential reversal at bottoms.</p><h5>Bearish Harami</h5><p>A small red candle within the body of the previous large green candle. Signals potential reversal at tops.</p><p>\"Harami\" means \"pregnant\" in Japanese — the small candle is contained within the mother candle.</p>`,formula:`<div class="academy-formula-block">Second candle's body is completely inside first candle's body</div>`,sandbox:{inputs:[{label:'Mother Open',key:'mo',val:160},{label:'Mother Close',key:'mc',val:145},{label:'Baby Open',key:'bo',val:148},{label:'Baby Close',key:'bc',val:152}],calc:(v)=>{const mHigh=Math.max(v.mo,v.mc),mLow=Math.min(v.mo,v.mc),bHigh=Math.max(v.bo,v.bc),bLow=Math.min(v.bo,v.bc);return `Harami: ${bHigh<mHigh&&bLow>mLow?'YES ✅':'NO ❌'}`;}},quiz:[{q:'"Harami" means:',opts:['Hammer','Pregnant','Star','Cloud'],ans:1}],chartType:'bar',chartLabel:'Body',chartData:[-15,-10,-5,3,-12,-8,2,-10,-15,4,-8,-12,3,5,-10,-14,2,4,-8,-12,3,5,-10,-6,2]},
 
-{id:'bullish_engulfing',cat:'candlestick',emoji:'🟩',title:'Bullish Engulfing',explanation:`<h5>Bullish Engulfing (Bullish Reversal)</h5><p>A large green candle completely engulfs the body of the previous red candle. Appears at bottoms — signals a strong shift from sellers to buyers.</p>`,formula:`<div class="academy-formula-block">Green Close > Red Open AND Green Open < Red Close</div>`,sandbox:{inputs:[{label:'Prev Open',key:'po',val:152},{label:'Prev Close',key:'pc',val:148},{label:'Curr Open',key:'co',val:146},{label:'Curr Close',key:'cc',val:155}],calc:(v)=>`Engulfing: ${v.cc>v.po&&v.co<v.pc?'BULLISH ✅':'NO ENGULFING'}`},quiz:[{q:'Bullish engulfing appears at:',opts:['Market tops','Market bottoms','Sideways ranges','Any time'],ans:1}],chartType:'bar',chartLabel:'Candle Body',chartData:[-5,-3,-8,-2,10,5,3,-4,-6,-10,12,8,5,-3,-5,-8,15,10,5,-2,-4,-12,18,12,8]},
+{id:'morning_evening_star',cat:'candlestick',emoji:'🌟',title:'Morning & Evening Stars',explanation:`<h5>Morning Star (Bullish)</h5><p>Three-candle pattern: (1) Large red candle, (2) Small-bodied candle gapping down, (3) Large green candle closing above midpoint of first candle.</p><h5>Evening Star (Bearish)</h5><p>Opposite: (1) Large green candle, (2) Small-bodied candle gapping up, (3) Large red candle closing below midpoint of first candle.</p>`,formula:`<div class="academy-formula-block">3rd candle must close past midpoint of 1st candle's body</div>`,sandbox:{inputs:[{label:'1st Candle Open',key:'o1',val:160},{label:'1st Candle Close',key:'c1',val:145},{label:'3rd Candle Close',key:'c3',val:155}],calc:(v)=>{const mid=(v.o1+v.c1)/2;return `Midpoint: ₹${mid.toFixed(1)} | 3rd closes ${v.c3>mid?'above':'below'} → ${v.c1<v.o1&&v.c3>mid?'Morning Star ✅':'Check conditions'}`;}},quiz:[{q:'Morning Star is a:',opts:['Bearish pattern','1-candle pattern','3-candle bullish reversal','Continuation'],ans:2}],chartType:'bar',chartLabel:'Pattern',chartData:[10,8,-15,-2,12,8,5,-8,-12,-1,15,10,8,5,-10,-14,-1,12,10,8,-8,-12,-2,14,10]},
 
-{id:'bearish_engulfing',cat:'candlestick',emoji:'🟥',title:'Bearish Engulfing',explanation:`<h5>Bearish Engulfing (Bearish Reversal)</h5><p>A large red candle completely engulfs the body of the previous green candle. Appears at tops — signals a strong shift from buyers to sellers.</p>`,formula:`<div class="academy-formula-block">Red Close < Green Open AND Red Open > Green Close</div>`,sandbox:{inputs:[{label:'Prev Open',key:'po',val:148},{label:'Prev Close',key:'pc',val:152},{label:'Curr Open',key:'co',val:155},{label:'Curr Close',key:'cc',val:146}],calc:(v)=>`Engulfing: ${v.cc<v.po&&v.co>v.pc?'BEARISH 🔴':'NO ENGULFING'}`},quiz:[{q:'Bearish engulfing appears at:',opts:['Market tops','Market bottoms','Sideways ranges','Any time'],ans:0}],chartType:'bar',chartLabel:'Candle Body',chartData:[-5,-3,-8,-2,10,5,3,-4,-6,-10,12,8,5,-3,-5,-8,15,10,5,-2,-4,-12,18,12,8]},
+{id:'piercing_darkcloud',cat:'candlestick',emoji:'☁️',title:'Piercing Line & Dark Cloud Cover',explanation:`<h5>Piercing Line (Bullish)</h5><p>Two-candle pattern: Red candle followed by a green candle that opens below the prior low but closes above the midpoint of the red candle.</p><h5>Dark Cloud Cover (Bearish)</h5><p>Two-candle pattern: Green candle followed by a red candle that opens above the prior high but closes below the midpoint of the green candle.</p>`,formula:`<div class="academy-formula-block">2nd candle must close past 50% of 1st candle's body</div>`,sandbox:{inputs:[{label:'Red Open',key:'ro',val:160},{label:'Red Close',key:'rc',val:148},{label:'Green Close',key:'gc',val:156}],calc:(v)=>{const mid=(v.ro+v.rc)/2;return `Midpoint: ₹${mid.toFixed(1)} | Piercing: ${v.gc>mid?'YES ✅':'NO'}`;}},quiz:[{q:'Piercing Line requires the green candle to close:',opts:['Above 50% of red body','At the red open','Below the red close','At any level'],ans:0}],chartType:'bar',chartLabel:'Body',chartData:[8,-15,12,5,-10,14,8,-12,-8,15,10,-14,-10,12,8,-15,14,10,-8,-12,15,8,-10,-14,12]},
 
-{id:'bullish_harami',cat:'candlestick',emoji:'🤰',title:'Bullish Harami',explanation:`<h5>Bullish Harami</h5><p>A small green candle forms inside the body of the previous large red candle. Signals a potential pause or reversal of a downtrend.</p>`,formula:`<div class="academy-formula-block">Baby body completely inside Mother body (Red Mother, Green Baby)</div>`,sandbox:{inputs:[{label:'Mother Open',key:'mo',val:160},{label:'Mother Close',key:'mc',val:145},{label:'Baby Open',key:'bo',val:148},{label:'Baby Close',key:'bc',val:152}],calc:(v)=>{const mHigh=Math.max(v.mo,v.mc),mLow=Math.min(v.mo,v.mc),bHigh=Math.max(v.bo,v.bc),bLow=Math.min(v.bo,v.bc);return `Harami: ${bHigh<mHigh&&bLow>mLow?'YES ✅':'NO ❌'}`;}},quiz:[{q:'In a bullish harami, the second candle is:',opts:['Larger than the first','Smaller and inside the first','A doji always','Gapping up'],ans:1}],chartType:'bar',chartLabel:'Body',chartData:[-15,-10,-5,3,-12,-8,2,-10,-15,4,-8,-12,3,5,-10,-14,2,4,-8,-12,3,5,-10,-6,2]},
+{id:'tweezer',cat:'candlestick',emoji:'🔧',title:'Tweezer Tops & Bottoms',explanation:`<h5>Tweezer Top</h5><p>Two or more candles with matching highs at the top of an uptrend. The first is bullish, the second bearish.</p><h5>Tweezer Bottom</h5><p>Two or more candles with matching lows at the bottom of a downtrend. The first is bearish, the second bullish.</p>`,formula:`<div class="academy-formula-block">Matching Highs (Top) or Matching Lows (Bottom) ± 0.1%</div>`,sandbox:{inputs:[{label:'Candle 1 High',key:'h1',val:525},{label:'Candle 2 High',key:'h2',val:525}],calc:(v)=>`Match: ${Math.abs(v.h1-v.h2)/v.h1*100<0.1?'Tweezer Top ✅':'No match'}`},quiz:[{q:'Tweezer bottoms appear at:',opts:['Market tops','Market bottoms','Mid-trend','Any time'],ans:1}],chartType:'line',chartLabel:'Price',chartData:[490,500,510,518,525,525,520,515,510,505,500,495,490,488,485,483,480,478,475,478,482,488,495,500,505]},
 
-{id:'bearish_harami',cat:'candlestick',emoji:'🤰',title:'Bearish Harami',explanation:`<h5>Bearish Harami</h5><p>A small red candle forms inside the body of the previous large green candle. Signals a potential pause or reversal of an uptrend.</p>`,formula:`<div class="academy-formula-block">Baby body completely inside Mother body (Green Mother, Red Baby)</div>`,sandbox:{inputs:[{label:'Mother Open',key:'mo',val:145},{label:'Mother Close',key:'mc',val:160},{label:'Baby Open',key:'bo',val:152},{label:'Baby Close',key:'bc',val:148}],calc:(v)=>{const mHigh=Math.max(v.mo,v.mc),mLow=Math.min(v.mo,v.mc),bHigh=Math.max(v.bo,v.bc),bLow=Math.min(v.bo,v.bc);return `Harami: ${bHigh<mHigh&&bLow>mLow?'YES ✅':'NO ❌'}`;}},quiz:[{q:'A bearish harami appears at:',opts:['Market bottoms','Market tops','Breakout start','Nowhere'],ans:1}],chartType:'bar',chartLabel:'Body',chartData:[-15,-10,-5,3,-12,-8,2,-10,-15,4,-8,-12,3,5,-10,-14,2,4,-8,-12,3,5,-10,-6,2]},
-
-{id:'morning_star',cat:'candlestick',emoji:'🌅',title:'Morning Star',explanation:`<h5>Morning Star (Bullish Reversal)</h5><p>Three-candle pattern: (1) Large red candle, (2) Small-bodied candle gapping down, (3) Large green candle closing above midpoint of first candle.</p>`,formula:`<div class="academy-formula-block">3rd candle must close past midpoint of 1st candle's body</div>`,sandbox:{inputs:[{label:'1st Candle Open',key:'o1',val:160},{label:'1st Candle Close',key:'c1',val:145},{label:'3rd Candle Close',key:'c3',val:155}],calc:(v)=>{const mid=(v.o1+v.c1)/2;return `Midpoint: ₹${mid.toFixed(1)} | 3rd closes ${v.c3>mid?'above':'below'} → ${v.c1<v.o1&&v.c3>mid?'Morning Star ✅':'Check conditions'}`;}},quiz:[{q:'Morning Star is a:',opts:['Bearish pattern','1-candle pattern','3-candle bullish reversal','Continuation'],ans:2}],chartType:'bar',chartLabel:'Pattern',chartData:[10,8,-15,-2,12,8,5,-8,-12,-1,15,10,8,5,-10,-14,-1,12,10,8,-8,-12,-2,14,10]},
-
-{id:'evening_star',cat:'candlestick',emoji:'🌇',title:'Evening Star',explanation:`<h5>Evening Star (Bearish Reversal)</h5><p>Three-candle pattern: (1) Large green candle, (2) Small-bodied candle gapping up, (3) Large red candle closing below midpoint of first candle.</p>`,formula:`<div class="academy-formula-block">3rd candle must close past midpoint of 1st candle's body</div>`,sandbox:{inputs:[{label:'1st Candle Open',key:'o1',val:145},{label:'1st Candle Close',key:'c1',val:160},{label:'3rd Candle Close',key:'c3',val:150}],calc:(v)=>{const mid=(v.o1+v.c1)/2;return `Midpoint: ₹${mid.toFixed(1)} | 3rd closes ${v.c3<mid?'below':'above'} → ${v.c1>v.o1&&v.c3<mid?'Evening Star ✅':'Check conditions'}`;}},quiz:[{q:'Evening Star typically appears at:',opts:['Market bottoms','Market tops','Support levels','Nowhere'],ans:1}],chartType:'bar',chartLabel:'Pattern',chartData:[10,8,-15,-2,12,8,5,-8,-12,-1,15,10,8,5,-10,-14,-1,12,10,8,-8,-12,-2,14,10]},
-
-{id:'piercing_line',cat:'candlestick',emoji:'⛅',title:'Piercing Line',explanation:`<h5>Piercing Line (Bullish Reversal)</h5><p>Two-candle pattern: Red candle followed by a green candle that opens below the prior low but closes above the midpoint of the red candle.</p>`,formula:`<div class="academy-formula-block">2nd candle must close past 50% of 1st candle's body</div>`,sandbox:{inputs:[{label:'Red Open',key:'ro',val:160},{label:'Red Close',key:'rc',val:148},{label:'Green Close',key:'gc',val:156}],calc:(v)=>{const mid=(v.ro+v.rc)/2;return `Midpoint: ₹${mid.toFixed(1)} | Piercing: ${v.gc>mid?'YES ✅':'NO'}`;}},quiz:[{q:'Piercing Line requires the green candle to close:',opts:['Above 50% of red body','At the red open','Below the red close','At any level'],ans:0}],chartType:'bar',chartLabel:'Body',chartData:[8,-15,12,5,-10,14,8,-12,-8,15,10,-14,-10,12,8,-15,14,10,-8,-12,15,8,-10,-14,12]},
-
-{id:'dark_cloud_cover',cat:'candlestick',emoji:'⛈️',title:'Dark Cloud Cover',explanation:`<h5>Dark Cloud Cover (Bearish Reversal)</h5><p>Two-candle pattern: Green candle followed by a red candle that opens above the prior high but closes below the midpoint of the green candle.</p>`,formula:`<div class="academy-formula-block">2nd candle must close past 50% of 1st candle's body</div>`,sandbox:{inputs:[{label:'Green Open',key:'ro',val:148},{label:'Green Close',key:'rc',val:160},{label:'Red Close',key:'gc',val:152}],calc:(v)=>{const mid=(v.ro+v.rc)/2;return `Midpoint: ₹${mid.toFixed(1)} | Dark Cloud: ${v.gc<mid?'YES ✅':'NO'}`;}},quiz:[{q:'Dark Cloud Cover is a:',opts:['Bullish reversal','Bearish reversal','Continuation','Indecision'],ans:1}],chartType:'bar',chartLabel:'Body',chartData:[8,-15,12,5,-10,14,8,-12,-8,15,10,-14,-10,12,8,-15,14,10,-8,-12,15,8,-10,-14,12]},
-
-{id:'tweezer_tops',cat:'candlestick',emoji:'🔧',title:'Tweezer Tops',explanation:`<h5>Tweezer Top</h5><p>Two or more candles with matching highs at the top of an uptrend. The first is bullish, the second bearish.</p>`,formula:`<div class="academy-formula-block">Matching Highs (Top) or Matching Lows (Bottom) ± 0.1%</div>`,sandbox:{inputs:[{label:'Candle 1 High',key:'h1',val:525},{label:'Candle 2 High',key:'h2',val:525}],calc:(v)=>`Match: ${Math.abs(v.h1-v.h2)/v.h1*100<0.1?'Tweezer Top ✅':'No match'}`},quiz:[{q:'Tweezer tops appear at:',opts:['Market tops','Market bottoms','Mid-trend','Any time'],ans:0}],chartType:'line',chartLabel:'Price',chartData:[490,500,510,518,525,525,520,515,510,505,500,495,490,488,485,483,480,478,475,478,482,488,495,500,505]},
-
-{id:'tweezer_bottoms',cat:'candlestick',emoji:'🔧',title:'Tweezer Bottoms',explanation:`<h5>Tweezer Bottom</h5><p>Two or more candles with matching lows at the bottom of a downtrend. The first is bearish, the second bullish.</p>`,formula:`<div class="academy-formula-block">Matching Highs (Top) or Matching Lows (Bottom) ± 0.1%</div>`,sandbox:{inputs:[{label:'Candle 1 Low',key:'l1',val:480},{label:'Candle 2 Low',key:'l2',val:480}],calc:(v)=>`Match: ${Math.abs(v.l1-v.l2)/v.l1*100<0.1?'Tweezer Bottom ✅':'No match'}`},quiz:[{q:'Tweezer bottoms appear at:',opts:['Market tops','Market bottoms','Mid-trend','Any time'],ans:1}],chartType:'line',chartLabel:'Price',chartData:[520,510,500,490,480,480,488,495,500,505,510,515,520]},
-
-{id:'three_white_soldiers',cat:'candlestick',emoji:'💂',title:'Three White Soldiers',explanation:`<h5>Three White Soldiers (Bullish)</h5><p>Three consecutive long green candles with progressively higher closes. Each opens within the previous candle's body. Strong bullish reversal.</p>`,formula:`<div class="academy-formula-block">3 consecutive candles, each closing higher (soldiers)</div>`,sandbox:{inputs:[{label:'Close 1',key:'c1',val:100},{label:'Close 2',key:'c2',val:108},{label:'Close 3',key:'c3',val:115}],calc:(v)=>`Pattern: ${v.c3>v.c2&&v.c2>v.c1?'Three White Soldiers ✅':'No pattern'}`},quiz:[{q:'Three White Soldiers is:',opts:['Bearish','A single candle','Strong bullish reversal','Neutral'],ans:2}],chartType:'bar',chartLabel:'Close',chartData:[95,92,88,85,90,95,100,108,115,120,122,118,115,112,108,105,100,95,88,82,78,82,88,95,102]},
-
-{id:'three_black_crows',cat:'candlestick',emoji:'🐦',title:'Three Black Crows',explanation:`<h5>Three Black Crows (Bearish)</h5><p>Three consecutive long red candles with progressively lower closes. Strong bearish reversal.</p>`,formula:`<div class="academy-formula-block">3 consecutive candles, each closing lower (crows)</div>`,sandbox:{inputs:[{label:'Close 1',key:'c1',val:115},{label:'Close 2',key:'c2',val:108},{label:'Close 3',key:'c3',val:100}],calc:(v)=>`Pattern: ${v.c3<v.c2&&v.c2<v.c1?'Three Black Crows 🔴':'No pattern'}`},quiz:[{q:'Three Black Crows is:',opts:['Bearish reversal','Bullish reversal','Consolidation','No trend'],ans:0}],chartType:'bar',chartLabel:'Close',chartData:[95,98,105,110,115,112,108,100,95,90,88,92,95,98,100,105]},
+{id:'three_soldiers_crows',cat:'candlestick',emoji:'🪖',title:'Three White Soldiers & Three Black Crows',explanation:`<h5>Three White Soldiers (Bullish)</h5><p>Three consecutive long green candles with progressively higher closes. Each opens within the previous candle's body. Strong bullish reversal.</p><h5>Three Black Crows (Bearish)</h5><p>Three consecutive long red candles with progressively lower closes. Strong bearish reversal.</p>`,formula:`<div class="academy-formula-block">3 consecutive candles, each closing higher (soldiers) or lower (crows)</div>`,sandbox:{inputs:[{label:'Close 1',key:'c1',val:100},{label:'Close 2',key:'c2',val:108},{label:'Close 3',key:'c3',val:115}],calc:(v)=>`Pattern: ${v.c3>v.c2&&v.c2>v.c1?'Three White Soldiers ✅':v.c3<v.c2&&v.c2<v.c1?'Three Black Crows 🔴':'No pattern'}`},quiz:[{q:'Three White Soldiers is:',opts:['Bearish','A single candle','Strong bullish reversal','Neutral'],ans:2}],chartType:'bar',chartLabel:'Close',chartData:[95,92,88,85,90,95,100,108,115,120,122,118,115,112,108,105,100,95,88,82,78,82,88,95,102]},
 
 {id:'marubozu',cat:'candlestick',emoji:'🟩',title:'Marubozu',explanation:`<h5>What is Marubozu?</h5><p>A candlestick with no (or very small) shadows. The entire range is the body, indicating complete buyer or seller dominance.</p><ul><li><b>Green Marubozu:</b> Opens at low, closes at high — extreme bullish</li><li><b>Red Marubozu:</b> Opens at high, closes at low — extreme bearish</li></ul>`,formula:`<div class="academy-formula-block">Green: Open ≈ Low AND Close ≈ High<br>Red: Open ≈ High AND Close ≈ Low</div>`,sandbox:{inputs:[{label:'Open',key:'o',val:500},{label:'Close',key:'c',val:520},{label:'High',key:'h',val:520},{label:'Low',key:'l',val:500}],calc:(v)=>{const isBull=Math.abs(v.o-v.l)<1&&Math.abs(v.c-v.h)<1;const isBear=Math.abs(v.o-v.h)<1&&Math.abs(v.c-v.l)<1;return isBull?'Bullish Marubozu ✅':isBear?'Bearish Marubozu 🔴':'Not a Marubozu';}},quiz:[{q:'A green Marubozu indicates:',opts:['Seller dominance','Complete buyer dominance','Indecision','Reversal'],ans:1}],chartType:'bar',chartLabel:'Body',chartData:[20,15,10,5,-8,-15,-20,-10,5,15,25,20,10,-5,-15,-25,-20,-10,5,15,25,30,20,10,-5]},
 
+// ── FUNDAMENTAL ANALYSIS (10) ──
 {id:'three_statements',cat:'fundamental',emoji:'📑',title:'Three-Statement Financial Model',explanation:`<h5>The Three Core Statements</h5><ul><li><b>Income Statement:</b> Revenue → COGS → Gross Profit → EBITDA → EBIT → PAT (Profit After Tax)</li><li><b>Balance Sheet:</b> Assets = Liabilities + Shareholders' Equity</li><li><b>Cash Flow Statement:</b> CFO (Operating) + CFI (Investing) + CFF (Financing) = Net Change in Cash</li></ul><p>These three statements are interconnected: Net Income flows to Retained Earnings, Capex links Income Statement to Balance Sheet, and Depreciation is a non-cash adjustment in CFO.</p>`,formula:`<div class="academy-formula-block">Net Profit Margin = PAT / Revenue × 100<br>Operating Margin = EBIT / Revenue × 100</div>`,sandbox:{inputs:[{label:'Revenue (Cr)',key:'rev',val:10000},{label:'PAT (Cr)',key:'pat',val:1500}],calc:(v)=>`Net Margin = ${(v.pat/v.rev*100).toFixed(2)}%`},quiz:[{q:'The accounting equation is:',opts:['Assets = Revenue − Expenses','Assets = Liabilities + Equity','Revenue = Expenses + Profit','Cash = Assets − Liabilities'],ans:1}],chartType:'bar',chartLabel:'Margins (%)',chartData:[12,13,14,15,14,13,15,16,17,18,17,16,18,19,20,19,18,20,21,22,21,20,22,23,24]},
 
 {id:'valuation_multiples',cat:'fundamental',emoji:'📊',title:'Valuation Multiples (P/E, P/B, EV/EBITDA)',explanation:`<h5>Key Valuation Ratios</h5><ul><li><b>P/E Ratio:</b> Price / Earnings Per Share — most widely used equity valuation metric</li><li><b>P/B Ratio:</b> Price / Book Value per share — useful for banks and asset-heavy companies</li><li><b>EV/EBITDA:</b> Enterprise Value / EBITDA — capital-structure neutral comparison</li></ul><p>Compare to sector median and historical averages to assess premium/discount.</p>`,formula:`<div class="academy-formula-block">P/E = Market Price / EPS<br>P/B = Market Price / Book Value per Share<br>EV = Market Cap + Debt − Cash<br>EV/EBITDA = EV / EBITDA</div>`,sandbox:{inputs:[{label:'Price (₹)',key:'price',val:2500},{label:'EPS (₹)',key:'eps',val:80},{label:'Book Value',key:'bv',val:450}],calc:(v)=>`P/E = ${(v.price/v.eps).toFixed(2)}x | P/B = ${(v.price/v.bv).toFixed(2)}x`},quiz:[{q:'EV/EBITDA is preferred over P/E because:',opts:['It includes dividends','It is capital-structure neutral','It uses cash flow','It ignores debt'],ans:1}],chartType:'line',chartLabel:'P/E Ratio',chartData:[18,20,22,25,28,30,28,25,22,20,18,20,22,25,30,35,32,28,25,22,20,22,25,28,30]},
@@ -28857,15 +28823,14 @@ const ACADEMY_CATALOG = [
 
 {id:'ev_equity',cat:'fundamental',emoji:'🏢',title:'Enterprise Value vs Equity Value',explanation:`<h5>Enterprise Value (EV)</h5><p>The total value of a company's operating assets. It represents the cost of acquiring the entire business.</p><h5>Equity Value (Market Cap)</h5><p>The value attributable to shareholders only.</p><ul><li>EV = Market Cap + Total Debt − Cash & Equivalents</li><li>EV-based multiples are capital-structure neutral</li><li>Use EV/EBITDA, EV/Sales for comparisons</li></ul>`,formula:`<div class="academy-formula-block">EV = Market Cap + Total Debt − Cash<br>Equity Value = EV − Debt + Cash</div>`,sandbox:{inputs:[{label:'Market Cap (Cr)',key:'mcap',val:50000},{label:'Debt (Cr)',key:'debt',val:8000},{label:'Cash (Cr)',key:'cash',val:3000}],calc:(v)=>`EV = ₹${(v.mcap+v.debt-v.cash).toLocaleString()} Cr`},quiz:[{q:'Enterprise Value includes:',opts:['Only equity','Equity + Debt − Cash','Only debt','Revenue'],ans:1}],chartType:'bar',chartLabel:'Value (Cr)',chartData:[40000,42000,45000,48000,50000,52000,55000,53000,50000,48000,50000,52000,55000,58000,60000,58000,55000,53000,55000,58000,60000,62000,60000,58000,60000]},
 
+// ── BOND MARKET (8) ──
 {id:'bond_basics',cat:'bonds',emoji:'📜',title:'Bond Pricing Mechanics',explanation:`<h5>What is a Bond?</h5><p>A fixed-income instrument where the issuer borrows from investors and pays periodic interest (coupon) plus returns the principal (par value) at maturity.</p><h5>Key Terms</h5><ul><li><b>Par/Face Value:</b> The amount paid at maturity (₹100 or ₹1000)</li><li><b>Coupon Rate:</b> Annual interest rate on par value</li><li><b>Market Price:</b> Current trading price (can be above or below par)</li><li><b>Premium:</b> Price > Par | <b>Discount:</b> Price < Par</li></ul>`,formula:`<div class="academy-formula-block">Bond Price = Σ [C / (1+r)^t] + [FV / (1+r)^n]<br><br>C = Coupon payment, r = Discount rate<br>FV = Face Value, n = Periods to maturity</div>`,sandbox:{inputs:[{label:'Face Value',key:'fv',val:1000},{label:'Coupon Rate (%)',key:'coupon',val:8},{label:'Market Yield (%)',key:'yield',val:7},{label:'Years',key:'n',val:5}],calc:(v)=>{const c=v.fv*v.coupon/100;let price=0;for(let t=1;t<=v.n;t++)price+=c/Math.pow(1+v.yield/100,t);price+=v.fv/Math.pow(1+v.yield/100,v.n);return `Bond Price = ₹${price.toFixed(2)} (${price>v.fv?'Premium':'Discount'})`;}},quiz:[{q:'When market yields rise, bond prices:',opts:['Rise','Fall','Stay same','Double'],ans:1}],chartType:'line',chartLabel:'Bond Price',chartData:[1050,1045,1040,1035,1030,1025,1020,1015,1010,1005,1000,995,990,985,980,985,990,995,1000,1005,1010,1015,1020,1025,1030]},
 
 {id:'ytm',cat:'bonds',emoji:'📈',title:'Yield to Maturity (YTM)',explanation:`<h5>What is YTM?</h5><p>YTM is the total return anticipated on a bond if held to maturity. It is the internal rate of return (IRR) of the bond's cash flows at the current market price.</p><ul><li>YTM > Coupon Rate → Bond trades at discount</li><li>YTM < Coupon Rate → Bond trades at premium</li><li>YTM = Coupon Rate → Bond trades at par</li></ul>`,formula:`<div class="academy-formula-block">YTM ≈ [C + (FV − P) / N] / [(FV + P) / 2]<br><br>C = Annual Coupon, FV = Face Value<br>P = Current Price, N = Years to Maturity</div>`,sandbox:{inputs:[{label:'Face Value',key:'fv',val:1000},{label:'Price',key:'p',val:950},{label:'Coupon (%)',key:'c',val:8},{label:'Years',key:'n',val:5}],calc:(v)=>{const coupon=v.fv*v.c/100;const ytm=(coupon+(v.fv-v.p)/v.n)/((v.fv+v.p)/2)*100;return `Approx YTM = ${ytm.toFixed(2)}%`;}},quiz:[{q:'If a bond trades at a discount, YTM is:',opts:['Equal to coupon','Below coupon','Above coupon','Zero'],ans:2}],chartType:'line',chartLabel:'YTM (%)',chartData:[6.5,6.8,7.0,7.2,7.5,7.8,8.0,7.8,7.5,7.2,7.0,6.8,7.0,7.2,7.5,7.8,8.0,8.2,8.0,7.8,7.5,7.2,7.0,7.2,7.5]},
 
 {id:'yield_curve',cat:'bonds',emoji:'📉',title:'Yield Curve Structure',explanation:`<h5>What is the Yield Curve?</h5><p>A graph plotting yields of bonds with equal credit quality but differing maturities.</p><h5>Shapes</h5><ul><li><b>Normal:</b> Upward sloping — longer maturities pay higher yields (economy healthy)</li><li><b>Inverted:</b> Downward sloping — short-term yields > long-term (recession signal)</li><li><b>Flat:</b> Similar yields across maturities (transition period)</li><li><b>Humped:</b> Medium-term yields highest (uncertainty)</li></ul><div class="academy-example-box">📌 An inverted yield curve has predicted every US recession in the last 50 years with a lead time of 6–18 months.</div>`,formula:`<div class="academy-formula-block">Spread = Long-term Yield − Short-term Yield<br>Positive Spread = Normal | Negative = Inverted</div>`,sandbox:{inputs:[{label:'2Y Yield (%)',key:'y2',val:7.0},{label:'10Y Yield (%)',key:'y10',val:7.5}],calc:(v)=>`Spread = ${(v.y10-v.y2).toFixed(2)}% → ${v.y10>v.y2?'Normal Curve':'Inverted Curve ⚠️'}`},quiz:[{q:'An inverted yield curve typically signals:',opts:['Economic boom','Potential recession','Inflation','Bull market'],ans:1}],chartType:'line',chartLabel:'Yield (%)',chartData:[6.5,6.6,6.7,6.8,7.0,7.1,7.2,7.3,7.4,7.5,7.55,7.6,7.62,7.63,7.64,7.65,7.66,7.67,7.68,7.69,7.7,7.71,7.72,7.73,7.74]},
 
-{id:'bond_duration',cat:'bonds',emoji:'⏱️',title:'Bond Duration',explanation:`<h5>Duration</h5><p>Measures a bond's price sensitivity to interest rate changes. Higher duration = more sensitivity.</p><h5>Modified Duration</h5><p>Approximate percentage change in price for a 1% change in yield. Relates Macaulay Duration to yield.</p>`,formula:`<div class="academy-formula-block">Modified Duration = Macaulay Duration / (1 + YTM/n)</div>`,sandbox:{inputs:[{label:'Macaulay Duration',key:'mac',val:5.2},{label:'YTM (%)',key:'ytm',val:8},{label:'Compounding (n)',key:'n',val:2}],calc:(v)=>`Modified Duration = ${(v.mac/(1+v.ytm/100/v.n)).toFixed(2)} yrs`},quiz:[{q:'When interest rates rise, bond prices with higher duration:',opts:['Rise more','Fall more','Stay same','Double'],ans:1}],chartType:'line',chartLabel:'Duration',chartData:[2,2.5,3,3.5,4,4.5,5,5.5,6,6.5,7,7.5,7,6.5,6,5.5,5,4.5,4,3.5,3,3.5,4,4.5,5]},
-
-{id:'bond_convexity',cat:'bonds',emoji:'⏱️',title:'Bond Convexity',explanation:`<h5>Convexity</h5><p>Measures the curvature of the price-yield relationship. It improves price sensitivity approximations for larger rate shifts.</p><h5>Positive Convexity</h5><p>Bonds gain more from rate drops than they lose from rate increases. Positive convexity is highly valued by investors.</p>`,formula:`<div class="academy-formula-block">ΔP/P ≈ −Duration × Δy + ½ × Convexity × (Δy)²</div>`,sandbox:{inputs:[{label:'Duration (yrs)',key:'dur',val:5.2},{label:'Yield Change (%)',key:'dy',val:-0.5},{label:'Convexity',key:'conv',val:28}],calc:(v)=>{const priceChange=-v.dur*v.dy+0.5*v.conv*Math.pow(v.dy/100,2)*10000;return `Approx Price Change = ${priceChange.toFixed(2)}%`;}},quiz:[{q:'Convexity is a measure of:',opts:['Linear price change','Curvature of the price-yield relationship','Interest rate risk only','Credit risk'],ans:1}],chartType:'line',chartLabel:'Convexity',chartData:[2,2.5,3,3.5,4,4.5,5,5.5,6,6.5,7,7.5,7,6.5,6,5.5,5,4.5,4,3.5,3,3.5,4,4.5,5]},
+{id:'duration_convexity',cat:'bonds',emoji:'⏱️',title:'Duration & Convexity',explanation:`<h5>Duration</h5><p>Measures a bond's price sensitivity to interest rate changes. Higher duration = more sensitivity.</p><h5>Modified Duration</h5><p>Approximate percentage change in price for a 1% change in yield.</p><h5>Convexity</h5><p>Measures the curvature of the price-yield relationship. Positive convexity means bonds gain more from rate drops than they lose from rate increases.</p>`,formula:`<div class="academy-formula-block">Modified Duration = Macaulay Duration / (1 + YTM/n)<br>ΔP/P ≈ −Duration × Δy + ½ × Convexity × (Δy)²</div>`,sandbox:{inputs:[{label:'Duration (yrs)',key:'dur',val:5.2},{label:'Yield Change (%)',key:'dy',val:-0.5},{label:'Convexity',key:'conv',val:28}],calc:(v)=>{const priceChange=-v.dur*v.dy+0.5*v.conv*Math.pow(v.dy/100,2)*10000;return `Approx Price Change = ${priceChange.toFixed(2)}%`;}},quiz:[{q:'Higher duration means bond price is:',opts:['Less sensitive to rates','More sensitive to rates','Unaffected','More volatile intraday'],ans:1}],chartType:'line',chartLabel:'Duration',chartData:[2,2.5,3,3.5,4,4.5,5,5.5,6,6.5,7,7.5,7,6.5,6,5.5,5,4.5,4,3.5,3,3.5,4,4.5,5]},
 
 {id:'credit_spreads',cat:'bonds',emoji:'⚠️',title:'Credit Risk & Spreads',explanation:`<h5>Credit Spread</h5><p>The difference in yield between a corporate bond and a risk-free government bond of the same maturity. Wider spreads indicate higher perceived credit risk.</p><ul><li><b>AAA Spread:</b> ~0.3–0.8% above G-Sec</li><li><b>BBB Spread:</b> ~1.5–3.0% above G-Sec</li><li>Spreads widen during market stress and narrow during confidence</li></ul>`,formula:`<div class="academy-formula-block">Credit Spread = Corporate Bond Yield − Risk-Free Yield<br>Wider Spread = Higher Risk Premium</div>`,sandbox:{inputs:[{label:'Corporate Yield (%)',key:'corp',val:9.5},{label:'G-Sec Yield (%)',key:'gsec',val:7.2}],calc:(v)=>`Credit Spread = ${(v.corp-v.gsec).toFixed(2)}% (${(v.corp-v.gsec)>2?'Wide — High Risk':'Normal'})`},quiz:[{q:'Wider credit spreads indicate:',opts:['Lower risk','Higher risk perception','Economic boom','Low inflation'],ans:1}],chartType:'line',chartLabel:'Spread (bps)',chartData:[120,110,100,95,90,85,80,90,100,120,150,180,160,140,120,100,90,85,80,90,100,110,120,115,105]},
 
@@ -28874,7 +28839,7 @@ const ACADEMY_CATALOG = [
 {id:'central_bank',cat:'bonds',emoji:'🏛️',title:'Central Bank Policy & Interest Rates',explanation:`<h5>How Central Banks Affect Bond Markets</h5><ul><li><b>Repo Rate:</b> The rate at which RBI lends to commercial banks — benchmark for all interest rates</li><li><b>Rate Hike:</b> Increases bond yields → decreases bond prices</li><li><b>Rate Cut:</b> Decreases bond yields → increases bond prices</li><li><b>Open Market Operations (OMO):</b> RBI buys/sells government bonds to manage liquidity</li><li><b>Quantitative Easing:</b> Large-scale bond purchases to lower long-term rates</li></ul>`,formula:`<div class="academy-formula-block">Bond Price ∝ 1/Interest Rate<br>When RBI raises Repo Rate → Bond Yields ↑ → Bond Prices ↓</div>`,sandbox:{inputs:[{label:'Current Repo (%)',key:'repo',val:6.5},{label:'Change (bps)',key:'change',val:-25}],calc:(v)=>`New Repo: ${(v.repo+v.change/100).toFixed(2)}% → Bond Prices ${v.change<0?'Rise 📈':'Fall 📉'}`},quiz:[{q:'When RBI cuts the repo rate, bond prices typically:',opts:['Fall','Rise','Stay same','Become volatile'],ans:1}],chartType:'line',chartLabel:'Repo Rate (%)',chartData:[6.5,6.5,6.25,6.25,6.0,6.0,5.75,5.75,5.5,5.5,5.5,5.75,5.75,6.0,6.0,6.25,6.25,6.5,6.5,6.5,6.5,6.25,6.25,6.0,6.0]},
 
 {id:'pv_bond_math',cat:'bonds',emoji:'🧮',title:'Present Value Bond Math',explanation:`<h5>Time Value of Money in Bonds</h5><p>All bond pricing is based on the principle that money today is worth more than the same amount in the future.</p><ul><li><b>Present Value:</b> PV = FV / (1 + r)^n</li><li><b>Annuity PV:</b> PV = C × [1 − (1+r)^−n] / r</li><li>Bond price is the PV of coupons (annuity) + PV of face value (lump sum)</li></ul>`,formula:`<div class="academy-formula-block">PV = FV / (1 + r)^n<br>PV(Annuity) = C × [1 − (1+r)^(−n)] / r</div>`,sandbox:{inputs:[{label:'Future Value (₹)',key:'fv',val:1000},{label:'Rate (%)',key:'r',val:8},{label:'Years',key:'n',val:5}],calc:(v)=>`PV = ₹${(v.fv/Math.pow(1+v.r/100,v.n)).toFixed(2)}`},quiz:[{q:'₹1000 received 5 years from now at 8% discount rate is worth today:',opts:['₹1000','₹680.58','₹500','₹1080'],ans:1}],chartType:'line',chartLabel:'PV (₹)',chartData:[1000,926,857,794,735,681,630,583,540,500,463,429,397,368,340,315,292,270,250,232,215,199,184,170,158]}
-];;
+];
 
 // ── Academy State ──
 let academyActiveTopicId = null;
@@ -28918,7 +28883,13 @@ function setupLearningAcademy() {
         academyDrawMode = !academyDrawMode;
         const canvas = document.getElementById('academy-draw-canvas');
         const toolbar = document.getElementById('academy-draw-toolbar');
-        if (canvas) canvas.classList.toggle('active', academyDrawMode);
+        if (canvas) {
+            canvas.classList.toggle('active', academyDrawMode);
+            if (!academyDrawMode) {
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+        }
         if (toolbar) toolbar.style.display = academyDrawMode ? 'flex' : 'none';
         drawBtn.style.color = academyDrawMode ? 'var(--color-primary)' : '';
         drawBtn.style.borderColor = academyDrawMode ? 'var(--color-primary)' : '';
@@ -28988,6 +28959,7 @@ function loadAcademyTopic(topicId) {
     if (!module) return;
 
     academyActiveTopicId = topicId;
+    academyActiveSandboxValues = {}; // Reset sandbox values to defaults for the new topic
 
     // Show active content, hide splash
     const splash = document.getElementById('academy-splash');
@@ -29022,6 +28994,15 @@ function loadAcademyTopic(topicId) {
     // Formula
     document.getElementById('academy-formula-body').innerHTML = module.formula;
 
+    // Reset Case Study body
+    const scenarioBody = document.getElementById('academy-scenario-body');
+    if (scenarioBody) {
+        scenarioBody.innerHTML = '<p style="color: var(--text-muted); margin: 0; font-size: 12px;">Click the "Generate Case Study" button above to dynamically synthesize a real-world hypothetical Indian market scenario demonstrating this concept using on-demand AI analysis.</p>';
+    }
+
+    // Render sliders controls
+    renderAcademyChartControls(module);
+
     // Widget chart
     renderAcademyChart(module);
 
@@ -29053,9 +29034,69 @@ function loadAcademyTopic(topicId) {
     if (wb) wb.scrollTop = 0;
 }
 
+const ACADEMY_BASE_PRICES = [
+    120.5, 121.2, 119.8, 120.4, 122.1, 121.5, 123.0, 124.2, 122.8, 124.5,
+    125.8, 125.1, 126.9, 128.0, 130.2, 129.1, 131.3, 132.4, 130.8, 133.0,
+    134.2, 132.5, 135.7, 136.8, 135.0, 138.1, 139.2, 141.5, 140.1, 142.3,
+    143.4, 141.8, 144.0, 145.2, 143.5, 146.7, 147.8, 146.0, 149.1, 150.2,
+    152.5, 151.1, 153.3, 154.4, 152.8, 155.0, 156.2, 154.5, 157.7, 158.8,
+    157.0, 160.1, 161.2, 163.5, 162.1, 164.3, 165.4, 163.8, 166.0, 167.2
+];
+
+function computeRSI(prices, period) {
+    let rsi = [];
+    for (let i = 0; i < prices.length; i++) {
+        if (i < period) {
+            rsi.push(50);
+            continue;
+        }
+        let gains = 0, losses = 0;
+        for (let j = i - period + 1; j <= i; j++) {
+            let diff = prices[j] - prices[j-1];
+            if (diff > 0) gains += diff;
+            else losses -= diff;
+        }
+        let avgGain = gains / period;
+        let avgLoss = losses / period;
+        if (avgLoss === 0) rsi.push(100);
+        else {
+            let rs = avgGain / avgLoss;
+            rsi.push(100 - (100 / (1 + rs)));
+        }
+    }
+    return rsi;
+}
+
+function computeSMA(prices, period) {
+    let sma = [];
+    for (let i = 0; i < prices.length; i++) {
+        if (i < period - 1) {
+            sma.push(prices[i]);
+            continue;
+        }
+        let sum = 0;
+        for (let j = i - period + 1; j <= i; j++) sum += prices[j];
+        sma.push(sum / period);
+    }
+    return sma;
+}
+
+function computeEMA(prices, period) {
+    let ema = [];
+    if (prices.length === 0) return ema;
+    let k = 2 / (period + 1);
+    let currentEma = prices[0];
+    ema.push(currentEma);
+    for (let i = 1; i < prices.length; i++) {
+        currentEma = prices[i] * k + currentEma * (1 - k);
+        ema.push(currentEma);
+    }
+    return ema;
+}
+
 function renderAcademyChart(module) {
     const canvas = document.getElementById('academy-widget-canvas');
-    if (!canvas || !module.chartData) return;
+    if (!canvas) return;
 
     const container = document.getElementById('academy-widget-container');
     if (container) {
@@ -29067,84 +29108,353 @@ function renderAcademyChart(module) {
 
     const ctx = canvas.getContext('2d');
     const w = canvas.width, h = canvas.height;
-    const data = module.chartData;
-    const minVal = Math.min(...data);
-    const maxVal = Math.max(...data);
-    const range = maxVal - minVal || 1;
-    const padding = { top: 30, right: 20, bottom: 30, left: 50 };
+    const padding = { top: 40, right: 30, bottom: 30, left: 50 };
     const chartW = w - padding.left - padding.right;
     const chartH = h - padding.top - padding.bottom;
 
     ctx.clearRect(0, 0, w, h);
 
-    // Background
     const isDark = document.documentElement.getAttribute('data-theme') !== 'light' && !document.body.classList.contains('light-mode');
     ctx.fillStyle = isDark ? 'rgba(6,9,19,0.9)' : 'rgba(248,250,252,0.95)';
     ctx.fillRect(0, 0, w, h);
 
-    // Grid lines
-    ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)';
-    ctx.lineWidth = 0.5;
-    for (let i = 0; i <= 5; i++) {
-        const y = padding.top + (chartH / 5) * i;
-        ctx.beginPath(); ctx.moveTo(padding.left, y); ctx.lineTo(w - padding.right, y); ctx.stroke();
-        const label = (maxVal - (range / 5) * i).toFixed(1);
-        ctx.fillStyle = isDark ? '#9ca3af' : '#6b7280';
+    // Initialize interactive points store
+    academyActiveChartData = {
+        module: module,
+        padding: padding,
+        chartW: chartW,
+        chartH: chartH,
+        w: w,
+        h: h,
+        isDark: isDark,
+        points: []
+    };
+
+    let drawGridAndLabels = (minVal, maxVal) => {
+        const range = maxVal - minVal || 1;
+        ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)';
+        ctx.lineWidth = 0.5;
+        for (let i = 0; i <= 5; i++) {
+            const y = padding.top + (chartH / 5) * i;
+            ctx.beginPath(); ctx.moveTo(padding.left, y); ctx.lineTo(w - padding.right, y); ctx.stroke();
+            const label = (maxVal - (range / 5) * i).toFixed(1);
+            ctx.fillStyle = isDark ? '#9ca3af' : '#6b7280';
+            ctx.font = '9px Inter';
+            ctx.textAlign = 'right';
+            ctx.fillText(label, padding.left - 6, y + 3);
+        }
+    };
+
+    if (module.id === 'rsi') {
+        const length = academyActiveSliderValues['rsi_length'] || 14;
+        const overbought = academyActiveSliderValues['rsi_overbought'] || 70;
+        const oversold = academyActiveSliderValues['rsi_oversold'] || 30;
+        const rsiData = computeRSI(ACADEMY_BASE_PRICES, length);
+
+        drawGridAndLabels(0, 100);
+
+        ctx.strokeStyle = 'rgba(239, 68, 68, 0.4)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([5, 5]);
+        const yOB = padding.top + chartH - (overbought / 100) * chartH;
+        ctx.beginPath(); ctx.moveTo(padding.left, yOB); ctx.lineTo(w - padding.right, yOB); ctx.stroke();
+        ctx.fillStyle = 'rgba(239, 68, 68, 0.8)';
         ctx.font = '9px Inter';
-        ctx.textAlign = 'right';
-        ctx.fillText(label, padding.left - 6, y + 3);
-    }
+        ctx.textAlign = 'left';
+        ctx.fillText(`OB (${overbought})`, padding.left + 5, yOB - 4);
 
-    // Title
-    ctx.fillStyle = isDark ? '#f3f4f6' : '#1f2937';
-    ctx.font = 'bold 11px Outfit';
-    ctx.textAlign = 'left';
-    ctx.fillText(module.chartLabel || module.title, padding.left, 16);
+        ctx.strokeStyle = 'rgba(16, 185, 129, 0.4)';
+        const yOS = padding.top + chartH - (oversold / 100) * chartH;
+        ctx.beginPath(); ctx.moveTo(padding.left, yOS); ctx.lineTo(w - padding.right, yOS); ctx.stroke();
+        ctx.fillStyle = 'rgba(16, 185, 129, 0.8)';
+        ctx.fillText(`OS (${oversold})`, padding.left + 5, yOS + 12);
+        ctx.setLineDash([]);
 
-    if (module.chartType === 'bar') {
-        const barW = chartW / data.length * 0.7;
-        const gap = chartW / data.length;
-        data.forEach((v, i) => {
-            const x = padding.left + gap * i + (gap - barW) / 2;
-            const barH = (Math.abs(v) / range) * chartH;
-            const y = v >= 0 ? padding.top + chartH - (v - minVal) / range * chartH : padding.top + chartH - (-minVal) / range * chartH;
-            ctx.fillStyle = v >= 0 ? 'rgba(16,185,129,0.7)' : 'rgba(239,68,68,0.7)';
-            ctx.fillRect(x, v >= 0 ? y : y, barW, v >= 0 ? (v - Math.max(0, minVal)) / range * chartH : Math.abs(v) / range * chartH);
-        });
-    } else {
-        // Line chart
         ctx.beginPath();
-        ctx.strokeStyle = '#6366f1';
+        ctx.strokeStyle = '#8b5cf6';
         ctx.lineWidth = 2;
-        data.forEach((v, i) => {
-            const x = padding.left + (chartW / (data.length - 1)) * i;
+        rsiData.forEach((v, i) => {
+            const x = padding.left + (chartW / (rsiData.length - 1)) * i;
+            const y = padding.top + chartH - (v / 100) * chartH;
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+
+            academyActiveChartData.points.push({
+                x: x,
+                y: y,
+                values: { 'RSI': v.toFixed(2) }
+            });
+        });
+        ctx.stroke();
+
+    } else if (module.id === 'macd') {
+        const fast = academyActiveSliderValues['macd_fast'] || 12;
+        const slow = academyActiveSliderValues['macd_slow'] || 26;
+        const signal = academyActiveSliderValues['macd_signal'] || 9;
+
+        const fastEMA = computeEMA(ACADEMY_BASE_PRICES, fast);
+        const slowEMA = computeEMA(ACADEMY_BASE_PRICES, slow);
+        
+        let macdLine = [];
+        for (let i = 0; i < ACADEMY_BASE_PRICES.length; i++) {
+            macdLine.push(fastEMA[i] - slowEMA[i]);
+        }
+        const signalLine = computeEMA(macdLine, signal);
+        
+        let hist = [];
+        for (let i = 0; i < macdLine.length; i++) {
+            hist.push(macdLine[i] - signalLine[i]);
+        }
+
+        const allVals = [...macdLine, ...signalLine, ...hist];
+        const minVal = Math.min(...allVals);
+        const maxVal = Math.max(...allVals);
+        const range = Math.max(Math.abs(minVal), Math.abs(maxVal)) * 2;
+
+        drawGridAndLabels(-range / 2, range / 2);
+
+        const barW = chartW / hist.length * 0.6;
+        const gap = chartW / hist.length;
+        hist.forEach((v, i) => {
+            const x = padding.left + gap * i + (gap - barW) / 2;
+            const barH = (v / (range / 2)) * (chartH / 2);
+            ctx.fillStyle = v >= 0 ? 'rgba(16, 185, 129, 0.5)' : 'rgba(239, 68, 68, 0.5)';
+            ctx.fillRect(x, padding.top + chartH / 2 - (v >= 0 ? barH : 0), barW, Math.abs(barH));
+        });
+
+        ctx.beginPath();
+        ctx.strokeStyle = '#3b82f6';
+        ctx.lineWidth = 1.5;
+        macdLine.forEach((v, i) => {
+            const x = padding.left + (chartW / (macdLine.length - 1)) * i;
+            const y = padding.top + chartH / 2 - (v / (range / 2)) * (chartH / 2);
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+
+            academyActiveChartData.points.push({
+                x: x,
+                y: y,
+                values: {
+                    'MACD': v.toFixed(3),
+                    'Signal': signalLine[i].toFixed(3),
+                    'Histogram': hist[i].toFixed(3)
+                }
+            });
+        });
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.strokeStyle = '#f97316';
+        ctx.lineWidth = 1.5;
+        signalLine.forEach((v, i) => {
+            const x = padding.left + (chartW / (signalLine.length - 1)) * i;
+            const y = padding.top + chartH / 2 - (v / (range / 2)) * (chartH / 2);
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+
+    } else if (module.id === 'bollinger') {
+        const period = academyActiveSliderValues['bb_period'] || 20;
+        const stddevVal = academyActiveSliderValues['bb_stddev'] || 2.0;
+
+        let middle = computeSMA(ACADEMY_BASE_PRICES, period);
+        let upper = [];
+        let lower = [];
+        for (let i = 0; i < ACADEMY_BASE_PRICES.length; i++) {
+            if (i < period - 1) {
+                upper.push(ACADEMY_BASE_PRICES[i]);
+                lower.push(ACADEMY_BASE_PRICES[i]);
+                continue;
+            }
+            let sum = 0;
+            for (let j = i - period + 1; j <= i; j++) sum += ACADEMY_BASE_PRICES[j];
+            let mean = sum / period;
+            let varianceSum = 0;
+            for (let j = i - period + 1; j <= i; j++) varianceSum += Math.pow(ACADEMY_BASE_PRICES[j] - mean, 2);
+            let std = Math.sqrt(varianceSum / period);
+            upper.push(mean + stddevVal * std);
+            lower.push(mean - stddevVal * std);
+        }
+
+        const minVal = Math.min(...lower, ...ACADEMY_BASE_PRICES);
+        const maxVal = Math.max(...upper, ...ACADEMY_BASE_PRICES);
+        const range = maxVal - minVal || 1;
+
+        drawGridAndLabels(minVal, maxVal);
+
+        ctx.beginPath();
+        upper.forEach((v, i) => {
+            const x = padding.left + (chartW / (upper.length - 1)) * i;
+            const y = padding.top + chartH - ((v - minVal) / range) * chartH;
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        });
+        for (let i = lower.length - 1; i >= 0; i--) {
+            const x = padding.left + (chartW / (lower.length - 1)) * i;
+            const y = padding.top + chartH - ((lower[i] - minVal) / range) * chartH;
+            ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.fillStyle = isDark ? 'rgba(99, 102, 241, 0.05)' : 'rgba(99, 102, 241, 0.08)';
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.strokeStyle = 'rgba(99, 102, 241, 0.5)';
+        ctx.lineWidth = 1;
+        upper.forEach((v, i) => {
+            const x = padding.left + (chartW / (upper.length - 1)) * i;
             const y = padding.top + chartH - ((v - minVal) / range) * chartH;
             if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
         });
         ctx.stroke();
 
-        // Gradient fill
-        const gradient = ctx.createLinearGradient(0, padding.top, 0, h - padding.bottom);
-        gradient.addColorStop(0, 'rgba(99,102,241,0.15)');
-        gradient.addColorStop(1, 'rgba(99,102,241,0)');
-        ctx.lineTo(padding.left + chartW, h - padding.bottom);
-        ctx.lineTo(padding.left, h - padding.bottom);
-        ctx.closePath();
-        ctx.fillStyle = gradient;
-        ctx.fill();
+        ctx.beginPath();
+        ctx.strokeStyle = 'rgba(99, 102, 241, 0.5)';
+        ctx.lineWidth = 1;
+        lower.forEach((v, i) => {
+            const x = padding.left + (chartW / (lower.length - 1)) * i;
+            const y = padding.top + chartH - ((v - minVal) / range) * chartH;
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.strokeStyle = 'rgba(245, 158, 11, 0.6)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        middle.forEach((v, i) => {
+            const x = padding.left + (chartW / (middle.length - 1)) * i;
+            const y = padding.top + chartH - ((v - minVal) / range) * chartH;
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.beginPath();
+        ctx.strokeStyle = '#6366f1';
+        ctx.lineWidth = 2;
+        ACADEMY_BASE_PRICES.forEach((v, i) => {
+            const x = padding.left + (chartW / (ACADEMY_BASE_PRICES.length - 1)) * i;
+            const y = padding.top + chartH - ((v - minVal) / range) * chartH;
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+
+            academyActiveChartData.points.push({
+                x: x,
+                y: y,
+                values: {
+                    'Stock Price': '₹' + v.toFixed(2),
+                    'Upper Band': '₹' + upper[i].toFixed(2),
+                    'Middle Band': '₹' + middle[i].toFixed(2),
+                    'Lower Band': '₹' + lower[i].toFixed(2)
+                }
+            });
+        });
+        ctx.stroke();
+
+    } else {
+        const data = getDynamicChartData(module);
+        if (!data || data.length === 0) return;
+        const minVal = Math.min(...data);
+        const maxVal = Math.max(...data);
+        const range = maxVal - minVal || 1;
+
+        drawGridAndLabels(minVal, maxVal);
+
+        if (module.chartType === 'bar') {
+            const barW = chartW / data.length * 0.7;
+            const gap = chartW / data.length;
+            data.forEach((v, i) => {
+                const x = padding.left + gap * i + (gap - barW) / 2;
+                const barH = (Math.abs(v) / range) * chartH;
+                const y = v >= 0 ? padding.top + chartH - (v - minVal) / range * chartH : padding.top + chartH - (-minVal) / range * chartH;
+                ctx.fillStyle = v >= 0 ? 'rgba(16, 185, 129, 0.7)' : 'rgba(239, 68, 68, 0.7)';
+                ctx.fillRect(x, y, barW, v >= 0 ? (v - Math.max(0, minVal)) / range * chartH : Math.abs(v) / range * chartH);
+
+                academyActiveChartData.points.push({
+                    x: x + barW / 2,
+                    y: y + (v >= 0 ? 0 : barH),
+                    values: { 'Value': v.toFixed(2) }
+                });
+            });
+        } else {
+            ctx.beginPath();
+            ctx.strokeStyle = '#6366f1';
+            ctx.lineWidth = 2;
+            data.forEach((v, i) => {
+                const x = padding.left + (chartW / (data.length - 1)) * i;
+                const y = padding.top + chartH - ((v - minVal) / range) * chartH;
+                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+
+                academyActiveChartData.points.push({
+                    x: x,
+                    y: y,
+                    values: { 'Value': v.toFixed(2) }
+                });
+            });
+            ctx.stroke();
+
+            const gradient = ctx.createLinearGradient(0, padding.top, 0, h - padding.bottom);
+            gradient.addColorStop(0, 'rgba(99,102,241,0.15)');
+            gradient.addColorStop(1, 'rgba(99,102,241,0)');
+            ctx.lineTo(padding.left + chartW, h - padding.bottom);
+            ctx.lineTo(padding.left, h - padding.bottom);
+            ctx.closePath();
+            ctx.fillStyle = gradient;
+            ctx.fill();
+        }
     }
+
+    ctx.fillStyle = isDark ? '#f3f4f6' : '#1f2937';
+    ctx.font = 'bold 11px Outfit';
+    ctx.textAlign = 'left';
+    ctx.fillText(module.chartLabel || module.title, padding.left, 20);
 }
 
 function renderAcademySandbox(module) {
     const body = document.getElementById('academy-sandbox-body');
-    if (!body || !module.sandbox) { if(body) body.innerHTML = '<p style="color:var(--text-muted); font-size:11px;">No sandbox available for this topic.</p>'; return; }
+    if (!body || !module.sandbox) { 
+        if(body) body.innerHTML = '<p style="color:var(--text-muted); font-size:11px;">No sandbox available for this topic.</p>'; 
+        return; 
+    }
 
     let html = '';
     for (const inp of module.sandbox.inputs) {
-        html += `<div class="academy-sandbox-row">
-            <label>${inp.label}</label>
-            <input type="number" id="academy-sb-${inp.key}" value="${inp.val}" step="any">
-        </div>`;
+        let min = 0;
+        let max = inp.val * 2 || 100;
+        let step = 1;
+
+        if (inp.key === 'std') {
+            min = 0.5;
+            max = 5;
+            step = 0.1;
+        } else if (inp.key === 'n' || inp.key === 'period' || inp.key === 'length') {
+            min = 1;
+            max = 100;
+            step = 1;
+        } else if (inp.key === 'pdi' || inp.key === 'ndi' || inp.key === 'rsi' || inp.key.includes('pct') || inp.key.includes('ratio')) {
+            min = 0;
+            max = 100;
+            step = 1;
+        } else if (inp.val < 5) {
+            min = 0;
+            max = 10;
+            step = 0.1;
+        } else if (inp.val < 100) {
+            min = Math.max(0, Math.floor(inp.val * 0.2));
+            max = Math.ceil(inp.val * 2.5);
+            step = 1;
+        } else {
+            min = Math.max(0, Math.floor(inp.val * 0.5));
+            max = Math.ceil(inp.val * 2);
+            step = 1;
+        }
+
+        html += `
+            <div class="academy-slider-group" style="margin-bottom: 12px;">
+                <div class="academy-slider-label">
+                    <span>${inp.label}</span>
+                    <span id="academy-sb-val-${inp.key}" class="academy-slider-value">${inp.val}</span>
+                </div>
+                <input type="range" class="academy-slider-input" id="academy-sb-${inp.key}" min="${min}" max="${max}" step="${step}" value="${inp.val}">
+            </div>
+        `;
     }
     html += `<div class="academy-sandbox-result" id="academy-sb-result"></div>`;
     body.innerHTML = html;
@@ -29152,11 +29462,20 @@ function renderAcademySandbox(module) {
     const calcAndDisplay = () => {
         const vals = {};
         for (const inp of module.sandbox.inputs) {
-            vals[inp.key] = parseFloat(document.getElementById('academy-sb-' + inp.key)?.value || inp.val);
+            const el = document.getElementById('academy-sb-' + inp.key);
+            const val = parseFloat(el?.value ?? inp.val);
+            vals[inp.key] = val;
+            academyActiveSandboxValues[inp.key] = val;
+            
+            const readEl = document.getElementById('academy-sb-val-' + inp.key);
+            if (readEl) readEl.textContent = val;
         }
         const result = module.sandbox.calc(vals);
         const resEl = document.getElementById('academy-sb-result');
         if (resEl) resEl.textContent = result;
+        
+        // Redraw chart dynamically in response to slider changes
+        renderAcademyChart(module);
     };
 
     calcAndDisplay();
@@ -29254,6 +29573,25 @@ function updateAcademyHUD() {
     else if (completed >= 10) tier = 'Intermediate';
     document.getElementById('academy-hud-tier').textContent = tier;
 
+    // Tier hover details tooltip
+    const infoIcon = document.getElementById('academy-tier-info');
+    if (infoIcon) {
+        let nextTier = 'Intermediate';
+        let remaining = 10 - completed;
+        if (completed >= 40) {
+            nextTier = 'None';
+            remaining = 0;
+        } else if (completed >= 25) {
+            nextTier = 'Master';
+            remaining = 40 - completed;
+        } else if (completed >= 10) {
+            nextTier = 'Advanced';
+            remaining = 25 - completed;
+        }
+        const tooltipText = `Tier Progression Levels:\n• Beginner: 0 - 9 topics\n• Intermediate: 10 - 24 topics\n• Advanced: 25 - 39 topics\n• Master: 40+ topics\n\nYour Progress: ${completed}/${total} completed.\n${remaining > 0 ? `Finish ${remaining} more topics to unlock ${nextTier}!` : 'Max tier unlocked! 🎓'}`;
+        infoIcon.setAttribute('data-tooltip', tooltipText);
+    }
+
     // Badges
     const badgesEl = document.getElementById('academy-hud-badges');
     if (badgesEl) {
@@ -29345,6 +29683,110 @@ function setupAcademyDrawCanvas() {
     canvas.addEventListener('touchmove', moveDraw, { passive: false });
     canvas.addEventListener('touchend', endDraw);
 
+    const handleHover = (e) => {
+        if (academyDrawMode) return;
+        if (!academyActiveChartData || !academyActiveChartData.points || academyActiveChartData.points.length === 0) return;
+
+        const pos = getPos(e);
+        const mx = pos.x;
+        const my = pos.y;
+
+        const padding = academyActiveChartData.padding;
+        const w = academyActiveChartData.w;
+        const h = academyActiveChartData.h;
+
+        if (mx < padding.left || mx > w - padding.right || my < padding.top || my > h - padding.bottom) {
+            ctx.clearRect(0, 0, w, h);
+            return;
+        }
+
+        let closestPt = null;
+        let minDist = Infinity;
+        let closestIdx = -1;
+        academyActiveChartData.points.forEach((pt, idx) => {
+            const dist = Math.abs(pt.x - mx);
+            if (dist < minDist) {
+                minDist = dist;
+                closestPt = pt;
+                closestIdx = idx;
+            }
+        });
+
+        if (!closestPt) return;
+
+        ctx.clearRect(0, 0, w, h);
+
+        ctx.strokeStyle = academyActiveChartData.isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.15)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(closestPt.x, padding.top);
+        ctx.lineTo(closestPt.x, h - padding.bottom);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(padding.left, closestPt.y);
+        ctx.lineTo(w - padding.right, closestPt.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.fillStyle = '#6366f1';
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(closestPt.x, closestPt.y, 5, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.stroke();
+
+        const keys = Object.keys(closestPt.values);
+        const tooltipW = 160;
+        const tooltipH = 22 + keys.length * 15;
+        let tx = closestPt.x + 12;
+        let ty = closestPt.y - 12;
+
+        if (tx + tooltipW > w) tx = closestPt.x - tooltipW - 12;
+        if (ty + tooltipH > h - padding.bottom) ty = h - padding.bottom - tooltipH;
+        if (ty < padding.top) ty = padding.top;
+
+        ctx.fillStyle = academyActiveChartData.isDark ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.95)';
+        ctx.strokeStyle = academyActiveChartData.isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        if (ctx.roundRect) {
+            ctx.roundRect(tx, ty, tooltipW, tooltipH, 6);
+        } else {
+            ctx.rect(tx, ty, tooltipW, tooltipH);
+        }
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.font = 'bold 9px Inter';
+        ctx.fillStyle = academyActiveChartData.isDark ? '#e2e8f0' : '#1e293b';
+        ctx.textAlign = 'left';
+        ctx.fillText(`Day Index: ${closestIdx + 1}`, tx + 8, ty + 12);
+
+        ctx.font = '9px Inter';
+        let yOffset = 26;
+        keys.forEach(key => {
+            ctx.fillStyle = academyActiveChartData.isDark ? '#94a3b8' : '#64748b';
+            ctx.fillText(key + ':', tx + 8, ty + yOffset);
+            
+            ctx.fillStyle = academyActiveChartData.isDark ? '#f8fafc' : '#0f172a';
+            ctx.textAlign = 'right';
+            ctx.fillText(closestPt.values[key], tx + tooltipW - 8, ty + yOffset);
+            ctx.textAlign = 'left';
+            yOffset += 14;
+        });
+    };
+
+    const handleMouseLeave = () => {
+        if (academyDrawMode) return;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    };
+
+    canvas.addEventListener('mousemove', handleHover);
+    canvas.addEventListener('mouseleave', handleMouseLeave);
+
     // Tool buttons
     document.querySelectorAll('.academy-draw-tool-btn').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -29409,4 +29851,608 @@ function setupAcademyAICoach() {
 
     sendBtn.addEventListener('click', sendMessage);
     input.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendMessage(); });
+}
+
+let academyActiveSandboxValues = {};
+let academyActiveSubPattern = {};
+
+const ACADEMY_SUB_PATTERNS = {
+    'head_shoulders': ['Head & Shoulders', 'Inverse Head & Shoulders'],
+    'double_top_bottom': ['Double Top', 'Double Bottom'],
+    'flag_pennant': ['Bull Flag', 'Bear Flag', 'Bull Pennant', 'Bear Pennant'],
+    'triangles': ['Symmetrical Triangle', 'Ascending Triangle', 'Descending Triangle'],
+    'wedges': ['Rising Wedge', 'Falling Wedge'],
+    'cup_handle': ['Cup & Handle', 'Inverse Cup & Handle'],
+    'triple_top_bottom': ['Triple Top', 'Triple Bottom'],
+    'rounding_bottom': ['Rounding Bottom', 'Rounding Top'],
+    'megaphone': ['Broadening Megaphone', 'Narrowing Wedge'],
+    'price_channels': ['Ascending Channel', 'Descending Channel'],
+    'diamond': ['Diamond Top', 'Diamond Bottom'],
+    
+    // Candlesticks
+    'doji': ['Standard Doji', 'Dragonfly Doji', 'Gravestone Doji', 'Long-Legged Doji'],
+    'hammer_hangman': ['Hammer', 'Hanging Man'],
+    'shooting_star': ['Shooting Star', 'Inverted Hammer'],
+    'engulfing': ['Bullish Engulfing', 'Bearish Engulfing'],
+    'harami': ['Bullish Harami', 'Bearish Harami'],
+    'morning_evening_star': ['Morning Star', 'Evening Star'],
+    'piercing_darkcloud': ['Piercing Line', 'Dark Cloud Cover'],
+    'tweezer': ['Tweezer Bottoms', 'Tweezer Tops'],
+    'three_soldiers_crows': ['Three White Soldiers', 'Three Black Crows'],
+    'marubozu': ['Bullish Marubozu', 'Bearish Marubozu']
+};
+
+function getDynamicChartData(module) {
+    const activeSub = academyActiveSubPattern[module.id] || (ACADEMY_SUB_PATTERNS[module.id] ? ACADEMY_SUB_PATTERNS[module.id][0] : null);
+    const sbVals = academyActiveSandboxValues;
+
+    if (module.id === 'head_shoulders') {
+        const head = sbVals['head'] !== undefined ? sbVals['head'] : 1200;
+        const neck = sbVals['neck'] !== undefined ? sbVals['neck'] : 1050;
+        if (activeSub === 'Inverse Head & Shoulders') {
+            const sh = neck - (neck - head) * 0.5;
+            return [neck, neck - 20, sh, neck - 10, neck, neck - 15, head, neck + 5, neck, neck - 10, sh, neck - 15, neck, neck + 40, neck + 80, neck + 100];
+        } else {
+            const sh = neck + (head - neck) * 0.5;
+            return [neck, neck + 20, sh, neck + 10, neck, neck + 15, head, neck - 5, neck, neck + 10, sh, neck + 15, neck, neck - 40, neck - 80, neck - 100];
+        }
+    }
+    
+    if (module.id === 'double_top_bottom') {
+        const peak = sbVals['peak'] !== undefined ? sbVals['peak'] : 500;
+        const trough = sbVals['trough'] !== undefined ? sbVals['trough'] : 450;
+        if (activeSub === 'Double Bottom') {
+            return [trough + 40, trough + 20, trough, trough + 15, peak, trough + 20, trough, trough + 10, peak, peak + 25, peak + 50];
+        } else {
+            return [peak - 40, peak - 20, peak, peak - 15, trough, peak - 20, peak, peak - 10, trough, trough - 25, trough - 50];
+        }
+    }
+
+    if (module.id === 'triple_top_bottom') {
+        const level = sbVals['level'] !== undefined ? sbVals['level'] : 500;
+        const sr = sbVals['sr'] !== undefined ? sbVals['sr'] : 460;
+        if (activeSub === 'Triple Bottom') {
+            return [sr + 30, sr + 10, level, sr - 10, sr, level + 5, level, sr - 15, sr, level + 10, level, sr, sr + 25, sr + 45];
+        } else {
+            return [sr - 30, sr - 10, level, sr + 10, sr, level - 5, level, sr + 15, sr, level - 10, level, sr, sr - 25, sr - 45];
+        }
+    }
+
+    if (module.id === 'flag_pennant') {
+        const start = sbVals['start'] !== undefined ? sbVals['start'] : 100;
+        const end = sbVals['end'] !== undefined ? sbVals['end'] : 140;
+        const breakout = sbVals['breakout'] !== undefined ? sbVals['breakout'] : 135;
+        const isBear = activeSub && activeSub.includes('Bear');
+        const isPennant = activeSub && activeSub.includes('Pennant');
+        if (isBear) {
+            const diff = start - end;
+            const step = diff / 5;
+            let data = [start, start - step, start - step*2, start - step*3, end];
+            if (isPennant) {
+                data.push(end + 12, end + 4, end + 9, end + 6, end + 7);
+            } else {
+                data.push(end + 8, end + 3, end + 11, end + 6, end + 13, end + 8);
+            }
+            data.push(breakout, breakout - diff*0.3, breakout - diff*0.6, breakout - diff);
+            return data;
+        } else {
+            const diff = end - start;
+            const step = diff / 5;
+            let data = [start, start + step, start + step*2, start + step*3, end];
+            if (isPennant) {
+                data.push(end - 12, end - 4, end - 9, end - 6, end - 7);
+            } else {
+                data.push(end - 8, end - 3, end - 11, end - 6, end - 13, end - 8);
+            }
+            data.push(breakout, breakout + diff*0.3, breakout + diff*0.6, breakout + diff);
+            return data;
+        }
+    }
+
+    if (module.id === 'triangles') {
+        const ceiling = sbVals['ceiling'] !== undefined ? sbVals['ceiling'] : 500;
+        const floor = sbVals['floor'] !== undefined ? sbVals['floor'] : 420;
+        const range = ceiling - floor;
+        const mid = (ceiling + floor) / 2;
+        if (activeSub === 'Ascending Triangle') {
+            return [floor, ceiling - 10, floor + range*0.25, ceiling - 5, floor + range*0.5, ceiling, floor + range*0.75, ceiling, ceiling + range*0.4];
+        } else if (activeSub === 'Descending Triangle') {
+            return [ceiling, floor + 10, ceiling - range*0.25, floor + 5, ceiling - range*0.5, floor, ceiling - range*0.75, floor, floor - range*0.4];
+        } else {
+            return [floor, ceiling, floor + range*0.15, ceiling - range*0.15, floor + range*0.3, ceiling - range*0.3, floor + range*0.4, ceiling - range*0.4, mid, mid + range*0.3, mid + range*0.6];
+        }
+    }
+
+    if (module.id === 'wedges') {
+        const start = sbVals['start'] !== undefined ? sbVals['start'] : 50;
+        const bo = sbVals['bo'] !== undefined ? sbVals['bo'] : 480;
+        if (activeSub === 'Falling Wedge') {
+            return [bo + start * 2, bo + start * 1.5, bo + start * 0.8, bo + start * 1.2, bo + start * 0.5, bo + start * 0.9, bo + start * 0.3, bo + start * 0.6, bo + start * 0.1, bo + start * 0.4, bo, bo + start * 0.5, bo + start, bo + start * 1.5];
+        } else {
+            return [bo - start * 2, bo - start * 1.5, bo - start * 0.8, bo - start * 1.2, bo - start * 0.5, bo - start * 0.9, bo - start * 0.3, bo - start * 0.6, bo - start * 0.1, bo - start * 0.4, bo, bo - start * 0.5, bo - start, bo - start * 1.5];
+        }
+    }
+
+    if (module.id === 'cup_handle') {
+        const rim = sbVals['rim'] !== undefined ? sbVals['rim'] : 200;
+        const bottom = sbVals['bottom'] !== undefined ? sbVals['bottom'] : 160;
+        const depth = rim - bottom;
+        if (activeSub === 'Inverse Cup & Handle') {
+            return [rim, rim + depth*0.2, rim + depth*0.5, rim + depth*0.8, rim + depth, rim + depth*0.8, rim + depth*0.5, rim + depth*0.2, rim, rim + depth*0.1, rim + depth*0.25, rim, rim - depth*0.3, rim - depth*0.7, rim - depth];
+        } else {
+            return [rim, rim - depth*0.2, rim - depth*0.5, rim - depth*0.8, bottom, rim - depth*0.8, rim - depth*0.5, rim - depth*0.2, rim, rim - depth*0.1, rim - depth*0.25, rim, rim + depth*0.3, rim + depth*0.7, rim + depth];
+        }
+    }
+
+    if (module.id === 'rounding_bottom') {
+        const r = sbVals['r'] !== undefined ? sbVals['r'] : 300;
+        const b = sbVals['b'] !== undefined ? sbVals['b'] : 220;
+        const depth = r - b;
+        if (activeSub === 'Rounding Top') {
+            return [b, b + depth*0.2, b + depth*0.45, b + depth*0.7, b + depth*0.9, r, b + depth*0.9, b + depth*0.7, b + depth*0.45, b + depth*0.2, b, b - depth*0.3, b - depth*0.6];
+        } else {
+            return [r, r - depth*0.3, r - depth*0.6, r - depth*0.8, b, r - depth*0.8, r - depth*0.6, r - depth*0.3, r, r + depth*0.3, r + depth*0.6];
+        }
+    }
+
+    if (module.id === 'megaphone') {
+        const h = sbVals['h'] !== undefined ? sbVals['h'] : 550;
+        const l = sbVals['l'] !== undefined ? sbVals['l'] : 440;
+        const mid = (h + l) / 2;
+        const range = h - l;
+        if (activeSub === 'Narrowing Wedge') {
+            return [mid - range*0.5, mid + range*0.5, mid - range*0.4, mid + range*0.4, mid - range*0.3, mid + range*0.3, mid - range*0.2, mid + range*0.2, mid - range*0.1, mid + range*0.1, mid];
+        } else {
+            return [mid, mid + range*0.1, mid - range*0.1, mid + range*0.2, mid - range*0.2, mid + range*0.3, mid - range*0.3, mid + range*0.4, mid - range*0.4, mid + range*0.5, mid - range*0.5];
+        }
+    }
+
+    if (module.id === 'price_channels') {
+        const upper = sbVals['upper'] !== undefined ? sbVals['upper'] : 520;
+        const lower = sbVals['lower'] !== undefined ? sbVals['lower'] : 480;
+        const width = upper - lower;
+        if (activeSub === 'Descending Channel') {
+            return [upper, lower, upper - width*0.2, lower - width*0.2, upper - width*0.4, lower - width*0.4, upper - width*0.6, lower - width*0.6, upper - width*0.8, lower - width*0.8];
+        } else {
+            return [lower, upper, lower + width*0.2, upper + width*0.2, lower + width*0.4, upper + width*0.4, lower + width*0.6, upper + width*0.6, lower + width*0.8, upper + width*0.8];
+        }
+    }
+
+    if (module.id === 'diamond') {
+        const h = sbVals['h'] !== undefined ? sbVals['h'] : 560;
+        const l = sbVals['l'] !== undefined ? sbVals['l'] : 500;
+        const bo = sbVals['bo'] !== undefined ? sbVals['bo'] : 500;
+        const mid = (h + l) / 2;
+        const range = h - l;
+        if (activeSub === 'Diamond Bottom') {
+            return [mid + 10, mid - range*0.2, mid + range*0.2, mid - range*0.5, mid + range*0.5, mid - range*0.3, mid + range*0.3, mid - range*0.1, bo, bo + range*0.3, bo + range*0.6];
+        } else {
+            return [mid - 10, mid + range*0.2, mid - range*0.2, mid + range*0.5, mid - range*0.5, mid + range*0.3, mid - range*0.3, mid + range*0.1, bo, bo - range*0.3, bo - range*0.6];
+        }
+    }
+
+    return module.chartData;
+}
+
+function getDynamicCandleData(module, activeSub, sbVals) {
+    const candles = [];
+    const makeCandle = (open, close, high, low) => ({ open, close, high, low });
+
+    if (module.id === 'doji') {
+        const o = sbVals['o'] !== undefined ? sbVals['o'] : 150;
+        const c = sbVals['c'] !== undefined ? sbVals['c'] : 150.1;
+        const h = sbVals['h'] !== undefined ? sbVals['h'] : 155;
+        const l = sbVals['l'] !== undefined ? sbVals['l'] : 145;
+        const mid = (h + l) / 2;
+        
+        let to = o, tc = c, th = h, tl = l;
+        if (activeSub === 'Dragonfly Doji') {
+            to = h; tc = h - 0.1; th = h; tl = l;
+        } else if (activeSub === 'Gravestone Doji') {
+            to = l + 0.1; tc = l; th = h; tl = l;
+        } else if (activeSub === 'Long-Legged Doji') {
+            to = mid; tc = mid + 0.1; th = h + 5; tl = l - 5;
+        }
+        
+        candles.push(makeCandle(142, 146, 148, 140));
+        candles.push(makeCandle(145, 149, 151, 144));
+        candles.push(makeCandle(to, tc, th, tl));
+        candles.push(makeCandle(149, 153, 155, 148));
+    }
+    else if (module.id === 'hammer_hangman') {
+        const o = sbVals['o'] !== undefined ? sbVals['o'] : 152;
+        const c = sbVals['c'] !== undefined ? sbVals['c'] : 155;
+        const l = sbVals['l'] !== undefined ? sbVals['l'] : 145;
+        const body = Math.abs(c - o);
+        const h = Math.max(o, c) + body * 0.1;
+
+        if (activeSub === 'Hanging Man') {
+            candles.push(makeCandle(130, 134, 135, 129));
+            candles.push(makeCandle(133, 138, 139, 132));
+            candles.push(makeCandle(137, 142, 143, 136));
+            candles.push(makeCandle(141, 146, 148, 140));
+            candles.push(makeCandle(o, c, h, l));
+            candles.push(makeCandle(Math.min(o, c) - 2, Math.min(o, c) - 10, Math.min(o, c) - 1, Math.min(o, c) - 12));
+            candles.push(makeCandle(Math.min(o, c) - 9, Math.min(o, c) - 18, Math.min(o, c) - 8, Math.min(o, c) - 20));
+        } else {
+            candles.push(makeCandle(170, 165, 172, 164));
+            candles.push(makeCandle(166, 161, 167, 160));
+            candles.push(makeCandle(162, 157, 163, 155));
+            candles.push(makeCandle(158, 153, 159, 151));
+            candles.push(makeCandle(o, c, h, l));
+            candles.push(makeCandle(Math.max(o, c) + 2, Math.max(o, c) + 10, Math.max(o, c) + 11, Math.max(o, c) + 1));
+            candles.push(makeCandle(Math.max(o, c) + 9, Math.max(o, c) + 18, Math.max(o, c) + 19, Math.max(o, c) + 8));
+        }
+    }
+    else if (module.id === 'shooting_star') {
+        const o = sbVals['o'] !== undefined ? sbVals['o'] : 155;
+        const c = sbVals['c'] !== undefined ? sbVals['c'] : 152;
+        const h = sbVals['h'] !== undefined ? sbVals['h'] : 165;
+        const l = sbVals['l'] !== undefined ? sbVals['l'] : 151;
+
+        if (activeSub === 'Inverted Hammer') {
+            candles.push(makeCandle(170, 165, 172, 164));
+            candles.push(makeCandle(166, 161, 167, 160));
+            candles.push(makeCandle(162, 157, 163, 155));
+            candles.push(makeCandle(o, c, h, l));
+            candles.push(makeCandle(Math.max(o, c) + 2, Math.max(o, c) + 10, Math.max(o, c) + 11, Math.max(o, c) + 1));
+            candles.push(makeCandle(Math.max(o, c) + 9, Math.max(o, c) + 18, Math.max(o, c) + 19, Math.max(o, c) + 8));
+        } else {
+            candles.push(makeCandle(130, 134, 135, 129));
+            candles.push(makeCandle(133, 138, 139, 132));
+            candles.push(makeCandle(137, 142, 143, 136));
+            candles.push(makeCandle(o, c, h, l));
+            candles.push(makeCandle(Math.min(o, c) - 2, Math.min(o, c) - 10, Math.min(o, c) - 1, Math.min(o, c) - 12));
+            candles.push(makeCandle(Math.min(o, c) - 9, Math.min(o, c) - 18, Math.min(o, c) - 8, Math.min(o, c) - 20));
+        }
+    }
+    else if (module.id === 'engulfing') {
+        const isBear = activeSub && activeSub.includes('Bearish');
+        if (isBear) {
+            candles.push(makeCandle(100, 105, 107, 99));
+            candles.push(makeCandle(104, 108, 110, 103));
+            candles.push(makeCandle(107, 111, 112, 106));
+            candles.push(makeCandle(110, 112, 113, 109)); // small green
+            candles.push(makeCandle(113, 105, 114, 104)); // giant red (engulfs)
+            candles.push(makeCandle(104, 98, 105, 96));
+            candles.push(makeCandle(98, 92, 99, 90));
+        } else {
+            candles.push(makeCandle(120, 115, 121, 114));
+            candles.push(makeCandle(116, 112, 117, 111));
+            candles.push(makeCandle(113, 109, 114, 108));
+            candles.push(makeCandle(110, 108, 111, 107)); // small red
+            candles.push(makeCandle(107, 115, 116, 106)); // giant green (engulfs)
+            candles.push(makeCandle(115, 121, 122, 114));
+            candles.push(makeCandle(121, 128, 129, 120));
+        }
+    }
+    else if (module.id === 'harami') {
+        const mo = sbVals['mo'] !== undefined ? sbVals['mo'] : 160;
+        const mc = sbVals['mc'] !== undefined ? sbVals['mc'] : 145;
+        const bo = sbVals['bo'] !== undefined ? sbVals['bo'] : 148;
+        const bc = sbVals['bc'] !== undefined ? sbVals['bc'] : 152;
+        const isBear = activeSub && activeSub.includes('Bearish');
+        
+        let motherOpen = mo, motherClose = mc, babyOpen = bo, babyClose = bc;
+        if (isBear) {
+            motherOpen = Math.min(mo, mc);
+            motherClose = Math.max(mo, mc);
+            babyOpen = Math.max(bo, bc);
+            babyClose = Math.min(bo, bc);
+            
+            candles.push(makeCandle(130, 134, 136, 128));
+            candles.push(makeCandle(133, 139, 140, 132));
+            candles.push(makeCandle(motherOpen, motherClose, motherClose + 2, motherOpen - 1));
+            candles.push(makeCandle(babyOpen, babyClose, Math.max(babyOpen, babyClose) + 1, Math.min(babyOpen, babyClose) - 1));
+            candles.push(makeCandle(babyClose - 2, babyClose - 10, babyClose - 1, babyClose - 12));
+        } else {
+            motherOpen = Math.max(mo, mc);
+            motherClose = Math.min(mo, mc);
+            babyOpen = Math.min(bo, bc);
+            babyClose = Math.max(bo, bc);
+            
+            candles.push(makeCandle(170, 164, 171, 163));
+            candles.push(makeCandle(165, 159, 166, 158));
+            candles.push(makeCandle(motherOpen, motherClose, motherOpen + 2, motherClose - 1));
+            candles.push(makeCandle(babyOpen, babyClose, Math.max(babyOpen, babyClose) + 1, Math.min(babyOpen, babyClose) - 1));
+            candles.push(makeCandle(babyClose + 2, babyClose + 10, babyClose + 11, babyClose + 1));
+        }
+    }
+    else if (module.id === 'morning_evening_star') {
+        const o1 = sbVals['o1'] !== undefined ? sbVals['o1'] : 160;
+        const c1 = sbVals['c1'] !== undefined ? sbVals['c1'] : 145;
+        const c3 = sbVals['c3'] !== undefined ? sbVals['c3'] : 155;
+        const isBear = activeSub && activeSub.includes('Evening');
+        
+        if (isBear) {
+            candles.push(makeCandle(130, 134, 136, 128));
+            candles.push(makeCandle(133, 138, 140, 132));
+            candles.push(makeCandle(Math.min(o1, c1), Math.max(o1, c1), Math.max(o1, c1) + 2, Math.min(o1, c1) - 1));
+            const starBase = Math.max(o1, c1);
+            candles.push(makeCandle(starBase + 2, starBase + 3, starBase + 6, starBase + 1));
+            candles.push(makeCandle(starBase + 1, c3, starBase + 2, c3 - 3));
+            candles.push(makeCandle(c3 - 1, c3 - 10, c3, c3 - 12));
+        } else {
+            candles.push(makeCandle(170, 165, 172, 164));
+            candles.push(makeCandle(166, 161, 167, 160));
+            candles.push(makeCandle(Math.max(o1, c1), Math.min(o1, c1), Math.max(o1, c1) + 2, Math.min(o1, c1) - 1));
+            const starBase = Math.min(o1, c1);
+            candles.push(makeCandle(starBase - 2, starBase - 3, starBase - 1, starBase - 6));
+            candles.push(makeCandle(starBase - 1, c3, c3 + 3, starBase - 2));
+            candles.push(makeCandle(c3 + 1, c3 + 10, c3 + 12, c3));
+        }
+    }
+    else if (module.id === 'piercing_darkcloud') {
+        const ro = sbVals['ro'] !== undefined ? sbVals['ro'] : 160;
+        const rc = sbVals['rc'] !== undefined ? sbVals['rc'] : 148;
+        const gc = sbVals['gc'] !== undefined ? sbVals['gc'] : 156;
+        const isBear = activeSub && activeSub.includes('Dark');
+        
+        if (isBear) {
+            candles.push(makeCandle(130, 134, 136, 128));
+            candles.push(makeCandle(133, 138, 140, 132));
+            candles.push(makeCandle(rc, ro, ro + 2, rc - 1));
+            candles.push(makeCandle(ro + 2, gc, ro + 3, gc - 2));
+            candles.push(makeCandle(gc - 2, gc - 10, gc - 1, gc - 12));
+        } else {
+            candles.push(makeCandle(170, 165, 172, 164));
+            candles.push(makeCandle(166, 161, 167, 160));
+            candles.push(makeCandle(ro, rc, ro + 2, rc - 2));
+            candles.push(makeCandle(rc - 2, gc, gc + 2, rc - 3));
+            candles.push(makeCandle(gc + 2, gc + 10, gc + 12, gc + 1));
+        }
+    }
+    else if (module.id === 'tweezer') {
+        const h1 = sbVals['h1'] !== undefined ? sbVals['h1'] : 525;
+        const h2 = sbVals['h2'] !== undefined ? sbVals['h2'] : 525;
+        const isBottom = activeSub && activeSub.includes('Bottom');
+        
+        if (isBottom) {
+            candles.push(makeCandle(540, 530, 542, 528));
+            candles.push(makeCandle(532, 515, 534, 510));
+            candles.push(makeCandle(518, h1, 520, h1));
+            candles.push(makeCandle(h2, h2 + 15, h2 + 18, h2));
+            candles.push(makeCandle(h2 + 12, h2 + 25, h2 + 28, h2 + 10));
+        } else {
+            candles.push(makeCandle(490, 500, 502, 488));
+            candles.push(makeCandle(498, 515, 518, 495));
+            candles.push(makeCandle(512, h1, h1, 510));
+            candles.push(makeCandle(h2, h2 - 15, h2, h2 - 18));
+            candles.push(makeCandle(h2 - 12, h2 - 25, h2 - 10, h2 - 28));
+        }
+    }
+    else if (module.id === 'three_soldiers_crows') {
+        const isCrows = activeSub && activeSub.includes('Crows');
+        if (isCrows) {
+            candles.push(makeCandle(100, 105, 107, 99));
+            candles.push(makeCandle(104, 108, 110, 103));
+            candles.push(makeCandle(110, 102, 111, 100));
+            candles.push(makeCandle(104, 95, 105, 93));
+            candles.push(makeCandle(97, 88, 98, 86));
+            candles.push(makeCandle(89, 82, 90, 80));
+        } else {
+            candles.push(makeCandle(120, 115, 121, 114));
+            candles.push(makeCandle(116, 112, 117, 111));
+            candles.push(makeCandle(110, 118, 119, 109));
+            candles.push(makeCandle(116, 125, 126, 115));
+            candles.push(makeCandle(123, 132, 133, 122));
+            candles.push(makeCandle(131, 138, 140, 130));
+        }
+    }
+    else if (module.id === 'marubozu') {
+        const o = sbVals['o'] !== undefined ? sbVals['o'] : 500;
+        const c = sbVals['c'] !== undefined ? sbVals['c'] : 520;
+        const h = sbVals['h'] !== undefined ? sbVals['h'] : 520;
+        const l = sbVals['l'] !== undefined ? sbVals['l'] : 500;
+        const isBear = activeSub && activeSub.includes('Bear');
+        
+        let to = o, tc = c, th = h, tl = l;
+        if (isBear) {
+            to = h; tc = l; th = h; tl = l;
+            candles.push(makeCandle(515, 522, 524, 513));
+            candles.push(makeCandle(to, tc, th, tl));
+            candles.push(makeCandle(502, 495, 504, 492));
+        } else {
+            to = l; tc = h; th = h; tl = l;
+            candles.push(makeCandle(505, 498, 507, 496));
+            candles.push(makeCandle(to, tc, th, tl));
+            candles.push(makeCandle(518, 525, 527, 516));
+        }
+    }
+    else {
+        const data = module.chartData || [100, 105, 110, 105, 115, 120];
+        data.forEach((v, i) => {
+            const isUp = i % 2 === 0;
+            const open = isUp ? v - 2 : v + 2;
+            const close = v;
+            const high = Math.max(open, close) + 3;
+            const low = Math.min(open, close) - 3;
+            candles.push(makeCandle(open, close, high, low));
+        });
+    }
+
+    return candles;
+}
+
+let academyActiveSliderValues = {};
+
+function renderAcademyChartControls(module) {
+    const container = document.getElementById('academy-chart-controls');
+    if (!container) return;
+    container.innerHTML = '';
+
+    let controlsHTML = '';
+    if (module.id === 'rsi') {
+        controlsHTML = `
+            <div class="academy-slider-group">
+                <div class="academy-slider-label">
+                    <span>RSI Length</span>
+                    <span id="val-rsi_length" class="academy-slider-value">14</span>
+                </div>
+                <input type="range" class="academy-slider-input" id="slide-rsi_length" min="2" max="50" value="${academyActiveSliderValues['rsi_length'] || 14}">
+            </div>
+            <div class="academy-slider-group">
+                <div class="academy-slider-label">
+                    <span>Overbought Level</span>
+                    <span id="val-rsi_overbought" class="academy-slider-value">70</span>
+                </div>
+                <input type="range" class="academy-slider-input" id="slide-rsi_overbought" min="50" max="90" value="${academyActiveSliderValues['rsi_overbought'] || 70}">
+            </div>
+            <div class="academy-slider-group">
+                <div class="academy-slider-label">
+                    <span>Oversold Level</span>
+                    <span id="val-rsi_oversold" class="academy-slider-value">30</span>
+                </div>
+                <input type="range" class="academy-slider-input" id="slide-rsi_oversold" min="10" max="50" value="${academyActiveSliderValues['rsi_oversold'] || 30}">
+            </div>
+        `;
+    } else if (module.id === 'macd') {
+        controlsHTML = `
+            <div class="academy-slider-group">
+                <div class="academy-slider-label">
+                    <span>Fast Period</span>
+                    <span id="val-macd_fast" class="academy-slider-value">12</span>
+                </div>
+                <input type="range" class="academy-slider-input" id="slide-macd_fast" min="5" max="25" value="${academyActiveSliderValues['macd_fast'] || 12}">
+            </div>
+            <div class="academy-slider-group">
+                <div class="academy-slider-label">
+                    <span>Slow Period</span>
+                    <span id="val-macd_slow" class="academy-slider-value">26</span>
+                </div>
+                <input type="range" class="academy-slider-input" id="slide-macd_slow" min="20" max="50" value="${academyActiveSliderValues['macd_slow'] || 26}">
+            </div>
+            <div class="academy-slider-group">
+                <div class="academy-slider-label">
+                    <span>Signal Period</span>
+                    <span id="val-macd_signal" class="academy-slider-value">9</span>
+                </div>
+                <input type="range" class="academy-slider-input" id="slide-macd_signal" min="3" max="15" value="${academyActiveSliderValues['macd_signal'] || 9}">
+            </div>
+        `;
+    } else if (module.id === 'bollinger') {
+        controlsHTML = `
+            <div class="academy-slider-group">
+                <div class="academy-slider-label">
+                    <span>MA Period</span>
+                    <span id="val-bb_period" class="academy-slider-value">20</span>
+                </div>
+                <input type="range" class="academy-slider-input" id="slide-bb_period" min="5" max="50" value="${academyActiveSliderValues['bb_period'] || 20}">
+            </div>
+            <div class="academy-slider-group">
+                <div class="academy-slider-label">
+                    <span>Std Devs</span>
+                    <span id="val-bb_stddev" class="academy-slider-value">2.0</span>
+                </div>
+                <input type="range" class="academy-slider-input" id="slide-bb_stddev" min="0.5" max="4.0" step="0.1" value="${academyActiveSliderValues['bb_stddev'] || 2.0}">
+            </div>
+        `;
+    }
+
+    if (!controlsHTML) {
+        container.style.display = 'none';
+        return;
+    }
+
+    container.style.display = 'block';
+    container.innerHTML = `
+        <div class="academy-chart-controls-title">🔧 Parameter Tuner</div>
+        <div class="academy-chart-controls-grid">${controlsHTML}</div>
+    `;
+
+    const sliders = container.querySelectorAll('.academy-slider-input');
+    sliders.forEach(slider => {
+        const id = slider.id.replace('slide-', '');
+        const valEl = document.getElementById(`val-${id}`);
+        
+        academyActiveSliderValues[id] = parseFloat(slider.value);
+        if (valEl) valEl.textContent = slider.value;
+
+        slider.addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            academyActiveSliderValues[id] = val;
+            if (valEl) valEl.textContent = val;
+            
+            renderAcademyChart(module);
+            syncSlidersWithSandbox(module, id, val);
+        });
+    });
+}
+
+function syncSlidersWithSandbox(module, sliderId, value) {
+    let targetKey = '';
+    if (sliderId.includes('_')) {
+        targetKey = sliderId.split('_')[1];
+    } else {
+        targetKey = sliderId;
+    }
+    const sbInput = document.getElementById('academy-sb-' + targetKey);
+    if (sbInput) {
+        sbInput.value = value;
+        sbInput.dispatchEvent(new Event('input'));
+    }
+}
+
+async function generateAcademyCaseStudy() {
+    const btn = document.getElementById('academy-generate-scenario-btn');
+    const body = document.getElementById('academy-scenario-body');
+    if (!btn || !body || !academyActiveTopicId) return;
+
+    const module = ACADEMY_CATALOG.find(m => m.id === academyActiveTopicId);
+    if (!module) return;
+
+    btn.disabled = true;
+    btn.innerHTML = '🔄 Synthesizing Case Study...';
+    body.innerHTML = `
+        <div style="display: flex; align-items: center; justify-content: center; padding: 20px; color: var(--text-muted); font-size: 13px;">
+            <span style="margin-right: 8px;">🔄</span> Calling Indian Market Simulation Engine...
+        </div>
+    `;
+
+    try {
+        const res = await fetch('/api/learning/scenario', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                topic: module.title,
+                category: module.cat
+            })
+        });
+        const data = await res.json();
+        if (data.scenario) {
+            body.innerHTML = formatMarkdown(data.scenario);
+        } else {
+            body.innerHTML = '<p style="color: var(--color-danger);">⚠️ Failed to generate scenario. Please try again.</p>';
+        }
+    } catch (err) {
+        body.innerHTML = '<p style="color: var(--color-danger);">⚠️ Connection error. Please verify the backend service is running.</p>';
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '📊 Generate Case Study';
+    }
+}
+
+function formatMarkdown(md) {
+    if (!md) return '';
+    let html = md
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+
+    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+
+    html = html.replace(/^### (.*?)$/gm, '<h4 style="color: var(--color-primary); margin-top: 14px; margin-bottom: 6px; font-weight: 600;">$1</h4>');
+    html = html.replace(/^## (.*?)$/gm, '<h3 style="color: var(--color-primary); margin-top: 16px; margin-bottom: 8px; font-weight: 600;">$1</h3>');
+    html = html.replace(/^# (.*?)$/gm, '<h2 style="color: var(--color-primary); margin-top: 18px; margin-bottom: 10px; font-weight: 700;">$1</h2>');
+
+    html = html.replace(/^- (.*?)$/gm, '<li style="margin-left: 20px; margin-bottom: 4px; color: var(--text-color);">$1</li>');
+
+    html = html.split('\n').map(line => {
+        if (line.trim().startsWith('<h') || line.trim().startsWith('<li')) return line;
+        if (line.trim() === '') return '<div style="height: 8px;"></div>';
+        return `<p style="margin: 0 0 6px 0; line-height: 1.5; color: var(--text-color); font-size: 12.5px;">${line}</p>`;
+    }).join('\n');
+
+    return html;
 }

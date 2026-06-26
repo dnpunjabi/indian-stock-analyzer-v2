@@ -5,8 +5,8 @@
 
 :root {
     /* Fonts (kept globally) */
-    --font-heading: var(--font-heading);
-    --font-body: var(--font-body);
+    --font-heading: 'Outfit', sans-serif;
+    --font-body: 'Inter', sans-serif;
 
     /* Base Default Variables (Dark Mode + Classic Theme) */
     --primary-rgb: 59, 130, 246;
@@ -13287,16 +13287,30 @@ tr.active-peer-row td:first-child {
 
 /* ==================== ACADEMY RESPONSIVE ==================== */
 @media (max-width: 1200px) {
+    #tab-learning.active-tab-content {
+        display: block !important;
+        overflow-y: auto !important;
+        height: auto;
+    }
+
     .academy-layout {
         grid-template-columns: 1fr;
+        display: flex;
+        flex-direction: column;
+        height: auto;
+        overflow: visible;
     }
 
     .academy-navigator {
-        max-height: 250px;
+        max-height: 300px;
+        overflow-y: auto;
+        height: auto;
     }
 
     .academy-workbench {
         max-height: none;
+        height: auto;
+        overflow: visible;
     }
 
     .academy-hud {
