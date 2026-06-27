@@ -13343,7 +13343,7 @@ tr.active-peer-row td:first-child {
 
 
 /* ==================== ACADEMY RESPONSIVE ==================== */
-@media (max-width: 1200px) {
+@media (max-width: 992px) {
     #tab-learning.active-tab-content {
         display: block !important;
         overflow-y: auto !important;
@@ -13351,23 +13351,44 @@ tr.active-peer-row td:first-child {
     }
 
     .academy-layout {
-        grid-template-columns: 1fr;
-        display: flex;
-        flex-direction: column;
-        height: auto;
-        overflow: visible;
+        display: block !important;
+        height: auto !important;
     }
 
-    .academy-navigator {
-        max-height: 300px;
-        overflow-y: auto;
-        height: auto;
+    /* Master-Detail Visibility Toggles */
+    /* Default (no detail): show navigator list, hide details workbench */
+    #tab-learning:not(.academy-show-detail) .academy-navigator {
+        display: block !important;
+        width: 100% !important;
+        height: auto !important;
+        max-height: none !important;
+    }
+    #tab-learning:not(.academy-show-detail) .academy-workbench {
+        display: none !important;
+    }
+    #tab-learning:not(.academy-show-detail) .academy-filter-bar {
+        display: flex !important;
+    }
+    #tab-learning:not(.academy-show-detail) .mobile-only-btn {
+        display: none !important;
     }
 
-    .academy-workbench {
-        max-height: none;
-        height: auto;
-        overflow: visible;
+    /* Active Detail: hide navigator list & filters, show details workbench */
+    #tab-learning.academy-show-detail .academy-navigator {
+        display: none !important;
+    }
+    #tab-learning.academy-show-detail .academy-workbench {
+        display: flex !important;
+        width: 100% !important;
+        height: auto !important;
+        max-height: none !important;
+        overflow: visible !important;
+    }
+    #tab-learning.academy-show-detail .academy-filter-bar {
+        display: none !important;
+    }
+    #tab-learning.academy-show-detail .mobile-only-btn {
+        display: inline-flex !important;
     }
 
     .academy-hud {
@@ -13400,6 +13421,10 @@ tr.active-peer-row td:first-child {
 
     .academy-category-filters::-webkit-scrollbar {
         display: none;
+    }
+
+    #academy-navigator-toggle-btn {
+        display: none !important;
     }
 }
 
@@ -13820,3 +13845,174 @@ tr.active-peer-row td:first-child {
     transform: translateY(0);
 }
 
+.mobile-only-btn {
+    display: none !important;
+}
+
+/* Collapsible HUD Dashboard */
+.academy-hud-summary::-webkit-details-marker {
+    display: none;
+}
+.academy-hud-summary {
+    list-style: none;
+}
+details[open] .academy-hud-arrow {
+    transform: rotate(180deg);
+}
+
+/* Collapsible Navigator Layout */
+.academy-layout.navigator-collapsed {
+    grid-template-columns: 1fr !important;
+    gap: 0px !important;
+}
+.academy-layout.navigator-collapsed .academy-navigator {
+    display: none !important;
+}
+
+/* ==================== TWO-COLUMN DESKTOP WORKSPACE ==================== */
+.academy-workbench-columns {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    width: 100%;
+}
+
+@media (min-width: 993px) {
+    .academy-workbench-columns {
+        display: grid;
+        grid-template-columns: 1fr 1.15fr;
+        gap: 24px;
+        align-items: start;
+        width: 100%;
+    }
+
+    .academy-workbench-left {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .academy-workbench-right {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        position: sticky;
+        top: 20px;
+        max-height: calc(100vh - 180px);
+        overflow-y: auto;
+        padding-right: 6px;
+        box-sizing: border-box;
+    }
+
+    /* Scrollbar for right sticky column */
+    .academy-workbench-right::-webkit-scrollbar {
+        width: 4px;
+    }
+    .academy-workbench-right::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    .academy-workbench-right::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 4px;
+    }
+    .academy-workbench-right:hover::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.2);
+    }
+    
+    /* Sticky header styles for active content title */
+    .academy-topic-header {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: rgba(10, 15, 30, 0.75);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        padding: 12px 16px;
+        margin: -16px -16px 16px -16px;
+        border-bottom: 1px solid var(--border-glass);
+        border-radius: 8px 8px 0 0;
+    }
+}
+
+/* Animations and Hover Enhancements */
+.academy-topic-item {
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    border-left: 3px solid transparent;
+}
+.academy-topic-item:hover {
+    transform: translateX(4px);
+    background: rgba(255, 255, 255, 0.04);
+    border-left-color: var(--academy-accent-hover, #60a5fa);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+.academy-topic-item.active {
+    border-left-color: var(--color-primary);
+    background: rgba(59, 130, 246, 0.08);
+}
+
+/* DuPont flow node hover glow */
+.dupont-node-card {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.dupont-node-card:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
+    border-color: rgba(59, 130, 246, 0.6);
+}
+
+/* Slider Track styling updates */
+.academy-sandbox-slider,
+.academy-widget-controls input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 6px !important;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.1) !important;
+    outline: none;
+    transition: background 0.2s;
+}
+.academy-sandbox-slider::-webkit-slider-thumb,
+.academy-widget-controls input[type="range"]::-webkit-slider-thumb {
+    height: 14px !important;
+    width: 14px !important;
+    border-radius: 50%;
+    background: #ffffff !important;
+    cursor: pointer;
+    -webkit-appearance: none;
+    box-shadow: 0 0 8px rgba(59, 130, 246, 0.8) !important;
+    transition: transform 0.15s, background-color 0.15s;
+}
+.academy-sandbox-slider::-webkit-slider-thumb:hover,
+.academy-widget-controls input[type="range"]::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+    background: var(--color-emerald) !important;
+}
+
+/* --- SECTOR ROTATION CONFLUENCE STATUS BAR & RESPONSIVENESS FIXES --- */
+.sector-rotation-status-bar {
+    background: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="light"] .sector-rotation-status-bar,
+[data-mode="light"] .sector-rotation-status-bar {
+    background: rgba(0, 0, 0, 0.12) !important;
+}
+
+[data-theme="light"] .sector-breadth-hud-card,
+[data-mode="light"] .sector-breadth-hud-card {
+    background: rgba(0, 0, 0, 0.02) !important;
+    border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+@media (max-width: 768px) {
+    #alerts-synthesis-telemetry-row {
+        grid-template-columns: 1fr !important;
+        gap: 15px !important;
+    }
+    .alerts-radar-sentinel-card {
+        padding: 14px 16px !important;
+        margin-bottom: 15px !important;
+    }
+}

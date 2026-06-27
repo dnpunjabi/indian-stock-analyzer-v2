@@ -7190,7 +7190,7 @@ async def get_swing_scan(strategy: str = "ALL", universe: str = "all", min_volum
             for row in cursor.fetchall():
                 delivery_map[row["symbol"]] = row["delivery_percentage"]
                 
-            cursor.execute("SELECT sector FROM sector_regime_stats ORDER BY avg_20d_return DESC LIMIT 3")
+            cursor.execute("SELECT sector FROM sector_regime_stats ORDER BY return_1m DESC LIMIT 3")
             leading_sectors = [row["sector"] for row in cursor.fetchall()]
 
             # Load historical delivery qty to calculate delivery Z-score efficiently
