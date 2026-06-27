@@ -145,12 +145,15 @@ def call_llm(task_type: str,
                 msg["content"] = msg["content"] + suppress_instructions
                 break
 
+    # Prevent token truncation: scale max_tokens up to allow headroom for thinking logs
+    safe_max_tokens = min(4096, max(max_tokens, 2000))
+
     try:
-        print(f"[LLM] Calling {label} (model: {model}, task: {task_type}, tokens: {max_tokens})...")
+        print(f"[LLM] Calling {label} (model: {model}, task: {task_type}, tokens: {safe_max_tokens})...")
         chat_completion = client.chat.completions.create(
             messages=messages,
             model=model,
-            max_tokens=max_tokens,
+            max_tokens=safe_max_tokens,
             temperature=LLM_TEMPERATURE
         )
         response_content = chat_completion.choices[0].message.content
@@ -170,7 +173,7 @@ def call_llm(task_type: str,
                 chat_completion = client.chat.completions.create(
                     messages=messages,
                     model=fallback_model,
-                    max_tokens=max_tokens,
+                    max_tokens=safe_max_tokens,
                     temperature=LLM_TEMPERATURE
                 )
                 return _clean_reasoning_metadata(chat_completion.choices[0].message.content)
@@ -183,24 +186,59 @@ def call_llm(task_type: str,
 
 def _clean_reasoning_metadata(text: str) -> str:
     """Strip out any internal thinking process, chain-of-thought blocks, or conversational greetings from the text."""
-    import re
     if not text:
         return text
+        
+    lower_text = text.lower()
     
-    # 1. Strip standard <think>...</think> reasoning blocks if present (e.g. DeepSeek-R1)
+    # Check if the text starts with a thinking indicator
+    starts_with_thinking = any(lower_text.strip().startswith(p) for p in [
+        "thinking process", "reasoning process", "analysis process", 
+        "here's a thinking process", "here is the thinking process",
+        "here is a thinking process", "here's the thinking process"
+    ])
+    
+    import re
+    
+    # Always strip standard <think>...</think> reasoning blocks if present (e.g. DeepSeek-R1)
     text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL | re.IGNORECASE)
     
-    # 2. Strip "Thinking Process: ... Draft: " (using negative lookahead to strip up to the final Draft/Response tag)
-    text = re.sub(
-        r'^\s*(?:Thinking\s+Process|Reasoning\s+Process|Analysis\s+Process|Here\'s\s+a\s+thinking\s+process|Here\s+is\s+the\s+thinking\s+process):.*?(?:\*Draft:\*|Draft:|Response:|Answer:|Output:)(?!.*\b(?:Draft|Response|Answer|Output)\b)\s*',
-        '',
-        text,
-        flags=re.DOTALL | re.IGNORECASE
-    )
-
-    # 3. Strip any residual planning outlines or reasoning logs at the beginning of the text
-    text = re.sub(r'^\s*(?:thinking\s+process|reasoning\s+process|analysis\s+process|planning\s+process):.*?(?=\n\n|\n[A-Z#<])', '', text, flags=re.DOTALL | re.IGNORECASE)
-    
+    if not starts_with_thinking:
+        return text.strip()
+        
+    # 1. Look for the last "Draft:" or "Response:" or "Output:" marker
+    # We match variations like "Draft (Mental Refinement):" or "Draft:"
+    markers = [
+        r'\b(?:draft|response|answer|output)\s*(?:\([^)]*\))?\s*[:\*\s]*'
+    ]
+    last_idx = -1
+    last_end = -1
+    for marker in markers:
+        for m in re.finditer(marker, lower_text):
+            if m.start() > last_idx:
+                last_idx = m.start()
+                last_end = m.end()
+                
+    # If a draft marker was found, return everything after it
+    if last_idx != -1:
+        return text[last_end:].strip()
+        
+    # 2. If no explicit draft marker was found, look for the last <h4> or <h3> or ## tag 
+    # that has a trailing body (meaning it is not at the very end of the text)
+    headers = [r'<h[1-6]>', r'^###\s', r'^##\s', r'^####\s']
+    last_header_idx = -1
+    for header in headers:
+        # Match multiline header starts
+        flags = re.MULTILINE | re.IGNORECASE
+        for m in re.finditer(header, text, flags=flags):
+            # Check if this header is NOT just in the first 200 characters (where rules outlines are)
+            if m.start() > 200 and m.start() < len(text) - 50:
+                if m.start() > last_header_idx:
+                    last_header_idx = m.start()
+                    
+    if last_header_idx != -1:
+        return text[last_header_idx:].strip()
+        
     return text.strip()
 
 
