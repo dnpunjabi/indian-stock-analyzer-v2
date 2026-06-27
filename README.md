@@ -273,3 +273,34 @@ To force-refresh an equity's profile or clear database write lock anomalies, exe
 python -c "import sqlite3; conn = sqlite3.connect('backend/data/watchlist_database.db'); c = conn.cursor(); c.execute('DELETE FROM cached_profiles WHERE symbol = \'YOUR_TICKER.NS\''); conn.commit()"
 ```
 Upon the next query or background warming loop, the system will rebuild and cache the profile using the latest real-time scraping structures.
+
+---
+
+## 🤖 AI / LLM Capabilities Mapping
+
+For full technical specifications on all integrated AI capabilities and endpoints, please refer to the dedicated [AI_LLM_CAPABILITIES.md](file:///c:/Users/dheer/Desktop/AI/indian-stock-analyzer/AI_LLM_CAPABILITIES.md) catalog.
+
+A high-level summary of AI features mapped by subfeature:
+
+### 1. Portfolio Management & Optimization
+*   **AI Rebalancing Advisory**: `POST /api/portfolio/stress-test` (TASK_FAST) - Sharpe optimization commentary.
+*   **AI Portfolio Doctor**: `backend/agent.py` (TASK_HEAVY) - Diagnostics & trade triggers.
+*   **AI Backtest Performance Synthesis**: `backend/agent.py` (TASK_HEAVY) - Returns and drawdown attribution.
+
+### 2. Equity Research Terminal
+*   **CIO Strategic Investment Thesis**: `backend/agent.py` (TASK_HEAVY) - Intrinsic value and ranges.
+*   **CFA & Technical Prospectus**: `backend/agent.py` (TASK_HEAVY) - Multi-agent governance and charts review.
+*   **Investment Committee Memo (Pitchbook)**: `GET /api/analyze/pitchbook` (TASK_FAST) - Institutional deck generator.
+
+### 3. Market Regime & News Feed
+*   **AI Sector Rotational Commentary**: `backend/main.py` (TASK_FAST) - Sector relative strength regimes.
+*   **AI News Sentiment & Price Anomaly Audit**: `backend/main.py` (TASK_FAST) - Corporate catalysts and sentiment auditing.
+
+### 4. Technical Indicators & Charting
+*   **Custom Indicator AI Insights**: `GET /api/chart/indicator-synthesis` (TASK_FAST) - LuxAlgo, SMC, Maxwell charting channels.
+
+### 5. Smart Scanner & Rule Builder
+*   **AI Natural Language Scan Command Station**: `POST /api/screener/parse-nl-scan` (TASK_FAST) - Plain English to scanner rules.
+*   **AI Screener Scan Synthesis**: `POST /api/screener/scan-synthesis` (TASK_FAST) - Scanner cluster analysis.
+*   **AI Natural Language Alert Builder**: `POST /api/alerts/parse-nl` (TASK_FAST) - Plain English to alert settings.
+
