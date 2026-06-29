@@ -1016,6 +1016,7 @@
                         <div class="analyzer-input-wrap">
                             <span class="analyzer-input-icon" id="analyzer-input-icon">🔍</span>
                             <input type="text" id="analyzer-search-input" placeholder="Search Indian stock names (e.g. Reliance, TCS, Tata Motors)..." autocomplete="off">
+                            <button id="analyzer-voice-search-btn" class="voice-search-btn" title="Search Stock via Voice" style="position: absolute; right: 12px; background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 15px; z-index: 2; padding: 4px; display: inline-flex; align-items: center; justify-content: center; height: 30px; width: 30px; border-radius: 50%; transition: all 0.2s ease;">🎙️</button>
                             <div class="analyzer-suggestions-box" id="analyzer-suggestions"></div>
                         </div>
                         <button id="analyzer-search-btn" class="analyze-asset-btn">
@@ -1267,6 +1268,9 @@
                             </div>
                             <button id="export-pitchbook-btn" class="header-action-btn" style="display: none; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 4px; background: rgba(59, 130, 246, 0.12); border: 1px solid rgba(59, 130, 246, 0.3); font-size: 11px; font-weight: bold; color: var(--color-primary-light); cursor: pointer; margin-left: 10px; height: 26px; border-radius: 99px;">
                                 📄 Export Pitchbook
+                            </button>
+                            <button id="analyzer-global-read-aloud-btn" class="header-action-btn" style="display: flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 99px; background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.3); font-size: 11px; font-weight: bold; color: #34d399; cursor: pointer; margin-left: 10px; height: 26px;" title="Read Active Tab Narrative Aloud">
+                                🔊 Listen Tab
                             </button>
                         </div>
                     </div>

@@ -1633,7 +1633,7 @@ input[type="text"]:focus {
 .analyzer-input-wrap input {
     width: 100%;
     padding-left: 40px !important;
-    padding-right: 16px !important;
+    padding-right: 48px !important;
     background: rgba(10, 14, 28, 0.6) !important;
     border: 1px solid var(--border-glass) !important;
     border-radius: 10px !important;
@@ -1642,6 +1642,24 @@ input[type="text"]:focus {
     font-family: var(--font-body);
     transition: border-color 0.3s ease, box-shadow 0.3s ease, background 0.3s ease !important;
     color: var(--text-primary) !important;
+}
+
+.voice-search-btn:hover {
+    color: var(--color-primary-light) !important;
+    transform: scale(1.1);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.voice-search-btn.mic-listening {
+    color: #ef4444 !important;
+    animation: pulse-mic 1.5s infinite;
+    background: rgba(239, 68, 68, 0.15);
+}
+
+@keyframes pulse-mic {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.15); }
+    100% { transform: scale(1); }
 }
 
 .analyzer-input-wrap input:focus {

@@ -36,7 +36,8 @@
     // Android Speech callbacks
     window.onAndroidSpeechStart = function() {
         window.AndroidSpeechListening = true;
-        const micBtn = document.getElementById('chat-mic-btn');
+        const activeTarget = window.activeSpeechRecognizerTarget || 'chat';
+        const micBtn = document.getElementById(activeTarget === 'analyzer' ? 'analyzer-voice-search-btn' : 'chat-mic-btn');
         if (micBtn) {
             micBtn.innerHTML = '🔴';
             micBtn.classList.add('mic-listening');
@@ -44,7 +45,8 @@
     };
     window.onAndroidSpeechEnd = function() {
         window.AndroidSpeechListening = false;
-        const micBtn = document.getElementById('chat-mic-btn');
+        const activeTarget = window.activeSpeechRecognizerTarget || 'chat';
+        const micBtn = document.getElementById(activeTarget === 'analyzer' ? 'analyzer-voice-search-btn' : 'chat-mic-btn');
         if (micBtn) {
             micBtn.innerHTML = '🎙️';
             micBtn.classList.remove('mic-listening');
@@ -52,7 +54,8 @@
     };
     window.onAndroidSpeechError = function(errorMsg) {
         window.AndroidSpeechListening = false;
-        const micBtn = document.getElementById('chat-mic-btn');
+        const activeTarget = window.activeSpeechRecognizerTarget || 'chat';
+        const micBtn = document.getElementById(activeTarget === 'analyzer' ? 'analyzer-voice-search-btn' : 'chat-mic-btn');
         if (micBtn) {
             micBtn.innerHTML = '🎙️';
             micBtn.classList.remove('mic-listening');
@@ -63,9 +66,20 @@
         }
     };
     window.onAndroidSpeechResult = function(transcript) {
-        const input = document.getElementById('chat-user-input');
-        if (input) {
-            input.value = (input.value ? input.value + ' ' : '') + transcript;
+        const activeTarget = window.activeSpeechRecognizerTarget || 'chat';
+        if (activeTarget === 'analyzer') {
+            const input = document.getElementById('analyzer-search-input');
+            if (input) {
+                input.value = transcript;
+            }
+            if (typeof resolveVoiceQuery === 'function') {
+                resolveVoiceQuery(transcript);
+            }
+        } else {
+            const input = document.getElementById('chat-user-input');
+            if (input) {
+                input.value = (input.value ? input.value + ' ' : '') + transcript;
+            }
         }
     };
     
@@ -1105,6 +1119,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupAlertCenter();
     setupChatDrawer();
     setupPDFExport();
+    setupVoiceLoaderAndGlobalReader();
     setupDynamicChartControls(); // Finding 5 hook!
     setupWatchlistControls(); // Initialize Watchlist managers
     setupCSVExports();
@@ -2933,6 +2948,200 @@ function setupAnalyzerControls() {
     // Call the newly extracted card-specific controllers
     setupPeersControls();
     setupCapturePeriodControl();
+}
+
+async function resolveVoiceQuery(transcript) {
+    const cleanQuery = transcript.trim();
+    if (!cleanQuery) return;
+
+    if (typeof showToast === 'function') {
+        showToast(`Processing voice search: "${cleanQuery}"...`, "info");
+    }
+
+    try {
+        const res = await fetch(`/api/search/suggestions?q=${encodeURIComponent(cleanQuery)}`);
+        if (res.ok) {
+            const suggestions = await res.json();
+            if (suggestions && suggestions.length > 0) {
+                const bestMatch = suggestions[0].symbol;
+                if (typeof showToast === 'function') {
+                    showToast(`Voice Search: Loading ${bestMatch} (${suggestions[0].name})`, "success");
+                }
+                const searchInput = document.getElementById('analyzer-search-input');
+                if (searchInput) searchInput.value = bestMatch;
+                if (typeof loadStockAnalyzer === 'function') {
+                    loadStockAnalyzer(bestMatch);
+                }
+                return;
+            }
+        }
+    } catch (e) {
+        console.error("Voice search suggestion lookup failed:", e);
+    }
+
+    // Fallback if suggestions API does not return a direct match
+    const uppercaseQuery = cleanQuery.toUpperCase();
+    if (typeof showToast === 'function') {
+        showToast(`Voice Search fallback: Loading "${uppercaseQuery}"`, "info");
+    }
+    const searchInput = document.getElementById('analyzer-search-input');
+    if (searchInput) searchInput.value = uppercaseQuery;
+    if (typeof loadStockAnalyzer === 'function') {
+        loadStockAnalyzer(uppercaseQuery);
+    }
+}
+window.resolveVoiceQuery = resolveVoiceQuery;
+
+function getActiveTabNarrativeText() {
+    const activeSubtabBtn = document.querySelector('.subtab-btn.active');
+    if (!activeSubtabBtn) return "";
+    
+    const subtab = activeSubtabBtn.getAttribute('data-subtab');
+    let text = "";
+    
+    if (subtab === 'summary') {
+        const overview = document.getElementById('business-summary-text')?.innerText || "";
+        text += overview + " ";
+        
+        const strengths = document.getElementById('swot-strengths-list')?.innerText;
+        if (strengths && !strengths.includes('0 items')) {
+            text += "Strengths. " + strengths + " ";
+        }
+        const weaknesses = document.getElementById('swot-weaknesses-list')?.innerText;
+        if (weaknesses && !weaknesses.includes('0 items')) {
+            text += "Weaknesses. " + weaknesses + " ";
+        }
+        const opps = document.getElementById('swot-opportunities-list')?.innerText;
+        if (opps && !opps.includes('0 items')) {
+            text += "Opportunities. " + opps + " ";
+        }
+        const threats = document.getElementById('swot-threats-list')?.innerText;
+        if (threats && !threats.includes('0 items')) {
+            text += "Threats. " + threats + " ";
+        }
+    } else if (subtab === 'valuation') {
+        const thesis = document.getElementById('dcf-sandbox-thesis-text')?.innerText || "";
+        if (thesis && !thesis.includes('Adjust sliders')) {
+            text += "Valuation Sandbox AI Thesis. " + thesis;
+        } else {
+            text += "Interactive Cash Flow Sandbox. The DCF estimated intrinsic value is " + 
+                    (document.getElementById('dcf-intrinsic-price')?.innerText || "not calculated") + 
+                    " with a margin of safety of " + 
+                    (document.getElementById('dcf-margin-safety')?.innerText || "not calculated") + ".";
+        }
+    } else if (subtab === 'audit') {
+        const summaryBox = document.getElementById('audit-summary-box');
+        if (summaryBox && summaryBox.style.display !== 'none') {
+            const summary = document.getElementById('audit-summary-text')?.innerText || "";
+            text += "AI Strategic Audit Summary. " + summary + " ";
+        }
+        
+        const debate = document.getElementById('audit-debate-dialogue')?.innerText || "";
+        if (debate && debate.trim().length > 0) {
+            text += "Dialectic Consensus Audit Debate transcript: " + debate;
+        }
+        
+        if (text.trim() === "") {
+            text = "AI Strategy Audit Matrix. Please click Generate AI Matrix Summary to run subagent diagnostics.";
+        }
+    } else {
+        const tabTitle = activeSubtabBtn.innerText.replace(/[^\w\s&]/g, '').trim();
+        text = `This is the ${tabTitle} tab. It displays interactive indicators, charts, and database tables. Please switch to the Executive Summary, Valuation and D C F, or Agent Strategy Audit sub-tabs to listen to AI-generated narrative summaries.`;
+    }
+    
+    return text.trim();
+}
+
+function setupVoiceLoaderAndGlobalReader() {
+    // 1. Voice Search (Speech-to-Text Loader) setup
+    const voiceSearchBtn = document.getElementById('analyzer-voice-search-btn');
+    let analyzerRecognition = null;
+    let isAnalyzerListening = false;
+
+    if (voiceSearchBtn) {
+        const isAndroidSpeech = window.AndroidSpeech && typeof window.AndroidSpeech.startListening === 'function';
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+        if (isAndroidSpeech) {
+            voiceSearchBtn.addEventListener('click', () => {
+                if (window.AndroidSpeechListening && window.activeSpeechRecognizerTarget === 'analyzer') {
+                    window.AndroidSpeech.stopListening();
+                } else {
+                    window.activeSpeechRecognizerTarget = 'analyzer';
+                    window.AndroidSpeech.startListening();
+                }
+            });
+        } else if (!SpeechRecognition) {
+            voiceSearchBtn.style.display = 'none';
+        } else {
+            analyzerRecognition = new SpeechRecognition();
+            analyzerRecognition.continuous = false;
+            analyzerRecognition.interimResults = false;
+            analyzerRecognition.lang = 'en-US';
+
+            analyzerRecognition.onstart = () => {
+                isAnalyzerListening = true;
+                voiceSearchBtn.innerHTML = '🔴';
+                voiceSearchBtn.classList.add('mic-listening');
+            };
+
+            analyzerRecognition.onend = () => {
+                isAnalyzerListening = false;
+                voiceSearchBtn.innerHTML = '🎙️';
+                voiceSearchBtn.classList.remove('mic-listening');
+            };
+
+            analyzerRecognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                const searchInput = document.getElementById('analyzer-search-input');
+                if (searchInput) {
+                    searchInput.value = transcript;
+                }
+                resolveVoiceQuery(transcript);
+            };
+
+            analyzerRecognition.onerror = (event) => {
+                console.error("Speech recognition error:", event.error);
+                if (event.error === 'no-speech') {
+                    return;
+                }
+                if (event.error === 'not-allowed') {
+                    if (typeof showToast === 'function') {
+                        showToast("Microphone access denied. Please enable mic permissions in browser settings.", "warning");
+                    }
+                    return;
+                }
+                if (typeof showToast === 'function') {
+                    showToast(`Voice search error: ${event.error}`, "error");
+                }
+            };
+
+            voiceSearchBtn.addEventListener('click', () => {
+                if (isAnalyzerListening) {
+                    analyzerRecognition.stop();
+                } else {
+                    analyzerRecognition.start();
+                }
+            });
+        }
+    }
+
+    // 2. Global Tab-level Read Aloud setup
+    const globalReadAloudBtn = document.getElementById('analyzer-global-read-aloud-btn');
+    if (globalReadAloudBtn) {
+        globalReadAloudBtn.addEventListener('click', () => {
+            const textToSpeak = getActiveTabNarrativeText();
+            if (!textToSpeak) {
+                if (typeof showToast === 'function') {
+                    showToast("No active content to read.", "warning");
+                }
+                return;
+            }
+            if (typeof toggleSpeechForMessage === 'function') {
+                toggleSpeechForMessage(textToSpeak, globalReadAloudBtn);
+            }
+        });
+    }
 }
 
 // Extracted Peers Benchmarking Controls setup (safe for multiple invocations)
@@ -10162,6 +10371,15 @@ function setupChatDrawer() {
 
             recognition.onerror = (event) => {
                 console.error("Speech recognition error:", event.error);
+                if (event.error === 'no-speech') {
+                    return;
+                }
+                if (event.error === 'not-allowed') {
+                    if (typeof showToast === 'function') {
+                        showToast("Microphone access denied. Please enable mic permissions in browser settings.", "warning");
+                    }
+                    return;
+                }
                 showToast(`Voice input error: ${event.error}`, "error");
             };
 
