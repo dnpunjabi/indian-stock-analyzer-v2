@@ -1830,6 +1830,9 @@ function resetWorkspace() {
         }
     }
     activeStockProfile = null;
+    if (typeof updateCoPilotActiveContext === 'function') {
+        updateCoPilotActiveContext(null);
+    }
     chatHistory = [];
     if (typeof updateChatHeaderStockCard === 'function') {
         updateChatHeaderStockCard(null);
@@ -4069,6 +4072,9 @@ async function loadStockAnalyzer(query, force_llm = false) {
 
         const oldTicker = activeStockProfile ? activeStockProfile.ticker : null;
         activeStockProfile = profile;
+        if (typeof updateCoPilotActiveContext === 'function') {
+            updateCoPilotActiveContext(profile);
+        }
         if (typeof updateChatHeaderStockCard === 'function') {
             updateChatHeaderStockCard(profile);
         }
@@ -11023,8 +11029,23 @@ function displaySynthesisData(data) {
     }
 }
 
+function updateCoPilotActiveContext(profile) {
+    const el = document.getElementById('drawer-active-context');
+    if (!el) return;
+    if (profile) {
+        const cleanTicker = profile.ticker.replace('.NS', '').replace('.BO', '');
+        el.innerText = `${cleanTicker} (${profile.company_name})`;
+    } else {
+        el.innerText = 'No Stock Loaded';
+    }
+}
+
 async function loadStockSynthesis(symbol) {
     if (!symbol) return;
+
+    if (activeStockProfile && activeStockProfile.ticker === symbol) {
+        updateCoPilotActiveContext(activeStockProfile);
+    }
 
     if (typeof stopAudioPlayback === 'function') {
         stopAudioPlayback();
