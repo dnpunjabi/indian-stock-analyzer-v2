@@ -102,7 +102,7 @@ class SpeechInterface {
                 mSpeechRecognizer = SpeechRecognizer.createSpeechRecognizer(mActivity);
                 mSpeechRecognizerIntent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
                 mSpeechRecognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
-                mSpeechRecognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-US");
+                mSpeechRecognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-IN");
 
                 mSpeechRecognizer.setRecognitionListener(new RecognitionListener() {
                     @Override
@@ -195,10 +195,14 @@ class TtsInterface implements TextToSpeech.OnInitListener {
     @Override
     public void onInit(int status) {
         if (status == TextToSpeech.SUCCESS) {
-            int result = mTts.setLanguage(Locale.US);
+            int result = mTts.setLanguage(new Locale("en", "IN"));
             if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-                android.util.Log.w("StockAnalyzerTTS", "Locale.US not supported, falling back to default locale.");
-                mTts.setLanguage(Locale.getDefault());
+                android.util.Log.w("StockAnalyzerTTS", "Locale en-IN not supported, falling back to US locale.");
+                result = mTts.setLanguage(Locale.US);
+                if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                    android.util.Log.w("StockAnalyzerTTS", "Locale US not supported, falling back to default locale.");
+                    mTts.setLanguage(Locale.getDefault());
+                }
             }
             mInitialized = true;
             mTts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
