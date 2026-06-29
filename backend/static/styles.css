@@ -11019,11 +11019,11 @@ tr.active-peer-row td:first-child {
 /* Print styles for Institutional Pitchbook Memo */
 @media print {
     /* Hide all workspace layouts, headers, sidebars, charts, and dialogues */
-    body > *:not(#pitchbook-modal) {
+    body.is-printing-pitchbook > *:not(#pitchbook-modal) {
         display: none !important;
     }
 
-    body {
+    body.is-printing-pitchbook {
         background: #ffffff !important;
         color: #000000 !important;
         margin: 0 !important;
@@ -11031,7 +11031,7 @@ tr.active-peer-row td:first-child {
         font-size: 11pt !important;
     }
 
-    #pitchbook-modal {
+    body.is-printing-pitchbook #pitchbook-modal {
         position: static !important;
         display: block !important;
         background: none !important;
@@ -11045,7 +11045,7 @@ tr.active-peer-row td:first-child {
         padding: 0 !important;
     }
 
-    #pitchbook-modal .modal-content {
+    body.is-printing-pitchbook #pitchbook-modal .modal-content {
         background: none !important;
         border: none !important;
         box-shadow: none !important;
@@ -11056,19 +11056,19 @@ tr.active-peer-row td:first-child {
         overflow: visible !important;
     }
 
-    #pitchbook-modal .modal-content > div:first-child {
+    body.is-printing-pitchbook #pitchbook-modal .modal-content > div:first-child {
         display: none !important; /* Hide preview header and action buttons on print */
     }
 
-    #pitchbook-content-pane {
+    body.is-printing-pitchbook #pitchbook-content-pane {
         overflow: visible !important;
         height: auto !important;
         width: 100% !important;
     }
 
     /* Force all elements inside print pane to black text and transparent background */
-    #pitchbook-content-pane,
-    #pitchbook-content-pane * {
+    body.is-printing-pitchbook #pitchbook-content-pane,
+    body.is-printing-pitchbook #pitchbook-content-pane * {
         color: #000000 !important;
         background: transparent !important;
         text-shadow: none !important;

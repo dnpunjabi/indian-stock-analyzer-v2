@@ -1341,13 +1341,17 @@ function setupEnterpriseHeader() {
             // Set new document title
             document.title = newTitle;
             
-            // Trigger browser print
-            window.print();
+            // Add pitchbook print class to body
+            document.body.classList.add('is-printing-pitchbook');
             
-            // Restore original title after a short delay (so the print dialog registers it)
+            // Defer print invocation to allow style recalculations to commit before blocking thread
             setTimeout(() => {
-                document.title = originalTitle;
-            }, 1000);
+                window.print();
+                setTimeout(() => {
+                    document.body.classList.remove('is-printing-pitchbook');
+                    document.title = originalTitle;
+                }, 1000);
+            }, 150);
         });
     }
 
@@ -1902,6 +1906,12 @@ function resetWorkspace() {
     // Disable export PDF report button
     const exportBtn = document.getElementById('export-pdf-btn');
     if (exportBtn) exportBtn.setAttribute('disabled', 'true');
+
+    // Clear pitchbook content pane and hide pitchbook button
+    const pitchbookContentPane = document.getElementById('pitchbook-content-pane');
+    if (pitchbookContentPane) pitchbookContentPane.innerHTML = '';
+    const pitchbookBtn = document.getElementById('export-pitchbook-btn');
+    if (pitchbookBtn) pitchbookBtn.style.display = 'none';
 
     // Navigate back to the Equity Research Terminal
     switchTab('analyzer');
@@ -4019,6 +4029,11 @@ async function loadStockAnalyzer(query, force_llm = false) {
     const pitchbookBtn = document.getElementById('export-pitchbook-btn');
     if (pitchbookBtn) {
         pitchbookBtn.style.display = 'none';
+    }
+
+    const pitchbookContentPane = document.getElementById('pitchbook-content-pane');
+    if (pitchbookContentPane) {
+        pitchbookContentPane.innerHTML = '';
     }
 
     setAnalyzeBtnLoading(true);
