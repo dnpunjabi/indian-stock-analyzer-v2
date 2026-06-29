@@ -22,7 +22,8 @@
     // Android TTS Done callback
     window.onAndroidTtsDone = function() {
         if (window.AndroidSpeechSpeaking && window.currentAdvisorSpeechButton) {
-            window.currentAdvisorSpeechButton.innerHTML = '🔊 Read Aloud';
+            const originalText = window.currentAdvisorSpeechButton.getAttribute('data-original-text') || '🔊 Read Aloud';
+            window.currentAdvisorSpeechButton.innerHTML = originalText;
             window.currentAdvisorSpeechButton.style.color = '';
             window.currentAdvisorSpeechButton.style.opacity = '';
             window.currentAdvisorSpeechButton = null;
@@ -1368,6 +1369,22 @@ function setupEnterpriseHeader() {
         pitchbookTriggerBtn.addEventListener('click', () => {
             if (activeStockProfile && activeStockProfile.ticker) {
                 generatePitchbook(activeStockProfile.ticker);
+            }
+        });
+    }
+
+    // Wire Pitchbook Read Aloud
+    const pitchbookReadAloudBtn = document.getElementById('pitchbook-read-aloud-btn');
+    if (pitchbookReadAloudBtn) {
+        pitchbookReadAloudBtn.addEventListener('click', () => {
+            const contentPane = document.getElementById('pitchbook-content-pane');
+            if (contentPane) {
+                const text = contentPane.innerText;
+                if (!text || text.trim() === '') {
+                    showToast("No pitchbook content to read.", "warning");
+                    return;
+                }
+                toggleSpeechForMessage(text, pitchbookReadAloudBtn);
             }
         });
     }
@@ -11131,11 +11148,16 @@ let currentAdvisorSpeechButton = null;
 function toggleSpeechForMessage(text, button) {
     const isAndroidTts = window.AndroidTts && typeof window.AndroidTts.speak === 'function';
 
+    if (!button.hasAttribute('data-original-text')) {
+        button.setAttribute('data-original-text', button.innerHTML);
+    }
+
     if (isAndroidTts) {
         if (window.AndroidSpeechSpeaking && window.currentAdvisorSpeechButton === button) {
             window.AndroidTts.stop();
             window.AndroidSpeechSpeaking = false;
-            button.innerHTML = '🔊 Read Aloud';
+            const originalText = button.getAttribute('data-original-text') || '🔊 Read Aloud';
+            button.innerHTML = originalText;
             button.style.color = '';
             button.style.opacity = '';
             return;
@@ -11189,7 +11211,8 @@ function toggleSpeechForMessage(text, button) {
     };
 
     const restoreButton = () => {
-        button.innerHTML = '🔊 Read Aloud';
+        const originalText = button.getAttribute('data-original-text') || '🔊 Read Aloud';
+        button.innerHTML = originalText;
         button.style.color = '';
         button.style.opacity = '';
         if (currentAdvisorSpeechButton === button) {
@@ -17267,6 +17290,19 @@ function setupPortfolioDoctor() {
     }
 
 
+
+    // Portfolio Doctor Read Aloud
+    const doctorReadAloudBtn = document.getElementById('portfolio-doctor-read-aloud-btn');
+    if (doctorReadAloudBtn) {
+        doctorReadAloudBtn.addEventListener('click', () => {
+            const prescriptionContent = document.getElementById('portfolio-prescription-content')?.innerText;
+            if (!prescriptionContent || prescriptionContent.trim() === '' || prescriptionContent.includes('Diagnostic text loaded here')) {
+                showToast("Please run the Portfolio Health Analysis first.", "warning");
+                return;
+            }
+            toggleSpeechForMessage(prescriptionContent, doctorReadAloudBtn);
+        });
+    }
 
     // Implement Premium Print Portfolio Diagnostics Report PDF Exporter
     const printPortfolioBtn = document.getElementById('print-portfolio-report-btn');
@@ -28879,6 +28915,7 @@ async function loadPortfolioNewsImpact(symbol, forceRefresh = false, runLLM = fa
                         <span>🕒 ${item.date || 'Today'}</span>
                     </div>
                     <div class="news-card-badges">
+                        <button class="news-card-read-aloud-btn" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:10px; padding: 2px; display:inline-flex; align-items:center; opacity:0.75; transition: opacity 0.2s;" title="Read Headline Aloud">🔊 Listen</button>
                         <span class="badge-sentiment ${sentimentClass}">${sentimentText}</span>
                         <span class="badge-driver">${item.category || 'General'}</span>
                         ${arHTML}
@@ -28892,6 +28929,16 @@ async function loadPortfolioNewsImpact(symbol, forceRefresh = false, runLLM = fa
             `;
 
             newsFeed.appendChild(card);
+
+            const listenBtn = card.querySelector('.news-card-read-aloud-btn');
+            if (listenBtn) {
+                listenBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const speechText = `${item.title}. Publisher: ${item.publisher || 'Financial Feed'}. Sentiment is ${sentimentText}.`;
+                    toggleSpeechForMessage(speechText, listenBtn);
+                });
+            }
         });
 
         if (countAll) countAll.innerText = data.news_items.length;
@@ -28995,6 +29042,20 @@ function setupGlobalMarketNewsControls() {
             e.preventDefault();
             e.stopPropagation();
             loadGlobalMarketNews(true, true);
+        });
+    }
+
+    // AI read aloud button
+    const newsReadAloudBtn = document.getElementById('market-news-ai-read-aloud-btn');
+    if (newsReadAloudBtn) {
+        newsReadAloudBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const synthesis = document.getElementById('market-news-ai-synthesis').innerText;
+            const drivers = Array.from(document.querySelectorAll('#market-news-ai-drivers li'))
+                                 .map(li => li.innerText).join('. ');
+            const speechText = `Global Market News Summary: ${synthesis}. Key Drivers: ${drivers}`;
+            toggleSpeechForMessage(speechText, newsReadAloudBtn);
         });
     }
 }
@@ -29505,6 +29566,33 @@ function setupLearningAcademy() {
     if (backBtn && tabLearning) {
         backBtn.addEventListener('click', () => {
             tabLearning.classList.remove('academy-show-detail');
+        });
+    }
+
+    // Read Aloud Article Listener
+    const academyReadAloudBtn = document.getElementById('academy-read-aloud-btn');
+    if (academyReadAloudBtn) {
+        academyReadAloudBtn.addEventListener('click', () => {
+            const topicId = academyActiveTopicId;
+            if (!topicId) return;
+            const module = ACADEMY_CATALOG.find(m => m.id === topicId);
+            if (!module) return;
+            
+            const laymanData = (typeof ACADEMY_LAYMAN_DETAILS !== 'undefined' && ACADEMY_LAYMAN_DETAILS[topicId]) || {
+                analogy: "",
+                takeaway: ""
+            };
+            
+            const title = module.title;
+            const explanation = document.getElementById('academy-explanation-body').innerText;
+            const formula = document.getElementById('academy-formula-body').innerText;
+            
+            let laymanText = "";
+            if (laymanData.analogy) laymanText += ` Analogy: ${laymanData.analogy}.`;
+            if (laymanData.takeaway) laymanText += ` Takeaway: ${laymanData.takeaway}.`;
+            
+            const fullText = `Learning Topic: ${title}. Concept: ${explanation}. Calculations: ${formula}.${laymanText}`;
+            toggleSpeechForMessage(fullText, academyReadAloudBtn);
         });
     }
 

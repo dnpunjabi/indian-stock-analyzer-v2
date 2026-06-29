@@ -930,6 +930,7 @@
                 <div id="market-news-ai-briefing-wrap" class="card" style="display: none; margin-bottom: 20px; border-left: 4px solid #7c3aed; background: rgba(124, 58, 237, 0.04); border-color: #7c3aed; padding: 20px; box-shadow: 0 4px 15px rgba(124, 58, 237, 0.08);">
                     <h4 style="margin-top: 0; margin-bottom: 12px; font-size: 13.5px; color: #a855f7; display: flex; align-items: center; gap: 8px; font-family: 'Outfit', sans-serif; letter-spacing: 0.04em; text-transform: uppercase; border-bottom: 1px dashed var(--border-glass); padding-bottom: 10px;">
                         <span>✨ AI MARKET INTELLIGENCE SYNTHESIS</span>
+                        <button id="market-news-ai-read-aloud-btn" class="no-print" style="margin-left: 12px; background: rgba(168,85,247,0.12); color: #c084fc; border: 1px solid rgba(168,85,247,0.3); padding: 3px 8px; font-size: 9.5px; border-radius: 4px; cursor: pointer; font-family: 'Outfit', sans-serif; font-weight: 700; transition: all 0.2s;">🔊 Play Briefing</button>
                         <span id="market-news-ai-time-badge" style="font-size: 9px; color: var(--text-muted); text-transform: uppercase; margin-left: auto; font-family: monospace;">Audited Just Now</span>
                     </h4>
                     <p id="market-news-ai-synthesis" style="font-size: 12px; line-height: 1.65; color: var(--text-primary); margin-bottom: 15px;">
@@ -4811,7 +4812,10 @@
                         <div id="portfolio-doctor-prescription-box" style="display: none; margin-top: 25px; border-top: 1px dashed var(--border-glass); padding-top: 20px;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                                 <h4 style="font-size: 13px; color: var(--neon-green); border-left: 3px solid var(--neon-green); padding-left: 10px; text-transform: uppercase; letter-spacing: 0.05em; margin: 0;">Actionable Doctor's Prescription</h4>
-                                <button class="btn-secondary no-print" id="print-portfolio-report-btn" style="font-size: 11px; padding: 5px 10px; height: auto; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; font-weight:600;"><span style="font-size: 12px;">🖨️</span> Print Diagnostic Report</button>
+                                <div style="display: flex; gap: 8px;">
+                                    <button class="btn-secondary no-print" id="portfolio-doctor-read-aloud-btn" style="font-size: 11px; padding: 5px 10px; height: auto; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; font-weight:600; background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.3); color: #34d399;">🔊 Listen</button>
+                                    <button class="btn-secondary no-print" id="print-portfolio-report-btn" style="font-size: 11px; padding: 5px 10px; height: auto; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; font-weight:600;"><span style="font-size: 12px;">🖨️</span> Print Diagnostic Report</button>
+                                </div>
                             </div>
                             <div id="portfolio-prescription-content" style="font-size: 12.5px; line-height: 1.6; color: var(--text-muted); background: rgba(255,255,255,0.01); border: 1px solid var(--border-glass); padding: 20px; border-radius: 8px; max-height: 400px; overflow-y: auto;">
                                 <!-- Diagnostic text loaded here -->
@@ -5865,6 +5869,7 @@
                                     </div>
                                 </div>
                                 <div class="academy-topic-header-right" style="display: flex; gap: 8px; align-items: center;">
+                                    <button id="academy-read-aloud-btn" class="academy-action-btn" style="background: rgba(37,99,235,0.1); color: var(--color-primary-light); border: 1px solid rgba(37,99,235,0.35);">🔊 Listen</button>
                                     <button id="academy-draw-toggle-btn" class="academy-action-btn" title="Toggle Drawing Mode">✏️ Draw</button>
                                     <button id="academy-mark-complete-btn" class="academy-action-btn">✅ Mark Complete</button>
                                 </div>
@@ -6146,6 +6151,7 @@
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid var(--border-glass); padding-bottom:10px;">
                 <h3 style="margin:0; font-family:'Outfit',sans-serif; color:var(--text-primary); font-size:14px; text-transform:uppercase; font-weight: 700; letter-spacing: 0.05em;">Institutional Pitchbook Preview</h3>
                 <div style="display:flex; gap:10px;">
+                    <button id="pitchbook-read-aloud-btn" class="action-btn" style="background:rgba(124, 58, 237, 0.15); color:#a78bfa; border:1px solid rgba(124, 58, 237, 0.3); padding:6px 12px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;">🔊 Listen</button>
                     <button id="pitchbook-print-btn" class="action-btn" style="background:var(--color-primary); color:white; border:none; padding:6px 12px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;">📥 Print / Save PDF</button>
                     <button id="pitchbook-close-btn" class="action-btn" style="background:rgba(255,255,255,0.05); color:var(--text-primary); border:1px solid var(--border-glass); padding:6px 12px; border-radius:4px; font-size:11px; cursor:pointer;">✕ Close</button>
                 </div>
