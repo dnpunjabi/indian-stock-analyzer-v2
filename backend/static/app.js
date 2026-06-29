@@ -24940,13 +24940,14 @@ function startAudioPlayback() {
     const playPauseBtn = document.getElementById('audio-play-pause-btn');
     const statusText = document.getElementById('audio-playback-status');
 
-    if (!window.speechSynthesis) {
+    const isAndroidTts = window.AndroidTts && typeof window.AndroidTts.speak === 'function';
+    if (!window.speechSynthesis && !isAndroidTts) {
         showToast("Web Speech API is not supported in this browser.", "warning");
         return;
     }
 
     // If paused, resume
-    if (window.speechSynthesis.paused && currentSpeechIndex !== -1) {
+    if (window.speechSynthesis && window.speechSynthesis.paused && currentSpeechIndex !== -1) {
         window.speechSynthesis.resume();
         isSpeechPlaying = true;
         if (playPauseBtn) {
@@ -24956,6 +24957,18 @@ function startAudioPlayback() {
         if (statusText) {
             statusText.innerText = `Speaking: ${speechQueue[currentSpeechIndex].agentName}`;
         }
+        return;
+    } else if (isAndroidTts && currentSpeechIndex !== -1 && !isSpeechPlaying) {
+        // Resume fallback for native Android TTS (restart current segment)
+        isSpeechPlaying = true;
+        if (playPauseBtn) {
+            playPauseBtn.innerHTML = '<span>⏸️</span> Pause';
+            playPauseBtn.classList.add('active');
+        }
+        if (statusText) {
+            statusText.innerText = `Speaking: ${speechQueue[currentSpeechIndex].agentName}`;
+        }
+        window.AndroidTts.speak(speechQueue[currentSpeechIndex].text, "segment_" + currentSpeechIndex);
         return;
     }
 

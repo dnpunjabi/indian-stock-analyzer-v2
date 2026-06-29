@@ -184,13 +184,22 @@ class TtsInterface implements TextToSpeech.OnInitListener {
     TtsInterface(MainActivity a, WebView w) {
         mActivity = a;
         mWebView = w;
-        mTts = new TextToSpeech(mActivity, this);
+        mActivity.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                mTts = new TextToSpeech(mActivity, TtsInterface.this);
+            }
+        });
     }
 
     @Override
     public void onInit(int status) {
         if (status == TextToSpeech.SUCCESS) {
-            mTts.setLanguage(Locale.US);
+            int result = mTts.setLanguage(Locale.US);
+            if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                android.util.Log.w("StockAnalyzerTTS", "Locale.US not supported, falling back to default locale.");
+                mTts.setLanguage(Locale.getDefault());
+            }
             mInitialized = true;
             mTts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
                 @Override
@@ -205,24 +214,40 @@ class TtsInterface implements TextToSpeech.OnInitListener {
                     });
                 }
                 @Override
-                public void onError(String utteranceId) {}
+                public void onError(String utteranceId) {
+                    android.util.Log.e("StockAnalyzerTTS", "TTS Utterance error: " + utteranceId);
+                }
             });
+        } else {
+            android.util.Log.e("StockAnalyzerTTS", "TTS Initialization failed with status: " + status);
         }
     }
 
     @JavascriptInterface
     public void speak(final String text, final String utteranceId) {
-        if (mInitialized) {
-            Bundle params = new Bundle();
-            params.putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, utteranceId);
-            mTts.speak(text, TextToSpeech.QUEUE_FLUSH, params, utteranceId);
-        }
+        mActivity.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                if (mInitialized) {
+                    Bundle params = new Bundle();
+                    params.putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, utteranceId);
+                    mTts.speak(text, TextToSpeech.QUEUE_FLUSH, params, utteranceId);
+                } else {
+                    android.util.Log.e("StockAnalyzerTTS", "TTS speak called but not initialized yet.");
+                }
+            }
+        });
     }
 
     @JavascriptInterface
     public void stop() {
-        if (mInitialized) {
-            mTts.stop();
-        }
+        mActivity.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                if (mInitialized) {
+                    mTts.stop();
+                }
+            }
+        });
     }
 }
