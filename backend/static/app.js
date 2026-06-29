@@ -1415,7 +1415,7 @@ function setupEnterpriseHeader() {
                     showToast("No pitchbook content to read.", "warning");
                     return;
                 }
-                toggleSpeechForMessage(text, pitchbookReadAloudBtn);
+                window.SpeechPlayer.startSpeakingSection("pitchbook-content-pane", "Pitchbook Summary");
             }
         });
     }
@@ -17921,7 +17921,7 @@ function setupPortfolioDoctor() {
                 showToast("Please run the Portfolio Health Analysis first.", "warning");
                 return;
             }
-            toggleSpeechForMessage(prescriptionContent, doctorReadAloudBtn);
+            window.SpeechPlayer.startSpeakingSection("portfolio-prescription-content", "Doctor's Prescription");
         });
     }
 
@@ -29682,7 +29682,7 @@ function setupGlobalMarketNewsControls() {
             const drivers = Array.from(document.querySelectorAll('#market-news-ai-drivers li'))
                                  .map(li => li.innerText).join('. ');
             const speechText = `Global Market News Summary: ${synthesis}. Key Drivers: ${drivers}`;
-            toggleSpeechForMessage(speechText, newsReadAloudBtn);
+            window.SpeechPlayer.startSpeakingSection(speechText, "Market Intelligence", true);
         });
     }
 }
@@ -30219,7 +30219,7 @@ function setupLearningAcademy() {
             if (laymanData.takeaway) laymanText += ` Takeaway: ${laymanData.takeaway}.`;
             
             const fullText = `Learning Topic: ${title}. Concept: ${explanation}. Calculations: ${formula}.${laymanText}`;
-            toggleSpeechForMessage(fullText, academyReadAloudBtn);
+            window.SpeechPlayer.startSpeakingSection(fullText, "Learning Academy", true);
         });
     }
 
