@@ -5845,7 +5845,7 @@ async function updateInteractiveCaptureCard(p, customYears) {
                 <div style="margin-bottom: 8px;">
                     ${summaryText}
                 </div>
-                <div style="font-size:11px; color:var(--text-muted); line-height: 1.45; border-left: 2.5px solid var(--color-primary); padding-left: 8px; margin-top: 8px; background: rgba(59, 130, 246, 0.03); padding-top: 5px; padding-bottom: 5px; border-radius: 0 4px 4px 0; width: 100%; box-sizing: border-box;">
+                <div class="capture-layman-box">
                     💡 <strong>Layman Translation:</strong> ${laymanDescription}
                 </div>
             `;

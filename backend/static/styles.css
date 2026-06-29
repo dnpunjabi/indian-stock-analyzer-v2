@@ -14165,6 +14165,47 @@ details[open] .academy-hud-arrow {
     border-color: #ef4444 !important;
 }
 
+/* Capture Ratios Profile Summary Theme Overhaul */
+.capture-summary-box {
+    margin-top: 15px;
+    padding: 12px;
+    background: rgba(var(--primary-rgb), 0.04);
+    border-left: 3px solid var(--color-primary);
+    border-top: 1px solid var(--border-glass);
+    border-right: 1px solid var(--border-glass);
+    border-bottom: 1px solid var(--border-glass);
+    border-radius: 0 6px 6px 0;
+    width: 100%;
+    box-sizing: border-box;
+    color: #e2e8f0 !important; /* High contrast off-white for dark themes */
+}
+
+.capture-layman-box {
+    font-size: 11px;
+    color: #cbd5e1 !important; /* Legible secondary off-white for layman description in dark themes */
+    line-height: 1.45;
+    border-left: 2px solid var(--color-primary);
+    padding-left: 8px;
+    margin-top: 8px;
+    background: rgba(var(--primary-rgb), 0.02);
+    padding-top: 5px;
+    padding-bottom: 5px;
+    border-radius: 0 4px 4px 0;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Light Theme Overrides */
+[data-theme="light"] .capture-summary-box,
+[data-mode="light"] .capture-summary-box {
+    color: #1e293b !important; /* Dark slate for high visibility in light mode */
+}
+
+[data-theme="light"] .capture-layman-box,
+[data-mode="light"] .capture-layman-box {
+    color: #334155 !important; /* Medium dark slate for light mode */
+}
+
 @media (max-width: 600px) {
     /* Optimize Touch Targets for Utilities Bar */
     .header-bell-wrapper, .header-settings-wrapper, .header-links-wrapper {
