@@ -210,12 +210,14 @@ class TtsInterface implements TextToSpeech.OnInitListener {
                 public void onStart(String utteranceId) {}
                 @Override
                 public void onDone(final String utteranceId) {
-                    mWebView.post(new Runnable() {
-                        @Override
-                        public void run() {
-                            mWebView.evaluateJavascript("window.onAndroidTtsDone()", null);
-                        }
-                    });
+                    if (!utteranceId.contains("_part_")) {
+                        mWebView.post(new Runnable() {
+                            @Override
+                            public void run() {
+                                mWebView.evaluateJavascript("window.onAndroidTtsDone()", null);
+                            }
+                        });
+                    }
                 }
                 @Override
                 public void onError(String utteranceId) {
@@ -233,9 +235,35 @@ class TtsInterface implements TextToSpeech.OnInitListener {
             @Override
             public void run() {
                 if (mInitialized) {
-                    Bundle params = new Bundle();
-                    params.putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, utteranceId);
-                    mTts.speak(text, TextToSpeech.QUEUE_FLUSH, params, utteranceId);
+                    int maxLength = 2000;
+                    ArrayList<String> chunks = new ArrayList<>();
+                    String[] paragraphs = text.split("\n");
+                    for (String p : paragraphs) {
+                        p = p.trim();
+                        if (p.isEmpty()) continue;
+                        
+                        if (p.length() > maxLength) {
+                            int start = 0;
+                            while (start < p.length()) {
+                                int end = Math.min(start + maxLength, p.length());
+                                chunks.add(p.substring(start, end));
+                                start = end;
+                            }
+                        } else {
+                            chunks.add(p);
+                        }
+                    }
+                    
+                    if (chunks.isEmpty()) return;
+                    
+                    for (int i = 0; i < chunks.size(); i++) {
+                        String chunk = chunks.get(i);
+                        String chunkId = (i == chunks.size() - 1) ? utteranceId : utteranceId + "_part_" + i;
+                        Bundle params = new Bundle();
+                        params.putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, chunkId);
+                        int queueMode = (i == 0) ? TextToSpeech.QUEUE_FLUSH : TextToSpeech.QUEUE_ADD;
+                        mTts.speak(chunk, queueMode, params, chunkId);
+                    }
                 } else {
                     android.util.Log.e("StockAnalyzerTTS", "TTS speak called but not initialized yet.");
                 }
