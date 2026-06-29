@@ -637,7 +637,7 @@ async def fetch_yfinance_ticks(symbols: List[str]) -> Dict[str, Dict]:
         df = await asyncio.to_thread(
             yf.download,
             symbols,
-            period="2d",
+            period="5d",
             interval="1d",
             progress=False,
             threads=True

@@ -807,7 +807,7 @@ async def run_background_market_movers_updater():
             loop = asyncio.get_event_loop()
             df_indices = await loop.run_in_executor(
                 None, 
-                lambda: yf.download(indices_tickers, period="2d", interval="1d", progress=False)
+                lambda: yf.download(indices_tickers, period="5d", interval="1d", progress=False)
             )
             
             parsed_indices = []
@@ -844,7 +844,7 @@ async def run_background_market_movers_updater():
             
             df_stocks = await loop.run_in_executor(
                 None, 
-                lambda: yf.download(stocks_tickers, period="2d", interval="1d", progress=False, threads=12)
+                lambda: yf.download(stocks_tickers, period="5d", interval="1d", progress=False, threads=12)
             )
             
             parsed_stocks = []
@@ -4908,7 +4908,7 @@ async def batch_quotes(data: BatchQuotesRequest):
             df = await asyncio.to_thread(
                 yf.download,
                 yf_symbols,
-                period="2d",
+                period="5d",
                 interval="1d",
                 progress=False,
                 threads=12
