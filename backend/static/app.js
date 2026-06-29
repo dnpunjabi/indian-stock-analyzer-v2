@@ -15,9 +15,58 @@
     // Expose print fallback if running inside native Android WebView
     if (window.AndroidPrint && typeof window.AndroidPrint.print === 'function') {
         window.print = function() {
-            window.AndroidPrint.print();
+            window.AndroidPrint.print(document.title);
         };
     }
+
+    // Android TTS Done callback
+    window.onAndroidTtsDone = function() {
+        if (window.AndroidSpeechSpeaking && window.currentAdvisorSpeechButton) {
+            window.currentAdvisorSpeechButton.innerHTML = '🔊 Read Aloud';
+            window.currentAdvisorSpeechButton.style.color = '';
+            window.currentAdvisorSpeechButton.style.opacity = '';
+            window.currentAdvisorSpeechButton = null;
+            window.AndroidSpeechSpeaking = false;
+        } else if (typeof speakNextSegment === 'function') {
+            speakNextSegment();
+        }
+    };
+
+    // Android Speech callbacks
+    window.onAndroidSpeechStart = function() {
+        window.AndroidSpeechListening = true;
+        const micBtn = document.getElementById('chat-mic-btn');
+        if (micBtn) {
+            micBtn.innerHTML = '🔴';
+            micBtn.classList.add('mic-listening');
+        }
+    };
+    window.onAndroidSpeechEnd = function() {
+        window.AndroidSpeechListening = false;
+        const micBtn = document.getElementById('chat-mic-btn');
+        if (micBtn) {
+            micBtn.innerHTML = '🎙️';
+            micBtn.classList.remove('mic-listening');
+        }
+    };
+    window.onAndroidSpeechError = function(errorMsg) {
+        window.AndroidSpeechListening = false;
+        const micBtn = document.getElementById('chat-mic-btn');
+        if (micBtn) {
+            micBtn.innerHTML = '🎙️';
+            micBtn.classList.remove('mic-listening');
+        }
+        console.error(errorMsg);
+        if (typeof showToast === 'function') {
+            showToast(errorMsg, "error");
+        }
+    };
+    window.onAndroidSpeechResult = function(transcript) {
+        const input = document.getElementById('chat-user-input');
+        if (input) {
+            input.value = (input.value ? input.value + ' ' : '') + transcript;
+        }
+    };
     
     let isLoginModalOpen = false;
     function showServerLoginModal() {
@@ -10055,8 +10104,18 @@ function setupChatDrawer() {
     let isListening = false;
 
     if (micBtn) {
+        const isAndroidSpeech = window.AndroidSpeech && typeof window.AndroidSpeech.startListening === 'function';
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRecognition) {
+        
+        if (isAndroidSpeech) {
+            micBtn.addEventListener('click', () => {
+                if (window.AndroidSpeechListening) {
+                    window.AndroidSpeech.stopListening();
+                } else {
+                    window.AndroidSpeech.startListening();
+                }
+            });
+        } else if (!SpeechRecognition) {
             micBtn.style.display = 'none'; // Hide if browser doesn't support
         } else {
             recognition = new SpeechRecognition();
@@ -11070,6 +11129,36 @@ let currentAdvisorUtterance = null;
 let currentAdvisorSpeechButton = null;
 
 function toggleSpeechForMessage(text, button) {
+    const isAndroidTts = window.AndroidTts && typeof window.AndroidTts.speak === 'function';
+
+    if (isAndroidTts) {
+        if (window.AndroidSpeechSpeaking && window.currentAdvisorSpeechButton === button) {
+            window.AndroidTts.stop();
+            window.AndroidSpeechSpeaking = false;
+            button.innerHTML = '🔊 Read Aloud';
+            button.style.color = '';
+            button.style.opacity = '';
+            return;
+        }
+        
+        window.speechSynthesis.cancel();
+        window.AndroidTts.stop();
+        
+        const cleanText = text
+            .replace(/<\/?[^>]+(>|$)/g, "") // strip html tags
+            .replace(/\*\*|###|\*|\|/g, "")  // strip basic markdown symbols
+            .replace(/\[ACTIONS_PAYLOAD\].*$/g, "") // strip action payloads
+            .trim();
+            
+        window.AndroidSpeechSpeaking = true;
+        window.currentAdvisorSpeechButton = button;
+        button.innerHTML = '⏹️ Stop';
+        button.style.color = '#ef4444';
+        button.style.opacity = '1';
+        window.AndroidTts.speak(cleanText, "advisor_chat");
+        return;
+    }
+
     if (!window.speechSynthesis) {
         showToast("Speech synthesis is not supported on this browser.", "warning");
         return;
@@ -24741,6 +24830,9 @@ function stopAudioPlayback() {
     if (window.speechSynthesis) {
         window.speechSynthesis.cancel();
     }
+    if (window.AndroidTts && typeof window.AndroidTts.stop === 'function') {
+        window.AndroidTts.stop();
+    }
     isSpeechPlaying = false;
     currentSpeechIndex = -1;
     currentUtterance = null;
@@ -24760,6 +24852,9 @@ function pauseAudioPlayback() {
 
     if (window.speechSynthesis) {
         window.speechSynthesis.pause();
+    }
+    if (window.AndroidTts && typeof window.AndroidTts.stop === 'function') {
+        window.AndroidTts.stop();
     }
     isSpeechPlaying = false;
 
@@ -24788,6 +24883,11 @@ function speakNextSegment() {
     const segment = speechQueue[currentSpeechIndex];
     if (statusText) {
         statusText.innerText = `Speaking: ${segment.agentName}`;
+    }
+
+    if (window.AndroidTts && typeof window.AndroidTts.speak === 'function') {
+        window.AndroidTts.speak(segment.text, "segment_" + currentSpeechIndex);
+        return;
     }
 
     currentUtterance = new SpeechSynthesisUtterance(segment.text);

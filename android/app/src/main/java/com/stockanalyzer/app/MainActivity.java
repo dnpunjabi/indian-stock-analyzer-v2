@@ -1,15 +1,31 @@
 package com.stockanalyzer.app;
 
+import android.Manifest;
 import android.content.Context;
+import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.print.PrintAttributes;
 import android.print.PrintDocumentAdapter;
 import android.print.PrintManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
 import android.os.Bundle;
+import android.speech.RecognitionListener;
+import android.speech.RecognizerIntent;
+import android.speech.SpeechRecognizer;
+import android.speech.tts.TextToSpeech;
+import android.speech.tts.UtteranceProgressListener;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import com.getcapacitor.BridgeActivity;
+import java.util.ArrayList;
+import java.util.Locale;
 
 public class MainActivity extends BridgeActivity {
+    private WebAppInterface printInterface;
+    private SpeechInterface speechInterface;
+    private TtsInterface ttsInterface;
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -20,7 +36,29 @@ public class MainActivity extends BridgeActivity {
         super.onStart();
         WebView webView = this.bridge.getWebView();
         if (webView != null) {
-            webView.addJavascriptInterface(new WebAppInterface(this, webView), "AndroidPrint");
+            printInterface = new WebAppInterface(this, webView);
+            speechInterface = new SpeechInterface(this, webView);
+            ttsInterface = new TtsInterface(this, webView);
+
+            webView.addJavascriptInterface(printInterface, "AndroidPrint");
+            webView.addJavascriptInterface(speechInterface, "AndroidSpeech");
+            webView.addJavascriptInterface(ttsInterface, "AndroidTts");
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == 101 && grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            WebView webView = this.bridge.getWebView();
+            if (webView != null) {
+                webView.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        webView.evaluateJavascript("window.AndroidSpeech.startListening()", null);
+                    }
+                });
+            }
         }
     }
 }
@@ -35,15 +73,156 @@ class WebAppInterface {
     }
 
     @JavascriptInterface
-    public void print() {
+    public void print(final String docName) {
         mWebView.post(new Runnable() {
             @Override
             public void run() {
                 PrintManager printManager = (PrintManager) mContext.getSystemService(Context.PRINT_SERVICE);
-                PrintDocumentAdapter printAdapter = mWebView.createPrintDocumentAdapter("Stock Analyzer Report");
-                String jobName = "Stock Analyzer Document";
-                printManager.print(jobName, printAdapter, new PrintAttributes.Builder().build());
+                String name = (docName != null && !docName.isEmpty()) ? docName : "Stock Analyzer Report";
+                PrintDocumentAdapter printAdapter = mWebView.createPrintDocumentAdapter(name);
+                printManager.print(name, printAdapter, new PrintAttributes.Builder().build());
             }
         });
+    }
+}
+
+class SpeechInterface {
+    MainActivity mActivity;
+    WebView mWebView;
+    SpeechRecognizer mSpeechRecognizer;
+    Intent mSpeechRecognizerIntent;
+
+    SpeechInterface(MainActivity a, WebView w) {
+        mActivity = a;
+        mWebView = w;
+        
+        mActivity.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                mSpeechRecognizer = SpeechRecognizer.createSpeechRecognizer(mActivity);
+                mSpeechRecognizerIntent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+                mSpeechRecognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+                mSpeechRecognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-US");
+
+                mSpeechRecognizer.setRecognitionListener(new RecognitionListener() {
+                    @Override
+                    public void onReadyForSpeech(Bundle params) {
+                        sendToJs("window.onAndroidSpeechStart()");
+                    }
+                    @Override
+                    public void onBeginningOfSpeech() {}
+                    @Override
+                    public void onRmsChanged(float rmsdB) {}
+                    @Override
+                    public void onBufferReceived(byte[] buffer) {}
+                    @Override
+                    public void onEndOfSpeech() {
+                        sendToJs("window.onAndroidSpeechEnd()");
+                    }
+                    @Override
+                    public void onError(int error) {
+                        String errorMsg = "Speech recognition error " + error;
+                        sendToJs("window.onAndroidSpeechError('" + errorMsg + "')");
+                    }
+                    @Override
+                    public void onResults(Bundle results) {
+                        ArrayList<String> matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+                        if (matches != null && matches.size() > 0) {
+                            String speechText = matches.get(0).replace("'", "\\'");
+                            sendToJs("window.onAndroidSpeechResult('" + speechText + "')");
+                        }
+                    }
+                    @Override
+                    public void onPartialResults(Bundle partialResults) {}
+                    @Override
+                    public void onEvent(int eventType, Bundle params) {}
+                });
+            }
+        });
+    }
+
+    private void sendToJs(final String script) {
+        mWebView.post(new Runnable() {
+            @Override
+            public void run() {
+                mWebView.evaluateJavascript(script, null);
+            }
+        });
+    }
+
+    @JavascriptInterface
+    public void startListening() {
+        mActivity.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                if (ContextCompat.checkSelfPermission(mActivity, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                    ActivityCompat.requestPermissions(mActivity, new String[]{Manifest.permission.RECORD_AUDIO}, 101);
+                } else {
+                    mSpeechRecognizer.startListening(mSpeechRecognizerIntent);
+                }
+            }
+        });
+    }
+
+    @JavascriptInterface
+    public void stopListening() {
+        mActivity.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                mSpeechRecognizer.stopListening();
+            }
+        });
+    }
+}
+
+class TtsInterface implements TextToSpeech.OnInitListener {
+    MainActivity mActivity;
+    WebView mWebView;
+    TextToSpeech mTts;
+    boolean mInitialized = false;
+
+    TtsInterface(MainActivity a, WebView w) {
+        mActivity = a;
+        mWebView = w;
+        mTts = new TextToSpeech(mActivity, this);
+    }
+
+    @Override
+    public void onInit(int status) {
+        if (status == TextToSpeech.SUCCESS) {
+            mTts.setLanguage(Locale.US);
+            mInitialized = true;
+            mTts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+                @Override
+                public void onStart(String utteranceId) {}
+                @Override
+                public void onDone(final String utteranceId) {
+                    mWebView.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            mWebView.evaluateJavascript("window.onAndroidTtsDone()", null);
+                        }
+                    });
+                }
+                @Override
+                public void onError(String utteranceId) {}
+            });
+        }
+    }
+
+    @JavascriptInterface
+    public void speak(final String text, final String utteranceId) {
+        if (mInitialized) {
+            Bundle params = new Bundle();
+            params.putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, utteranceId);
+            mTts.speak(text, TextToSpeech.QUEUE_FLUSH, params, utteranceId);
+        }
+    }
+
+    @JavascriptInterface
+    public void stop() {
+        if (mInitialized) {
+            mTts.stop();
+        }
     }
 }
