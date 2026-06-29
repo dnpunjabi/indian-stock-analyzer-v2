@@ -282,4 +282,16 @@ class TtsInterface implements TextToSpeech.OnInitListener {
             }
         });
     }
+
+    @JavascriptInterface
+    public void setSpeechRate(final float rate) {
+        mActivity.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                if (mInitialized) {
+                    mTts.setSpeechRate(rate);
+                }
+            }
+        });
+    }
 }

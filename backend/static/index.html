@@ -451,6 +451,7 @@
                         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
                             <span style="font-family: 'Outfit'; font-size: 12px; font-weight: 700; color: #a5b4fc; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px;">
                                 🧠 AI Rotational Intelligence (On-Demand)
+                                <button class="section-speak-btn" data-target="sector-ai-content" data-title="Rotational Intelligence">🔊</button>
                             </span>
                             <button id="sector-ai-btn" class="btn-primary" style="font-family: 'Outfit'; font-weight: 700; font-size: 11px; height: 28px; padding: 0 12px; border-radius: 6px; background: var(--color-primary); color: #000; cursor: pointer; border: none; transition: all 0.2s; display: inline-flex; align-items: center; gap: 4px;">
                                 <span id="sector-ai-spinner" style="display: none; width: 10px; height: 10px; border: 2px solid #000; border-top-color: transparent; border-radius: 50%; animation: spin 0.6s linear infinite; margin-right: 4px;"></span>
@@ -467,9 +468,12 @@
                             <div id="sector-ai-chat-stream" style="max-height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; background: rgba(0,0,0,0.2); border-radius: 6px; padding: 10px; border: 1px solid rgba(255,255,255,0.03); box-sizing: border-box; font-family: 'Inter', sans-serif; font-size: 11.5px; line-height: 1.45; color: var(--text-secondary);">
                                 <!-- Message bubbles populated dynamically -->
                             </div>
-                            <div style="display: flex; gap: 8px; align-items: center;">
-                                <input type="text" id="sector-ai-chat-input" placeholder="Ask a follow-up question (e.g. 'Compare Energy vs IT' or 'Suggest small cap value candidates')" style="flex: 1; background: rgba(0,0,0,0.3); border: 1px solid var(--border-glass); border-radius: 6px; padding: 8px 12px; color: var(--text-primary); font-size: 11.5px; outline: none; font-family: 'Inter', sans-serif;">
-                                <button id="sector-ai-chat-send" class="btn-primary" style="height: 32px; padding: 0 14px; border-radius: 6px; font-weight: 700; font-size: 11px; cursor: pointer; border: none; background: var(--color-primary); color: #000; font-family: 'Outfit', sans-serif;">Send</button>
+                            <div style="display: flex; gap: 8px; align-items: center; width: 100%;">
+                                <div class="analyzer-input-wrap" style="position: relative; flex: 1; display: flex; align-items: center;">
+                                    <input type="text" id="sector-ai-chat-input" placeholder="Ask a follow-up question (e.g. 'Compare Energy vs IT' or 'Suggest small cap value candidates')" style="width: 100%; padding-right: 40px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-glass); border-radius: 6px; padding: 8px 40px 8px 12px; color: var(--text-primary); font-size: 11.5px; outline: none; font-family: 'Inter', sans-serif; box-sizing: border-box; height: 32px;">
+                                    <button id="sector-ai-voice-btn" class="input-mic-btn" style="position: absolute; right: 10px; background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 12px; height: 20px; width: 20px; display: flex; align-items: center; justify-content: center; outline: none;" title="Voice Input">🎙️</button>
+                                </div>
+                                <button id="sector-ai-chat-send" class="btn-primary" style="height: 32px; padding: 0 14px; border-radius: 6px; font-weight: 700; font-size: 11px; cursor: pointer; border: none; background: var(--color-primary); color: #000; font-family: 'Outfit', sans-serif; white-space: nowrap;">Send</button>
                             </div>
                         </div>
                     </div>
@@ -556,7 +560,10 @@
                     <!-- Dynamic AI Screener Analyst Summary Block -->
                     <div id="screener-summary-block" style="display: none; margin-bottom: 20px; border-left: 4px solid var(--color-primary); border-radius: 8px; padding: 18px; text-align: left; width: 100%; box-sizing: border-box;">
                         <h4 style="font-size: 13px; color: var(--neon-green); margin-top: 0; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px dashed var(--border-glass); padding-bottom: 10px; display: flex; align-items: center; justify-content: space-between; font-family: 'Outfit', sans-serif;">
-                            <span>🔬 AI Screener Analyst Synthesis</span>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span>🔬 AI Screener Analyst Synthesis</span>
+                                <button class="section-speak-btn" data-target="screener-summary-text" data-title="Screener Analyst Synthesis">🔊</button>
+                            </div>
                             <span style="font-size: 9px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Discovery Sweep Diagnostics</span>
                         </h4>
                         <div id="screener-summary-text" style="font-size: 12px; line-height: 1.65; font-family: 'Inter', sans-serif;">
@@ -723,7 +730,10 @@
                     <!-- Dynamic AI Universe Explorer Analyst Summary Block -->
                     <div id="universe-summary-block" style="display: none; margin-bottom: 20px; border-left: 4px solid var(--color-primary); border-radius: 8px; padding: 18px; text-align: left; width: 100%; box-sizing: border-box;">
                         <h4 style="font-size: 13px; color: var(--neon-green); margin-top: 0; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px dashed var(--border-glass); padding-bottom: 10px; display: flex; align-items: center; justify-content: space-between; font-family: 'Outfit', sans-serif;">
-                            <span>🔬 AI Universe Explorer Analyst Synthesis</span>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span>🔬 AI Universe Explorer Analyst Synthesis</span>
+                                <button class="section-speak-btn" data-target="universe-summary-text" data-title="Universe Explorer Synthesis">🔊</button>
+                            </div>
                             <span style="font-size: 9px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Constituents Caching Diagnostics</span>
                         </h4>
                         <div id="universe-summary-text" style="font-size: 12px; line-height: 1.65; font-family: 'Inter', sans-serif;">
@@ -930,7 +940,7 @@
                 <div id="market-news-ai-briefing-wrap" class="card" style="display: none; margin-bottom: 20px; border-left: 4px solid #7c3aed; background: rgba(124, 58, 237, 0.04); border-color: #7c3aed; padding: 20px; box-shadow: 0 4px 15px rgba(124, 58, 237, 0.08);">
                     <h4 style="margin-top: 0; margin-bottom: 12px; font-size: 13.5px; color: #a855f7; display: flex; align-items: center; gap: 8px; font-family: 'Outfit', sans-serif; letter-spacing: 0.04em; text-transform: uppercase; border-bottom: 1px dashed var(--border-glass); padding-bottom: 10px;">
                         <span>✨ AI MARKET INTELLIGENCE SYNTHESIS</span>
-                        <button id="market-news-ai-read-aloud-btn" class="no-print" style="margin-left: 12px; background: rgba(168,85,247,0.12); color: #c084fc; border: 1px solid rgba(168,85,247,0.3); padding: 3px 8px; font-size: 9.5px; border-radius: 4px; cursor: pointer; font-family: 'Outfit', sans-serif; font-weight: 700; transition: all 0.2s;">🔊 Play Briefing</button>
+                        <button id="market-news-ai-read-aloud-btn" class="no-print" style="margin-left: 12px; background: rgba(168,85,247,0.12); color: #c084fc; border: 1px solid rgba(168,85,247,0.3); padding: 3px 6px; font-size: 11px; border-radius: 4px; cursor: pointer; font-family: 'Outfit', sans-serif; font-weight: 700; transition: all 0.2s;">🔊</button>
                         <span id="market-news-ai-time-badge" style="font-size: 9px; color: var(--text-muted); text-transform: uppercase; margin-left: auto; font-family: monospace;">Audited Just Now</span>
                     </h4>
                     <p id="market-news-ai-synthesis" style="font-size: 12px; line-height: 1.65; color: var(--text-primary); margin-bottom: 15px;">
@@ -1269,9 +1279,6 @@
                             <button id="export-pitchbook-btn" class="header-action-btn" style="display: none; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 4px; background: rgba(59, 130, 246, 0.12); border: 1px solid rgba(59, 130, 246, 0.3); font-size: 11px; font-weight: bold; color: var(--color-primary-light); cursor: pointer; margin-left: 10px; height: 26px; border-radius: 99px;">
                                 📄 Export Pitchbook
                             </button>
-                            <button id="analyzer-global-read-aloud-btn" class="header-action-btn" style="display: flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 99px; background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.3); font-size: 11px; font-weight: bold; color: #34d399; cursor: pointer; margin-left: 10px; height: 26px;" title="Read Active Tab Narrative Aloud">
-                                🔊 Listen Tab
-                            </button>
                         </div>
                     </div>
 
@@ -1532,7 +1539,10 @@
                                 </div>
 
                                 <div class="cio-thesis-text" style="margin-top: 15px; padding: 10px 12px; background: rgba(59, 130, 246, 0.03); border-left: 3.5px solid var(--color-primary); border-radius: 0 6px 6px 0; border-top: 1px solid rgba(255,255,255,0.02); border-right: 1px solid rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.02); box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%; box-sizing: border-box;">
-                                    <h4 style="margin: 0 0 5px 0; font-size: 10.5px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">⚖️ CIO Strategic Investment Thesis</h4>
+                                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px;">
+                                        <h4 style="margin: 0; font-size: 10.5px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">⚖️ CIO Strategic Investment Thesis</h4>
+                                        <button class="section-speak-btn" data-target="cio-investment-thesis" data-title="CIO Strategic Thesis">🔊</button>
+                                    </div>
                                     <p id="cio-investment-thesis" style="font-size: 11.5px; line-height: 1.5; color: var(--text-muted); margin: 0;">...</p>
                                 </div>
 
@@ -1800,12 +1810,18 @@
 
                             <!-- Consolidated AI/LLM Technical timing summary -->
                             <div id="tech-timing-ai-summary-block" style="margin-top: 15px; padding: 10px 12px; background: rgba(16, 185, 129, 0.03); border-left: 2.5px solid var(--color-emerald); border-radius: 0 6px 6px 0; border-top: 1px dashed rgba(255,255,255,0.05); border-right: 1px solid rgba(255,255,255,0.05); border-bottom: 1px solid rgba(255,255,255,0.05); width: 100%; box-sizing: border-box;">
-                                <span style="font-size: 9px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; display: block; letter-spacing: 0.05em; margin-bottom: 4px;">🤖 AI Technical Timing & Momentum Synthesis</span>
+                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+                                    <span style="font-size: 9px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">🤖 AI Technical Timing & Momentum Synthesis</span>
+                                    <button class="section-speak-btn" data-target="tech-timing-ai-summary-text" data-title="Technical Timing Synthesis">🔊</button>
+                                </div>
                                 <p id="tech-timing-ai-summary-text" style="font-size: 11px; color: var(--text-muted); line-height: 1.45; margin: 0;">Generating technical timing synthesis...</p>
                             </div>
 
                             <div id="tech-timing-layman-block" style="margin-top: 15px; padding: 10px 12px; background: rgba(59, 130, 246, 0.03); border-left: 2.5px solid var(--color-primary); border-radius: 0 6px 6px 0; border-top: 1px dashed rgba(255,255,255,0.05); border-right: 1px solid rgba(255,255,255,0.05); border-bottom: 1px solid rgba(255,255,255,0.05); width: 100%; box-sizing: border-box;">
-                                <span style="font-size: 9px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; display: block; letter-spacing: 0.05em; margin-bottom: 4px;">💡 Layman Timing Translation</span>
+                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+                                    <span style="font-size: 9px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">💡 Layman Timing Translation</span>
+                                    <button class="section-speak-btn" data-target="tech-timing-layman-text" data-title="Layman Timing Translation">🔊</button>
+                                </div>
                                 <p id="tech-timing-layman-text" style="font-size: 11px; color: var(--text-muted); line-height: 1.45; margin: 0;">Analyzing moving average crossovers and oversold triggers...</p>
                             </div>
                         </div>
@@ -2065,7 +2081,10 @@
                             
                             <!-- Dynamic Sandbox AI Thesis Narrative Block -->
                             <div id="dcf-thesis-block" style="padding: 10px 12px; background: rgba(59, 130, 246, 0.03); border-left: 2.5px solid var(--color-primary); border-radius: 0 6px 6px 0; border-top: 1px dashed rgba(255,255,255,0.05); border-right: 1px solid rgba(255,255,255,0.05); border-bottom: 1px solid rgba(255,255,255,0.05); width: 100%; box-sizing: border-box;">
-                                <span style="font-size: 9px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; display: block; letter-spacing: 0.05em; margin-bottom: 4px;">📈 Sandbox AI Thesis Narrative</span>
+                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+                                    <span style="font-size: 9px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">📈 Sandbox AI Thesis Narrative</span>
+                                    <button class="section-speak-btn" data-target="dcf-sandbox-thesis-text" data-title="DCF Sandbox Thesis">🔊</button>
+                                </div>
                                 <p id="dcf-sandbox-thesis-text" style="font-size: 11px; color: var(--text-muted); line-height: 1.45; margin: 0;">Adjust sliders to synthesize valuation narrative...</p>
                             </div>
                         </div>
@@ -2302,7 +2321,10 @@
                             
                             <!-- AI Solvency Interpretation Block -->
                             <div id="earnings-quality-summary-block" style="padding: 10px 12px; background: rgba(59, 130, 246, 0.03); border-left: 2.5px solid var(--color-primary); border-radius: 0 6px 6px 0; border-top: 1px dashed rgba(255,255,255,0.05); border-right: 1px solid rgba(255,255,255,0.05); border-bottom: 1px solid rgba(255,255,255,0.05); width: 100%; box-sizing: border-box; transition: all 0.3s ease;">
-                                <span style="font-size: 9px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; display: block; letter-spacing: 0.05em; margin-bottom: 4px;">🛡️ AI Solvency & Earnings Quality Interpretation</span>
+                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+                                    <span style="font-size: 9px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">🛡️ AI Solvency & Earnings Quality Interpretation</span>
+                                    <button class="section-speak-btn" data-target="earnings-quality-summary-text" data-title="Solvency & Earnings Quality">🔊</button>
+                                </div>
                                 <p id="earnings-quality-summary-text" style="font-size: 11px; color: var(--text-muted); line-height: 1.45; margin: 0;">Analyzing earnings quality indicators and structural solvency trends...</p>
                             </div>
                         </div>
@@ -2354,7 +2376,10 @@
                                 <canvas id="stock-chart"></canvas>
                             </div>
                             <div id="price-trend-summary-block" style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed var(--border-glass); width: 100%;">
-                                <span style="font-size: 10px; color: var(--text-secondary); font-weight: 600; display: block; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 5px;">AI Historical Price & Trend Interpretation</span>
+                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px;">
+                                    <span style="font-size: 10px; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">AI Historical Price & Trend Interpretation</span>
+                                    <button class="section-speak-btn" data-target="price-trend-summary-text" data-title="Price & Trend Verdict">🔊</button>
+                                </div>
                                 <p id="price-trend-summary-text" style="font-size: 11px; color: var(--text-muted); line-height: 1.45; margin: 0;">Analyzing price channels, moving averages, and dynamic resistance zones...</p>
                             </div>
                         </div>
@@ -2577,7 +2602,10 @@
                                 </div>
                             </div>
                             <div class="vol-summary-block" style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed var(--border-glass); width: 100%;">
-                                <span style="font-size: 10px; color: var(--text-secondary); font-weight:600; display:block; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:5px;">Volatility & Momentum Summary</span>
+                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px;">
+                                    <span style="font-size: 10px; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Volatility & Momentum Summary</span>
+                                    <button class="section-speak-btn" data-target="vol-summary-text" data-title="Volatility & Momentum Verdict">🔊</button>
+                                </div>
                                 <p id="vol-summary-text" style="font-size: 11px; color: var(--text-muted); line-height:1.45; margin:0;">Analyzing technical indicators...</p>
                             </div>
                         </div>
@@ -2717,7 +2745,10 @@
                             </div>
                             
                             <div id="drawdown-summary-block" style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed var(--border-glass); width: 100%;">
-                                <span style="font-size: 10px; color: var(--text-secondary); font-weight: 600; display: block; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 5px;">AI Risk Chartist Interpretation</span>
+                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px;">
+                                    <span style="font-size: 10px; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">AI Risk Chartist Interpretation</span>
+                                    <button class="section-speak-btn" data-target="drawdown-summary-text" data-title="Risk Chartist Verdict">🔊</button>
+                                </div>
                                 <p id="drawdown-summary-text" style="font-size: 11px; color: var(--text-muted); line-height: 1.45; margin: 0;">Analyzing drawdown patterns and volatility recovery cycles...</p>
                             </div>
                         </div>
@@ -2787,7 +2818,10 @@
                             <!-- Detailed Audit Checklist Panel (AI Summary Box + Detail Panel) -->
                             <div id="audit-summary-box" style="display: none; margin-bottom: 18px; background: var(--bg-card); border: 1px solid var(--border-glass); border-left: 4px solid var(--color-emerald); border-radius: 8px; padding: 18px; text-align: left; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
                                 <h4 style="font-size: 13px; color: var(--neon-green); margin-top: 0; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px dashed var(--border-glass); padding-bottom: 10px; display: flex; align-items: center; justify-content: space-between; font-family: 'Outfit', sans-serif;">
-                                    <span>📊 AI Matrix Operational Synthesis</span>
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <span>📊 AI Matrix Operational Synthesis</span>
+                                        <button class="section-speak-btn" data-target="audit-summary-text" data-title="Matrix Operational Synthesis">🔊</button>
+                                    </div>
                                     <span style="font-size: 9px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Strategic Decision Summary</span>
                                 </h4>
                                 <div id="audit-summary-text" style="font-size: 12px; line-height: 1.65; color: var(--text-muted); max-height: 300px; overflow-y: auto; padding-right: 5px; font-family: 'Inter', sans-serif;">
@@ -2805,6 +2839,7 @@
                                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed var(--border-glass); padding-bottom: 10px; margin-bottom: 15px;">
                                     <h4 style="margin: 0; font-size: 13px; color: var(--color-amber); text-transform: uppercase; letter-spacing: 0.06em; font-family: 'Outfit', sans-serif; display: flex; align-items: center; gap: 8px;">
                                         <span>⚔️ AI Multi-Agent Verdict Debate</span>
+                                        <button class="section-speak-btn" data-target="audit-debate-dialogue" data-title="Verdict Debate Dialogue">🔊</button>
                                     </h4>
                                     <span style="font-size: 9px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.04em;">Dialectic Consensus Audit</span>
                                 </div>
@@ -2857,9 +2892,12 @@
 
                             <!-- AI/LLM Summary Section -->
                             <div id="volume-ai-summary-container" style="margin-bottom: 20px; background: rgba(59, 130, 246, 0.04); border: 1px solid var(--border-glass); padding: 15px; border-radius: 8px; border-left: 4px solid var(--color-primary);">
-                                <h4 style="margin: 0 0 8px 0; font-family: 'Outfit', sans-serif; font-size: 12.5px; font-weight: 700; color: var(--color-primary-light); display: flex; align-items: center; gap: 6px;">
-                                    <span>🤖 AI Price-Volume Analytical Synthesis</span>
-                                </h4>
+                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                                    <h4 style="margin: 0; font-family: 'Outfit', sans-serif; font-size: 12.5px; font-weight: 700; color: var(--color-primary-light); display: flex; align-items: center; gap: 6px;">
+                                        <span>🤖 AI Price-Volume Analytical Synthesis</span>
+                                    </h4>
+                                    <button class="section-speak-btn" data-target="volume-ai-summary-text" data-title="Price-Volume Synthesis">🔊</button>
+                                </div>
                                 <div id="volume-ai-summary-text" style="font-size: 11.5px; color: var(--text-secondary); line-height: 1.6; font-family: 'Inter', sans-serif;">
                                     Generating AI synthesis...
                                 </div>
@@ -3107,6 +3145,7 @@
                                         <div style="display: flex; align-items: center; gap: 8px; font-weight: 600; color: var(--text-primary);">
                                             <span id="tv-ai-insights-toggle-icon" style="font-size: 8px; transition: transform 0.2s ease; display: inline-block; color: var(--text-secondary);">▼</span>
                                             <span>✨ Custom Indicator AI Insights</span>
+                                            <button class="section-speak-btn" data-target="tv-ai-synthesis-content" data-title="Custom Indicator Insights" style="margin-left: 5px;">🔊</button>
                                             <span class="llm-engine-badge" style="font-size: 8px; background: rgba(168, 85, 247, 0.2); border: 1px solid rgba(168, 85, 247, 0.4); color: #c084fc; padding: 2px 6px; border-radius: 4px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; line-height: 1;">Groq Llama 3</span>
                                         </div>
                                         <button id="tv-btn-generate-synthesis" style="background: linear-gradient(135deg, #7c3aed, #4f46e5); color: #ffffff; border: none; padding: 6px 14px; font-size: 11px; font-weight: 600; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 5px; transition: all 0.2s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.15);">
@@ -4543,7 +4582,10 @@
                                 <!-- Watchlist AI Summary Box -->
                                 <div id="watchlist-summary-box" style="display: none; margin-bottom: 15px; background: rgba(0, 0, 0, 0.25); border: 1px solid var(--border-glass); border-radius: 8px; padding: 15px; text-align: left;">
                                     <h4 style="font-size: 12.5px; color: var(--color-emerald); margin-top: 0; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px dashed var(--border-glass); padding-bottom: 8px; display: flex; align-items: center; justify-content: space-between;">
-                                        <span>📊 AI Watchlist Portfolio Summary</span>
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <span>📊 AI Watchlist Portfolio Summary</span>
+                                            <button class="section-speak-btn" data-target="watchlist-summary-text" data-title="Watchlist Portfolio Summary">🔊</button>
+                                        </div>
                                         <span style="font-size: 9.5px; color: var(--text-secondary); text-transform: uppercase;">Active Synthesis</span>
                                     </h4>
                                     <div id="watchlist-summary-text" style="font-size: 12px; line-height: 1.6; color: var(--text-muted); max-height: 250px; overflow-y: auto;">
@@ -4564,8 +4606,9 @@
                                     </div>
                                     <!-- Consensus Verdict Distribution Thermometer Card -->
                                     <div class="card" style="min-height: 240px; box-sizing: border-box; padding: 15px; display: flex; flex-direction: column; justify-content: space-between;">
-                                        <h4 style="margin: 0 0 10px 0; font-family: 'Outfit', sans-serif; font-size: 11px; font-weight: 700; text-transform: uppercase;">
-                                            ⚖️ Consensus Verdict Distribution
+                                        <h4 style="margin: 0 0 10px 0; font-family: 'Outfit', sans-serif; font-size: 11px; font-weight: 700; text-transform: uppercase; display: flex; align-items: center; justify-content: space-between;">
+                                            <span>⚖️ Consensus Verdict Distribution</span>
+                                            <button class="section-speak-btn" data-target="watchlist-consensus-verdict-summary" data-title="Consensus Verdict Summary">🔊</button>
                                         </h4>
                                         <div style="flex-grow: 1; display: flex; flex-direction: column; justify-content: center; gap: 15px;">
                                             <div class="watchlist-consensus-thermometer" style="display: flex; height: 16px; border-radius: 8px; overflow: hidden; background: rgba(255,255,255,0.04); border: 1px solid rgba(0,0,0,0.15);">
@@ -4817,7 +4860,7 @@
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                                 <h4 style="font-size: 13px; color: var(--neon-green); border-left: 3px solid var(--neon-green); padding-left: 10px; text-transform: uppercase; letter-spacing: 0.05em; margin: 0;">Actionable Doctor's Prescription</h4>
                                 <div style="display: flex; gap: 8px;">
-                                    <button class="btn-secondary no-print" id="portfolio-doctor-read-aloud-btn" style="font-size: 11px; padding: 5px 10px; height: auto; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; font-weight:600; background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.3); color: #34d399;">🔊 Listen</button>
+                                    <button class="btn-secondary no-print" id="portfolio-doctor-read-aloud-btn" style="background: none; border: none; cursor: pointer; padding: 0; outline: none; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; color: var(--neon-green);">🔊</button>
                                     <button class="btn-secondary no-print" id="print-portfolio-report-btn" style="font-size: 11px; padding: 5px 10px; height: auto; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; font-weight:600;"><span style="font-size: 12px;">🖨️</span> Print Diagnostic Report</button>
                                 </div>
                             </div>
@@ -5054,7 +5097,10 @@
                     <!-- Detailed AI Summary Box -->
                         <div id="tax-prescription-box" style="display: none; margin-top: 25px; border-top: 1px dashed var(--border-glass); padding-top: 20px;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                                <h4 style="font-size: 13px; color: var(--neon-green); border-left: 3px solid var(--neon-green); padding-left: 10px; text-transform: uppercase; letter-spacing: 0.05em; margin: 0;">📋 Detailed AI Capital Gains Diagnostic Prescription</h4>
+                                <h4 style="font-size: 13px; color: var(--neon-green); border-left: 3px solid var(--neon-green); padding-left: 10px; text-transform: uppercase; letter-spacing: 0.05em; margin: 0; display: inline-flex; align-items: center; gap: 8px;">
+                                    <span>📋 Detailed AI Capital Gains Diagnostic Prescription</span>
+                                    <button class="section-speak-btn no-print" data-target="tax-prescription-content" data-title="Capital Gains Diagnostic" style="background: none; border: none; cursor: pointer; padding: 0; outline: none; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; color: var(--neon-green);">🔊</button>
+                                </h4>
                             </div>
                             <div id="tax-prescription-content" class="prescription-markdown" style="font-size: 12.5px; line-height: 1.6; color: var(--text-muted); background: rgba(255,255,255,0.01); border: 1px solid var(--border-glass); padding: 20px; border-radius: 8px; max-height: 400px; overflow-y: auto;">
                                 <!-- AI Prescription text loaded here -->
@@ -5293,6 +5339,7 @@
                             <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-glass); padding-bottom: 8px; margin-bottom: 15px;">
                                 <h4 style="margin: 0; font-size: 13px; color: var(--text-primary); display: flex; align-items: center; gap: 6px;">
                                     <span>📊 AI Risk Assessment Matrix</span>
+                                    <button class="section-speak-btn no-print" data-target="portfolio-stress-summary-text" data-title="Macro Stress Test" style="background: none; border: none; cursor: pointer; padding: 0; outline: none; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%;">🔊</button>
                                 </h4>
                                 <span id="portfolio-stress-impact-badge" class="badge-rec" style="font-size: 10px; font-weight: 700; text-transform: uppercase;"></span>
                             </div>
@@ -5437,7 +5484,8 @@
                                 <div id="portfolio-optimizer-ai-wrap" class="card" style="display: none; margin: 0; padding: 15px; background: rgba(255,255,255,0.01); border: 1px dashed rgba(255, 255, 255, 0.08);">
                                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                                         <h4 style="font-size: 11px; text-transform: uppercase; color: var(--text-primary); margin: 0; letter-spacing: 0.04em; display: flex; align-items: center; gap: 6px;">
-                                            🤖 AI REBALANCING ADVISORY
+                                            <span>🤖 AI REBALANCING ADVISORY</span>
+                                            <button class="section-speak-btn no-print" data-target="portfolio-optimizer-ai-result" data-title="AI Rebalancing Advisory" style="background: none; border: none; cursor: pointer; padding: 0; outline: none; font-size: 11px; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%;">🔊</button>
                                         </h4>
                                         <button class="btn-primary" id="run-optimizer-ai-btn" style="padding: 4px 10px; font-size: 9px; border-radius: 4px; font-weight: 700; border: none; cursor: pointer; display: flex; align-items: center; gap: 4px; height: auto;">
                                             ✨ Generate Report
@@ -5873,7 +5921,7 @@
                                     </div>
                                 </div>
                                 <div class="academy-topic-header-right" style="display: flex; gap: 8px; align-items: center;">
-                                    <button id="academy-read-aloud-btn" class="academy-action-btn" style="background: rgba(37,99,235,0.1); color: var(--color-primary-light); border: 1px solid rgba(37,99,235,0.35);">🔊 Listen</button>
+                                    <button id="academy-read-aloud-btn" class="academy-action-btn" style="display: none; background: rgba(37,99,235,0.1); color: var(--color-primary-light); border: 1px solid rgba(37,99,235,0.35);">🔊 Listen</button>
                                     <button id="academy-draw-toggle-btn" class="academy-action-btn" title="Toggle Drawing Mode">✏️ Draw</button>
                                     <button id="academy-mark-complete-btn" class="academy-action-btn">✅ Mark Complete</button>
                                 </div>
@@ -5884,7 +5932,10 @@
                                 <div class="academy-workbench-left">
                                     <!-- Explanation Card -->
                                     <div class="academy-card">
-                                        <div class="academy-card-header"><h4>📖 Concept Explanation</h4></div>
+                                        <div class="academy-card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                                            <h4 style="margin: 0;">📖 Concept Explanation</h4>
+                                            <button class="section-speak-btn" data-target="academy-explanation-body" data-title="Concept Explanation">🔊</button>
+                                        </div>
                                         <div class="academy-card-body" id="academy-explanation-body"></div>
                                     </div>
 
@@ -5896,7 +5947,10 @@
 
                                     <!-- Layman Details Card -->
                                     <div class="academy-card">
-                                        <div class="academy-card-header"><h4>💡 Layman Analogy & Core Takeaway</h4></div>
+                                        <div class="academy-card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                                            <h4 style="margin: 0;">💡 Layman Analogy & Core Takeaway</h4>
+                                            <button class="section-speak-btn" data-target="academy-layman-body" data-title="Layman Analogy">🔊</button>
+                                        </div>
                                         <div class="academy-card-body" id="academy-layman-body"></div>
                                     </div>
                                 </div>
@@ -5921,7 +5975,10 @@
                                                 </div>
                                                 <div id="academy-custom-visual-board" style="width: 100%; min-height: 280px; background: rgba(0,0,0,0.1); border-radius: 8px; border: 1px solid var(--border-glass); padding: 15px; box-sizing: border-box; overflow: auto; position: relative;"></div>
                                                 <div id="academy-ai-auditor-panel" style="background: rgba(59, 130, 246, 0.08); border-left: 4px solid var(--color-primary); padding: 12px; border-radius: 4px; font-size: 12.5px; line-height: 1.5; color: var(--text-primary);">
-                                                    <div style="font-weight: 600; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">🔍 AI Auditor Insights</div>
+                                                    <div style="font-weight: 600; margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                                                        <div style="display: flex; align-items: center; gap: 6px;">🔍 AI Auditor Insights</div>
+                                                        <button class="section-speak-btn" data-target="academy-ai-auditor-text" data-title="AI Auditor Insights">🔊</button>
+                                                    </div>
                                                     <div id="academy-ai-auditor-text" style="color: var(--text-muted);">Select a topic and adjust inputs to trigger dynamic auditor commentary.</div>
                                                 </div>
                                             </div>
@@ -5953,7 +6010,10 @@
                                     <!-- AI Case Study Card -->
                                     <div class="academy-card">
                                         <div class="academy-card-header" style="display: flex; justify-content: space-between; align-items: center; width: 100%; box-sizing: border-box;">
-                                            <h4>🧠 AI Market Case Study</h4>
+                                            <div style="display: flex; align-items: center; gap: 8px;">
+                                                <h4 style="margin: 0;">🧠 AI Market Case Study</h4>
+                                                <button class="section-speak-btn" data-target="academy-scenario-body" data-title="Market Case Study">🔊</button>
+                                            </div>
                                             <button id="academy-generate-scenario-btn" class="btn-primary no-print" style="font-size: 10px; padding: 5px 12px; height: 28px; line-height: 16px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; box-shadow: none;"><span>⚡</span> Generate Case Study</button>
                                         </div>
                                         <div class="academy-card-body">
@@ -6209,6 +6269,57 @@
         <div style="font-size: 8.5px; color: var(--text-muted); margin-bottom: 8px;" id="hover-tooltip-subtitle">Historical 3-Year Trend</div>
         <div style="height: 120px; width: 100%; position: relative;">
             <canvas id="hover-tooltip-chart"></canvas>
+        </div>
+    </div>
+
+    <!-- Floating Speech Controller Panel (Glassmorphism design) -->
+    <div id="speech-controller-panel" class="speech-panel-adaptive">
+        <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-glass); padding-bottom: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <!-- Animated audio bars -->
+                <div id="speech-wave" style="display: flex; align-items: flex-end; gap: 2.5px; height: 12px; width: 22px;">
+                    <div class="wave-bar" style="width: 3px; height: 4px; background: var(--color-primary); border-radius: 1.5px; animation: bounce 0.8s ease-in-out infinite alternate;"></div>
+                    <div class="wave-bar" style="width: 3px; height: 3px; background: var(--color-primary); border-radius: 1.5px; animation: bounce 0.6s ease-in-out infinite alternate 0.2s;"></div>
+                    <div class="wave-bar" style="width: 3px; height: 5px; background: var(--color-primary); border-radius: 1.5px; animation: bounce 0.9s ease-in-out infinite alternate 0.4s;"></div>
+                    <div class="wave-bar" style="width: 3px; height: 3px; background: var(--color-primary); border-radius: 1.5px; animation: bounce 0.7s ease-in-out infinite alternate 0.1s;"></div>
+                </div>
+                <span id="speech-panel-title" style="font-size: 11px; font-weight: 700; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px;">Reading Section</span>
+            </div>
+            <button id="speech-panel-close-btn" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 16px; padding: 0 4px; display: inline-flex; align-items: center; justify-content: center; outline: none;" title="Close">&times;</button>
+        </div>
+        
+        <!-- Controls Layout -->
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 4px;">
+            <!-- Play / Pause / Stop Buttons -->
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <button id="speech-control-prev" class="speech-btn" title="Previous Sentence">⏮️</button>
+                <button id="speech-control-play-pause" class="speech-btn speech-btn-play" title="Play/Pause">⏸️</button>
+                <button id="speech-control-next" class="speech-btn" title="Next Sentence">⏭️</button>
+                <button id="speech-control-stop" class="speech-btn speech-btn-stop" title="Stop">⏹️</button>
+            </div>
+            
+            <!-- Speed (Rate) Selector -->
+            <div style="display: flex; align-items: center; gap: 5px;">
+                <span style="font-size: 9px; color: var(--text-muted); font-weight: 600; letter-spacing: 0.05em;">SPEED:</span>
+                <select id="speech-control-rate">
+                    <option value="0.75">0.75x</option>
+                    <option value="1.0" selected>1.0x</option>
+                    <option value="1.25">1.25x</option>
+                    <option value="1.5">1.5x</option>
+                    <option value="2.0">2.0x</option>
+                </select>
+            </div>
+        </div>
+        
+        <!-- Progress Indicator -->
+        <div style="width: 100%; display: flex; flex-direction: column; gap: 3px; margin-top: 4px;">
+            <div style="display: flex; justify-content: space-between; font-size: 8.5px; color: var(--text-muted); font-weight: 700; font-family: monospace; letter-spacing: 0.03em;">
+                <span id="speech-progress-text">Sentence 1/1</span>
+                <span id="speech-progress-pct">0%</span>
+            </div>
+            <div style="width: 100%; height: 4px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; position: relative;">
+                <div id="speech-progress-bar" style="width: 0%; height: 100%; background: var(--color-primary); border-radius: 2px; transition: width 0.3s ease;"></div>
+            </div>
         </div>
     </div>
 

@@ -21,7 +21,9 @@
 
     // Android TTS Done callback
     window.onAndroidTtsDone = function() {
-        if (window.AndroidSpeechSpeaking && window.currentAdvisorSpeechButton) {
+        if (window.SpeechPlayer && window.SpeechPlayer.isActive && window.SpeechPlayer.isPlaying) {
+            window.SpeechPlayer.onAndroidTtsDone();
+        } else if (window.AndroidSpeechSpeaking && window.currentAdvisorSpeechButton) {
             const originalText = window.currentAdvisorSpeechButton.getAttribute('data-original-text') || '🔊 Read Aloud';
             window.currentAdvisorSpeechButton.innerHTML = originalText;
             window.currentAdvisorSpeechButton.style.color = '';
@@ -37,7 +39,10 @@
     window.onAndroidSpeechStart = function() {
         window.AndroidSpeechListening = true;
         const activeTarget = window.activeSpeechRecognizerTarget || 'chat';
-        const micBtn = document.getElementById(activeTarget === 'analyzer' ? 'analyzer-voice-search-btn' : 'chat-mic-btn');
+        let micBtnId = 'chat-mic-btn';
+        if (activeTarget === 'analyzer') micBtnId = 'analyzer-voice-search-btn';
+        else if (activeTarget === 'rotation') micBtnId = 'sector-ai-voice-btn';
+        const micBtn = document.getElementById(micBtnId);
         if (micBtn) {
             micBtn.innerHTML = '🔴';
             micBtn.classList.add('mic-listening');
@@ -46,7 +51,10 @@
     window.onAndroidSpeechEnd = function() {
         window.AndroidSpeechListening = false;
         const activeTarget = window.activeSpeechRecognizerTarget || 'chat';
-        const micBtn = document.getElementById(activeTarget === 'analyzer' ? 'analyzer-voice-search-btn' : 'chat-mic-btn');
+        let micBtnId = 'chat-mic-btn';
+        if (activeTarget === 'analyzer') micBtnId = 'analyzer-voice-search-btn';
+        else if (activeTarget === 'rotation') micBtnId = 'sector-ai-voice-btn';
+        const micBtn = document.getElementById(micBtnId);
         if (micBtn) {
             micBtn.innerHTML = '🎙️';
             micBtn.classList.remove('mic-listening');
@@ -55,7 +63,10 @@
     window.onAndroidSpeechError = function(errorMsg) {
         window.AndroidSpeechListening = false;
         const activeTarget = window.activeSpeechRecognizerTarget || 'chat';
-        const micBtn = document.getElementById(activeTarget === 'analyzer' ? 'analyzer-voice-search-btn' : 'chat-mic-btn');
+        let micBtnId = 'chat-mic-btn';
+        if (activeTarget === 'analyzer') micBtnId = 'analyzer-voice-search-btn';
+        else if (activeTarget === 'rotation') micBtnId = 'sector-ai-voice-btn';
+        const micBtn = document.getElementById(micBtnId);
         if (micBtn) {
             micBtn.innerHTML = '🎙️';
             micBtn.classList.remove('mic-listening');
@@ -74,6 +85,11 @@
             }
             if (typeof resolveVoiceQuery === 'function') {
                 resolveVoiceQuery(transcript);
+            }
+        } else if (activeTarget === 'rotation') {
+            const input = document.getElementById('sector-ai-chat-input');
+            if (input) {
+                input.value = (input.value ? input.value + ' ' : '') + transcript;
             }
         } else {
             const input = document.getElementById('chat-user-input');
@@ -3049,10 +3065,298 @@ function getActiveTabNarrativeText() {
         text = `This is the ${tabTitle} tab. It displays interactive indicators, charts, and database tables. Please switch to the Executive Summary, Valuation and D C F, or Agent Strategy Audit sub-tabs to listen to AI-generated narrative summaries.`;
     }
     
-    return text.trim();
+        return text.trim();
 }
 
+// Global Voice Synthesis Player Controller (Option B with Glassmorphic Floating Panel)
+window.SpeechPlayer = {
+    sentences: [],
+    currentIndex: -1,
+    isPlaying: false,
+    isActive: false,
+    rate: 1.0,
+    targetElementId: null,
+    title: "",
+    isAndroid: false,
+    activeUtterance: null,
+
+    init() {
+        this.isAndroid = window.AndroidTts && typeof window.AndroidTts.speak === 'function';
+        this.bindEvents();
+    },
+
+    bindEvents() {
+        const playPauseBtn = document.getElementById('speech-control-play-pause');
+        if (playPauseBtn) {
+            playPauseBtn.addEventListener('click', () => this.togglePlayPause());
+        }
+        const stopBtn = document.getElementById('speech-control-stop');
+        if (stopBtn) {
+            stopBtn.addEventListener('click', () => this.stop());
+        }
+        const prevBtn = document.getElementById('speech-control-prev');
+        if (prevBtn) {
+            prevBtn.addEventListener('click', () => this.prevSentence());
+        }
+        const nextBtn = document.getElementById('speech-control-next');
+        if (nextBtn) {
+            nextBtn.addEventListener('click', () => this.nextSentence());
+        }
+        const closeBtn = document.getElementById('speech-panel-close-btn');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => this.stop());
+        }
+        const rateSelect = document.getElementById('speech-control-rate');
+        if (rateSelect) {
+            rateSelect.addEventListener('change', (e) => {
+                this.setRate(parseFloat(e.target.value));
+            });
+        }
+
+        // Delegate click for speak buttons dynamically
+        document.body.addEventListener('click', (e) => {
+            const btn = e.target.closest('.section-speak-btn');
+            if (btn) {
+                e.preventDefault();
+                e.stopPropagation();
+                const targetId = btn.getAttribute('data-target');
+                const title = btn.getAttribute('data-title') || "Narrative Audio";
+                this.startSpeakingSection(targetId, title, false);
+            }
+        });
+    },
+
+    startSpeakingSection(targetIdOrText, title, isDirectText = false) {
+        let text = "";
+        if (isDirectText) {
+            text = targetIdOrText;
+            this.targetElementId = "__direct_text__";
+        } else {
+            const targetEl = document.getElementById(targetIdOrText);
+            if (!targetEl) {
+                if (typeof showToast === 'function') {
+                    showToast("Content container not found.", "warning");
+                }
+                return;
+            }
+            text = targetEl.innerText || targetEl.textContent || "";
+            this.targetElementId = targetIdOrText;
+        }
+
+        text = text.trim();
+        // Clean markdown indicators
+        text = text.replace(/[*#`_\-]/g, '');
+
+        if (!text || text === "..." || text.includes("Generating") || text.includes("Analyzing") || text.includes("Select a topic") || text.includes("Run analysis to compile") || text.includes("Diagnostic text loaded here") || text.includes("Click \"Generate Report\"") || text.includes("Click 'Generate Report'") || text.includes("AI Prescription text loaded here")) {
+            if (typeof showToast === 'function') {
+                showToast("No analysis available to read yet. Please generate analysis first.", "warning");
+            }
+            return;
+        }
+
+        if (this.isActive && this.targetElementId === (isDirectText ? "__direct_text__" : targetIdOrText)) {
+            this.togglePlayPause();
+            return;
+        }
+
+        this.stopSilence();
+
+        this.title = title;
+        this.isActive = true;
+
+        // Split sentences cleanly
+        this.sentences = text.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(s => s.length > 0);
+        
+        if (this.sentences.length === 0) {
+            this.sentences = [text];
+        }
+
+        this.currentIndex = 0;
+        this.rate = parseFloat(document.getElementById('speech-control-rate').value || "1.0");
+        
+        const panel = document.getElementById('speech-controller-panel');
+        if (panel) {
+            panel.style.display = 'flex';
+            panel.offsetHeight; // reflow
+            panel.style.transform = 'translateY(0)';
+            panel.style.opacity = '1';
+        }
+
+        const titleEl = document.getElementById('speech-panel-title');
+        if (titleEl) {
+            titleEl.innerText = this.title;
+        }
+
+        this.speakCurrent();
+    },
+
+    speakCurrent() {
+        if (!this.isActive || this.currentIndex < 0 || this.currentIndex >= this.sentences.length) {
+            this.stop();
+            return;
+        }
+
+        this.isPlaying = true;
+        this.updateUI();
+
+        const sentenceText = this.sentences[this.currentIndex];
+
+        if (this.isAndroid) {
+            window.AndroidSpeechSpeaking = true;
+            window.AndroidTts.setSpeechRate(this.rate);
+            window.AndroidTts.speak(sentenceText, "sentence_" + this.currentIndex);
+        } else {
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(sentenceText);
+            this.activeUtterance = utterance;
+            utterance.rate = this.rate;
+            utterance.onend = () => {
+                if (utterance === this.activeUtterance && this.isPlaying && this.isActive) {
+                    this.nextSentenceAuto();
+                }
+            };
+            utterance.onerror = (e) => {
+                if (e.error === 'interrupted' || e.error === 'cancelled') {
+                    return;
+                }
+                console.error("Speech Synthesis error", e);
+                if (utterance === this.activeUtterance && this.isPlaying && this.isActive) {
+                    this.nextSentenceAuto();
+                }
+            };
+            window.speechSynthesis.speak(utterance);
+        }
+    },
+
+    onAndroidTtsDone() {
+        if (this.isPlaying && this.isActive) {
+            this.nextSentenceAuto();
+        }
+    },
+
+    nextSentenceAuto() {
+        if (this.currentIndex < this.sentences.length - 1) {
+            this.currentIndex++;
+            this.speakCurrent();
+        } else {
+            this.stop();
+        }
+    },
+
+    nextSentence() {
+        if (this.currentIndex < this.sentences.length - 1) {
+            this.stopSilence();
+            this.currentIndex++;
+            this.speakCurrent();
+        }
+    },
+
+    prevSentence() {
+        if (this.currentIndex > 0) {
+            this.stopSilence();
+            this.currentIndex--;
+            this.speakCurrent();
+        }
+    },
+
+    togglePlayPause() {
+        if (!this.isActive) return;
+
+        if (this.isPlaying) {
+            this.isPlaying = false;
+            this.stopSilence();
+            this.updateUI();
+        } else {
+            this.speakCurrent();
+        }
+    },
+
+    setRate(newRate) {
+        this.rate = newRate;
+        if (this.isAndroid) {
+            window.AndroidTts.setSpeechRate(this.rate);
+        }
+        if (this.isPlaying) {
+            this.stopSilence();
+            this.speakCurrent();
+        }
+    },
+
+    stopSilence() {
+        this.activeUtterance = null;
+        if (this.isAndroid) {
+            window.AndroidTts.stop();
+            window.AndroidSpeechSpeaking = false;
+        } else {
+            window.speechSynthesis.cancel();
+        }
+    },
+
+    stop() {
+        this.stopSilence();
+        this.isPlaying = false;
+        this.isActive = false;
+        this.currentIndex = -1;
+        this.sentences = [];
+        this.updateUI();
+        this.hidePanel();
+    },
+
+    hidePanel() {
+        const panel = document.getElementById('speech-controller-panel');
+        if (panel) {
+            panel.style.transform = 'translateY(50px)';
+            panel.style.opacity = '0';
+            setTimeout(() => {
+                if (!this.isActive) {
+                    panel.style.display = 'none';
+                }
+            }, 300);
+        }
+    },
+
+    updateUI() {
+        const playPauseBtn = document.getElementById('speech-control-play-pause');
+        if (playPauseBtn) {
+            playPauseBtn.innerHTML = this.isPlaying ? "⏸️" : "▶️";
+            playPauseBtn.title = this.isPlaying ? "Pause" : "Play";
+        }
+
+        const wave = document.getElementById('speech-wave');
+        if (wave) {
+            const waveBars = wave.querySelectorAll('.wave-bar');
+            waveBars.forEach(bar => {
+                bar.style.animationPlayState = this.isPlaying ? 'running' : 'paused';
+            });
+        }
+
+        const total = this.sentences.length;
+        const current = total > 0 ? this.currentIndex + 1 : 0;
+        const progressPct = total > 0 ? Math.round((current / total) * 100) : 0;
+
+        const progressText = document.getElementById('speech-progress-text');
+        if (progressText) {
+            progressText.innerText = total > 0 ? `Sentence ${current}/${total}` : "Sentence 0/0";
+        }
+
+        const progressPctEl = document.getElementById('speech-progress-pct');
+        if (progressPctEl) {
+            progressPctEl.innerText = `${progressPct}%`;
+        }
+
+        const progressBar = document.getElementById('speech-progress-bar');
+        if (progressBar) {
+            progressBar.style.width = `${progressPct}%`;
+        }
+    }
+};
+
 function setupVoiceLoaderAndGlobalReader() {
+    // Initialize window.SpeechPlayer if present
+    if (window.SpeechPlayer) {
+        window.SpeechPlayer.init();
+    }
+
     // 1. Voice Search (Speech-to-Text Loader) setup
     const voiceSearchBtn = document.getElementById('analyzer-voice-search-btn');
     let analyzerRecognition = null;
@@ -3105,6 +3409,12 @@ function setupVoiceLoaderAndGlobalReader() {
                 if (event.error === 'no-speech') {
                     return;
                 }
+                if (event.error === 'network') {
+                    if (typeof showToast === 'function') {
+                        showToast("Speech recognition network error. Please check your internet connection.", "warning");
+                    }
+                    return;
+                }
                 if (event.error === 'not-allowed') {
                     if (typeof showToast === 'function') {
                         showToast("Microphone access denied. Please enable mic permissions in browser settings.", "warning");
@@ -3137,10 +3447,88 @@ function setupVoiceLoaderAndGlobalReader() {
                 }
                 return;
             }
-            if (typeof toggleSpeechForMessage === 'function') {
-                toggleSpeechForMessage(textToSpeak, globalReadAloudBtn);
+            if (window.SpeechPlayer) {
+                window.SpeechPlayer.startSpeakingSection(textToSpeak, "Active Tab Narrative", true);
             }
         });
+    }
+
+    // 3. Sector AI Rotation Co-Pilot Voice setup
+    const sectorVoiceBtn = document.getElementById('sector-ai-voice-btn');
+    let sectorRecognition = null;
+    let isSectorListening = false;
+
+    if (sectorVoiceBtn) {
+        const isAndroidSpeech = window.AndroidSpeech && typeof window.AndroidSpeech.startListening === 'function';
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+        if (isAndroidSpeech) {
+            sectorVoiceBtn.addEventListener('click', () => {
+                if (window.AndroidSpeechListening && window.activeSpeechRecognizerTarget === 'rotation') {
+                    window.AndroidSpeech.stopListening();
+                } else {
+                    window.activeSpeechRecognizerTarget = 'rotation';
+                    window.AndroidSpeech.startListening();
+                }
+            });
+        } else if (!SpeechRecognition) {
+            sectorVoiceBtn.style.display = 'none';
+        } else {
+            sectorRecognition = new SpeechRecognition();
+            sectorRecognition.continuous = false;
+            sectorRecognition.interimResults = false;
+            sectorRecognition.lang = 'en-IN';
+
+            sectorRecognition.onstart = () => {
+                isSectorListening = true;
+                sectorVoiceBtn.innerHTML = '🔴';
+                sectorVoiceBtn.classList.add('mic-listening');
+            };
+
+            sectorRecognition.onend = () => {
+                isSectorListening = false;
+                sectorVoiceBtn.innerHTML = '🎙️';
+                sectorVoiceBtn.classList.remove('mic-listening');
+            };
+
+            sectorRecognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                const chatInput = document.getElementById('sector-ai-chat-input');
+                if (chatInput) {
+                    chatInput.value = (chatInput.value ? chatInput.value + ' ' : '') + transcript;
+                }
+            };
+
+            sectorRecognition.onerror = (event) => {
+                console.error("Sector Co-Pilot Speech recognition error:", event.error);
+                if (event.error === 'no-speech') {
+                    return;
+                }
+                if (event.error === 'network') {
+                    if (typeof showToast === 'function') {
+                        showToast("Speech recognition network error. Please check your internet connection.", "warning");
+                    }
+                    return;
+                }
+                if (event.error === 'not-allowed') {
+                    if (typeof showToast === 'function') {
+                        showToast("Microphone access denied. Please enable mic permissions in browser settings.", "warning");
+                    }
+                    return;
+                }
+                if (typeof showToast === 'function') {
+                    showToast(`Voice input error: ${event.error}`, "error");
+                }
+            };
+
+            sectorVoiceBtn.addEventListener('click', () => {
+                if (isSectorListening) {
+                    sectorRecognition.stop();
+                } else {
+                    sectorRecognition.start();
+                }
+            });
+        }
     }
 }
 
@@ -8537,7 +8925,11 @@ function renderComparisonArena(data) {
         `;
 
         if (data.thesis) {
-            thesisHTML += data.thesis;
+            thesisHTML += data.thesis.replace(/<h4>Rival Quality & Solvency Standings<\/h4>/gi,
+                `<h4>Rival Quality & Solvency Standings <button class="section-speak-btn no-print" data-target="compare-ai-thesis" data-title="Rival Quality & Solvency" style="background: none; border: none; cursor: pointer; padding: 0; outline: none; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle;">🔊</button></h4>`
+            ).replace(/<h4>AI Comparative Analysis \(Local Fallback Workstation\)<\/h4>/gi,
+                `<h4>AI Comparative Analysis (Local Fallback Workstation) <button class="section-speak-btn no-print" data-target="compare-ai-thesis" data-title="AI Comparative Analysis" style="background: none; border: none; cursor: pointer; padding: 0; outline: none; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle;">🔊</button></h4>`
+            );
             compareThesisEl.innerHTML = thesisHTML;
         } else {
             thesisHTML += `
@@ -8566,7 +8958,11 @@ function renderComparisonArena(data) {
                     const responseData = await res.json();
 
                     if (responseData.thesis) {
-                        btnContainer.outerHTML = responseData.thesis;
+                        btnContainer.outerHTML = responseData.thesis.replace(/<h4>Rival Quality & Solvency Standings<\/h4>/gi,
+                            `<h4>Rival Quality & Solvency Standings <button class="section-speak-btn no-print" data-target="compare-ai-thesis" data-title="Rival Quality & Solvency" style="background: none; border: none; cursor: pointer; padding: 0; outline: none; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle;">🔊</button></h4>`
+                        ).replace(/<h4>AI Comparative Analysis \(Local Fallback Workstation\)<\/h4>/gi,
+                            `<h4>AI Comparative Analysis (Local Fallback Workstation) <button class="section-speak-btn no-print" data-target="compare-ai-thesis" data-title="AI Comparative Analysis" style="background: none; border: none; cursor: pointer; padding: 0; outline: none; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle;">🔊</button></h4>`
+                        );
                     } else {
                         btnContainer.innerHTML = `<p style="color: var(--neon-red); font-size: 12px;">Failed to load thesis content.</p>`;
                     }
@@ -10335,9 +10731,10 @@ function setupChatDrawer() {
         
         if (isAndroidSpeech) {
             micBtn.addEventListener('click', () => {
-                if (window.AndroidSpeechListening) {
+                if (window.AndroidSpeechListening && window.activeSpeechRecognizerTarget === 'chat') {
                     window.AndroidSpeech.stopListening();
                 } else {
+                    window.activeSpeechRecognizerTarget = 'chat';
                     window.AndroidSpeech.startListening();
                 }
             });
@@ -10372,6 +10769,12 @@ function setupChatDrawer() {
             recognition.onerror = (event) => {
                 console.error("Speech recognition error:", event.error);
                 if (event.error === 'no-speech') {
+                    return;
+                }
+                if (event.error === 'network') {
+                    if (typeof showToast === 'function') {
+                        showToast("Speech recognition network error. Please check your internet connection.", "warning");
+                    }
                     return;
                 }
                 if (event.error === 'not-allowed') {
@@ -27694,14 +28097,17 @@ window.renderTVAdvancedChart = renderTVAdvancedChart;
                     if (chatArea) {
                         chatArea.style.display = 'flex';
                         if (chatStream) {
+                            const welcomeMsg = `Hello! I am your Rotation Co-Pilot, operating context-aware of the current standings (${capType} cap segment over ${period} horizon). Ask me any follow-up question!`;
+                            const welcomeId = `rotation-msg-welcome`;
                             chatStream.innerHTML = `
                                 <div style="margin-bottom: 4px;">
                                     <span style="color: var(--color-primary); font-weight: 700;">[Co-Pilot]</span>
-                                    Hello! I am your Rotation Co-Pilot, operating context-aware of the current standings (${capType} cap segment over ${period} horizon). Ask me any follow-up question!
+                                    <button class="section-speak-btn" data-target="${welcomeId}" data-title="Rotation Co-Pilot" style="margin-left: 2px;">🔊</button>
+                                    <span id="${welcomeId}">${welcomeMsg}</span>
                                 </div>
                             `;
                             chatHistory = [
-                                { role: "assistant", content: `Hello! I am your Rotation Co-Pilot, operating context-aware of the current standings (${capType} cap segment over ${period} horizon). Ask me any follow-up question!` }
+                                { role: "assistant", content: welcomeMsg }
                             ];
                         }
                     }
@@ -27773,9 +28179,12 @@ window.renderTVAdvancedChart = renderTVAdvancedChart;
                         return `<span class="chat-inline-ticker" data-ticker="${cleanTicker}" style="font-weight: 700; color: var(--color-primary); cursor: pointer; text-decoration: underline;">${ticker}</span>`;
                     });
 
+                    const replyId = `rotation-msg-${Date.now()}`;
                     chatStream.innerHTML += `
                         <div style="margin-top: 6px;">
-                            <span style="color: var(--color-primary); font-weight: 700;">[Co-Pilot]</span> ${formattedReply}
+                            <span style="color: var(--color-primary); font-weight: 700;">[Co-Pilot]</span>
+                            <button class="section-speak-btn" data-target="${replyId}" data-title="Rotation Co-Pilot" style="margin-left: 2px;">🔊</button>
+                            <span id="${replyId}">${formattedReply}</span>
                         </div>
                     `;
                     chatHistory.push({ role: "assistant", content: reply });
