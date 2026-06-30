@@ -3119,9 +3119,11 @@ window.SpeechPlayer = {
 
     startSpeakingSection(targetIdOrText, title, isDirectText = false) {
         let text = "";
+        let identifier = "";
+
         if (isDirectText) {
             text = targetIdOrText;
-            this.targetElementId = "__direct_text__";
+            identifier = "__direct_text_" + text.length + "_" + text.slice(0, 50).replace(/[^a-zA-Z0-9]/g, "");
         } else {
             const targetEl = document.getElementById(targetIdOrText);
             if (!targetEl) {
@@ -3131,7 +3133,7 @@ window.SpeechPlayer = {
                 return;
             }
             text = targetEl.innerText || targetEl.textContent || "";
-            this.targetElementId = targetIdOrText;
+            identifier = targetIdOrText;
         }
 
         text = text.trim();
@@ -3145,13 +3147,14 @@ window.SpeechPlayer = {
             return;
         }
 
-        if (this.isActive && this.targetElementId === (isDirectText ? "__direct_text__" : targetIdOrText)) {
+        if (this.isActive && this.targetElementId === identifier) {
             this.togglePlayPause();
             return;
         }
 
         this.stopSilence();
 
+        this.targetElementId = identifier;
         this.title = title;
         this.isActive = true;
 
